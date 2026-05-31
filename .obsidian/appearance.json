@@ -1,0 +1,12 @@
+{
+  "cssTheme": "Cupertino",
+  "theme": "obsidian",
+  "interfaceFontFamily": "Helvetica",
+  "accentColor": "",
+  "enabledCssSnippets": [
+    "supercharged-links-gen",
+    "better-tables",
+    "better-mermaid",
+    "numbered-headings"
+  ]
+}

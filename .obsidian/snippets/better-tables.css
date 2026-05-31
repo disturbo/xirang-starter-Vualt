@@ -1,0 +1,95 @@
+/* ============================
+   Better Tables - Obsidian CSS Snippet
+   v3 · 2026-05-16 · 修复列宽极端不均问题
+   ============================ */
+
+/* --- 基础样式 --- */
+.markdown-rendered table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;          /* v3: fixed 均分列宽，防止单列贪吃 */
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+
+/* --- 表头 --- */
+.markdown-rendered table thead tr {
+  background-color: var(--background-modifier-hover);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.markdown-rendered table th {
+  padding: 8px 12px;
+  border-bottom: 2px solid var(--background-modifier-border);
+  white-space: normal;
+}
+
+/* --- 单元格 --- */
+.markdown-rendered table td {
+  padding: 6px 12px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--background-modifier-border);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* --- 斑马纹 --- */
+.markdown-rendered table tbody tr:nth-child(even) {
+  background-color: var(--background-secondary);
+}
+
+/* --- 悬浮高亮 --- */
+.markdown-rendered table tbody tr:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+/* --- 第一列：加粗但允许换行 --- */
+.markdown-rendered table td:first-child,
+.markdown-rendered table th:first-child {
+  font-weight: 500;
+  /* v3: 移除 nowrap，允许第一列正常换行 */
+}
+
+/* --- 最后一列：略灰 --- */
+.markdown-rendered table td:last-child {
+  color: var(--text-muted);
+  font-size: 0.92em;
+}
+
+/* ========================================
+   自适应列宽覆盖（table-layout: fixed 默认均分，
+   以下规则微调特定列数表格的比例）
+   ======================================== */
+
+/* 2列表格：30% / 70%（项 | 说明） */
+.markdown-rendered table:has(th:nth-child(2):last-child) td:first-child,
+.markdown-rendered table:has(th:nth-child(2):last-child) th:first-child {
+  width: 30%;
+}
+
+/* 3列表格：均分 33% — 用 fixed 默认即可，不额外指定 */
+
+/* 4列表格：15% / 30% / 30% / 25% */
+.markdown-rendered table:has(th:nth-child(4):last-child) td:first-child,
+.markdown-rendered table:has(th:nth-child(4):last-child) th:first-child {
+  width: 15%;
+}
+
+/* 5+列表格：首列紧凑 12%，其余均分 */
+.markdown-rendered table:has(th:nth-child(5)) td:first-child,
+.markdown-rendered table:has(th:nth-child(5)) th:first-child {
+  width: 12%;
+}
+
+/* ========================================
+   可选：手动指定列宽的 cssclass
+   在 frontmatter 添加 cssclasses: [table-auto]
+   可恢复浏览器自动分配列宽行为
+   ======================================== */
+.table-auto .markdown-rendered table,
+.markdown-rendered .table-auto table {
+  table-layout: auto;
+}

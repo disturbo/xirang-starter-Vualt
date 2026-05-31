@@ -1,0 +1,14 @@
+{
+  "positionStyle": "right",
+  "isDefaultPin": true,
+  "isDefaultHide": false,
+  "expandAllSubheadings": true,
+  "enableDragReorder": true,
+  "enableBarHeadingText": true,
+  "enableHeadingNowrap": true,
+  "enableContentOffset": false,
+  "isLeft": false,
+  "isTooltip": true,
+  "barStyle": "enable-edge-style",
+  "ignoreHeaders": ""
+}

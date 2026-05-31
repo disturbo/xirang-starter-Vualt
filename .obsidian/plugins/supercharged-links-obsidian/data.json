@@ -1,0 +1,34 @@
+{
+  "targetAttributes": ["tags", "status", "module"],
+  "preset": "Custom",
+  "match": "tag",
+  "selectors": [
+    {
+      "type": "tag",
+      "value": "PRD",
+      "label": "",
+      "color": "#3b82f6",
+      "style": { "bold": false, "italic": false },
+      "before": "",
+      "after": ""
+    },
+    {
+      "type": "tag",
+      "value": "project/yijing",
+      "label": "",
+      "color": "#8b5cf6",
+      "style": { "bold": false, "italic": false },
+      "before": "",
+      "after": ""
+    },
+    {
+      "type": "tag",
+      "value": "module",
+      "label": "",
+      "color": "#22c55e",
+      "style": { "bold": false, "italic": false },
+      "before": "",
+      "after": ""
+    }
+  ]
+}

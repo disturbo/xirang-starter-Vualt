@@ -1,0 +1,467 @@
+#!/usr/bin/env bash
+# ============================================================
+# xirang — 息壤 V8 运行时 CLI 工具
+# ============================================================
+# MVP v0.1.0 | 2026-05-23
+#
+# 四个命令，对应四个高频运行时动作：
+#   xirang start  — 握手 + 状态更新 + 事件打点
+#   xirang end    — 收工 + 自动检查 + 收尾模板
+#   xirang check  — 合规检查（git diff 或指定文件）
+#   xirang status — Agent 状态一览
+#
+# 设计原则：
+#   - Bash 薄壳，复杂逻辑调用现有 Python 门禁脚本
+#   - 从 v8-handshake.sh 长出来，不是另起炉灶
+#   - 是安全带，不是自动驾驶
+# ============================================================
+
+set -euo pipefail
+
+# --- 路径初始化 ---
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export VAULT_ROOT="${VAULT_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+
+# 加载核心函数库
+source "$SCRIPT_DIR/v8-handshake.sh"
+
+# --- 颜色 ---
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# --- 帮助 ---
+_xirang_help() {
+  cat <<'EOF'
+xirang — 息壤 V8 运行时 CLI (MVP v0.1.0)
+
+用法:
+  xirang start <gear> <task> <scope> [reviewer] [agent]
+  xirang end   <task_id> [result]
+  xirang check [file...]
+  xirang status [agent]
+  xirang help
+
+命令说明:
+  start   开始任务：输出握手 + 更新状态 + 打点事件流
+  end     结束任务：自动检查变更文件 + 状态回idle + 输出收尾模板
+  check   合规检查：无参数扫描 git diff 变更文件，有参数扫描指定文件
+  status  状态查询：无参数显示全部 Agent，有参数显示指定 Agent 详情
+
+示例:
+  xirang start M4 "写PRD" "10-项目/代步车/"
+  xirang start M3 "修复看板" "00-MOC/"
+  xirang end T-20260523-01
+  xirang check 50-经验/Agent协作方法论/息壤V8-运行时契约卡.md
+  xirang check                    # 自动检测 git diff 中的 .md 文件
+  xirang status                   # 全部 Agent 一览
+  xirang status claudian          # Claudian 详情
+EOF
+}
+
+# ============================================================
+# xirang start
+# ============================================================
+_xirang_start() {
+  local gear="${1:-}"
+  local task="${2:-}"
+  local scope="${3:-}"
+  local reviewer="${4:-用户}"
+  local agent="${5:-claudian}"
+
+  if [[ -z "$gear" || -z "$task" || -z "$scope" ]]; then
+    echo -e "${RED}[ERROR]${NC} 用法: xirang start <gear> <task> <scope> [reviewer] [agent]"
+    echo ""
+    echo "  gear:     M3 / M4 / M5"
+    echo "  task:     任务名（支持中文和特殊字符）"
+    echo "  scope:    允许写入的路径（如 '10-项目/代步车/'）"
+    echo "  reviewer: 验收方（默认: 用户）"
+    echo "  agent:    agent_id（默认: claudian）"
+    return 1
+  fi
+
+  # 校验档位
+  if [[ "$gear" != "M3" && "$gear" != "M4" && "$gear" != "M5" ]]; then
+    echo -e "${RED}[ERROR]${NC} 无效档位: $gear（必须是 M3/M4/M5）"
+    return 1
+  fi
+
+  # CWD 范围检测（提示性，不阻断）
+  local cwd_abs
+  cwd_abs=$(cd "$(pwd)" && pwd -P)
+  local vault_abs
+  vault_abs=$(cd "$VAULT_ROOT" && pwd -P)
+  if [[ "$cwd_abs" != "$vault_abs"* ]]; then
+    echo -e "${YELLOW}[WARN]${NC} 当前目录不在 Vault 内，请确认操作范围"
+  fi
+
+  echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+  # 调用核心握手函数（最后一行是 task_id）
+  local output
+  output=$(v8_handshake "$gear" "$task" "$scope" "$reviewer" "$agent")
+  local task_id
+  task_id=$(echo "$output" | tail -1)
+
+  # 输出握手声明（去掉最后 task_id 行，macOS 兼容）
+  local line_count
+  line_count=$(echo "$output" | wc -l)
+  if [[ $line_count -gt 1 ]]; then
+    echo "$output" | sed '$d'
+  fi
+
+  echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+  # M4/M5 建卡提醒
+  if [[ "$gear" == "M4" || "$gear" == "M5" ]]; then
+    echo ""
+    echo -e "${YELLOW}[TODO]${NC} 请自行完成以下动作（工具不做）："
+    echo "  1. 建卡 / 更新看板"
+    echo "  2. 确认三要素（项目/路径/产物类型）"
+    if [[ "$gear" == "M5" ]]; then
+      echo "  3. 拆分子任务 + 预算分配"
+    fi
+  fi
+
+  echo ""
+  echo -e "${GREEN}[OK]${NC} task_id = ${BOLD}$task_id${NC}"
+  echo "     完成时执行: xirang end $task_id"
+
+  # 写入 .xirang-current 方便 end 时自动拾取
+  echo "$task_id" > "$VAULT_ROOT/.standards/.xirang-current"
+}
+
+# ============================================================
+# xirang end
+# ============================================================
+_xirang_end() {
+  local task_id="${1:-}"
+  local result="${2:-done}"
+
+  # 如果没传 task_id，尝试从 .xirang-current 读取
+  if [[ -z "$task_id" ]]; then
+    local current_file="$VAULT_ROOT/.standards/.xirang-current"
+    if [[ -f "$current_file" ]]; then
+      task_id=$(cat "$current_file")
+      echo -e "${BLUE}[INFO]${NC} 从上次 start 自动拾取: $task_id"
+    else
+      echo -e "${RED}[ERROR]${NC} 用法: xirang end <task_id> [result]"
+      echo "  task_id: 由 xirang start 返回的任务ID"
+      echo "  result:  done / fail / abort（默认: done）"
+      return 1
+    fi
+  fi
+
+  echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo -e "${BOLD}xirang end${NC} | task_id=$task_id | result=$result"
+  echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+  # 步骤1：自动检查变更文件（仅警告，不阻断——存量问题不应阻止收工）
+  echo ""
+  echo -e "${BOLD}[Step 1/3] 合规检查（git 变更中的内容文件）${NC}"
+  _xirang_check_internal && true || {
+    echo ""
+    echo -e "${YELLOW}[WARN]${NC} 存在合规问题。如果是存量文件，可忽略。"
+    echo "  如需阻断式检查，请单独执行: xirang check <本次产出文件>"
+  }
+
+  # 步骤2：调用 v8_end 更新状态
+  echo ""
+  echo -e "${BOLD}[Step 2/3] 更新状态 + 事件流${NC}"
+  v8_end "$task_id" "claudian" "$result"
+
+  # 步骤3：输出收尾模板
+  echo ""
+  echo -e "${BOLD}[Step 3/3] 收尾三件套模板（请 Agent 填充内容）${NC}"
+  echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  cat <<'TEMPLATE'
+
+## 收尾确认
+
+### 产物清单
+- {文件路径1}: {一句话描述}
+- {文件路径2}: {一句话描述}
+
+### 自查结果
+- [ ] 路径合规（在声明范围内）
+- [ ] frontmatter 完整
+- [ ] 无 emoji（除非用户要求）
+- [ ] 无越权声明（未自称已验收/已入库）
+- [ ] 看板已更新（如适用）
+
+### 验收建议
+- 验收方：{谁}
+- 建议检查：{具体检查点}
+- 风险假设：{如有}
+- 待确认问题：{如有}
+
+TEMPLATE
+  echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+  # 清理 .xirang-current
+  rm -f "$VAULT_ROOT/.standards/.xirang-current"
+
+  echo -e "${GREEN}[OK]${NC} 任务 $task_id 已收工。请将上方模板填充后作为最终回复。"
+}
+
+# ============================================================
+# xirang check（对外接口）
+# ============================================================
+_xirang_check() {
+  local files=("$@")
+
+  echo -e "${BOLD}xirang check${NC} — 合规检查"
+  echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+  # 无参数：自动从 git diff 获取变更的 .md 文件
+  if [[ ${#files[@]} -eq 0 ]]; then
+    echo -e "${BLUE}[INFO]${NC} 无指定文件，扫描 git diff 中的 .md 变更..."
+    while IFS= read -r f; do
+      [[ -n "$f" ]] && _is_content_file "$f" && files+=("$f")
+    done < <(cd "$VAULT_ROOT" && git diff --name-only --diff-filter=ACMR HEAD 2>/dev/null | grep '\.md$' || true)
+    # 也包括未跟踪的新文件
+    while IFS= read -r f; do
+      [[ -n "$f" ]] && _is_content_file "$f" && files+=("$f")
+    done < <(cd "$VAULT_ROOT" && git ls-files --others --exclude-standard 2>/dev/null | grep '\.md$' || true)
+
+    if [[ ${#files[@]} -eq 0 ]]; then
+      echo -e "${GREEN}[OK]${NC} 无变更的 .md 文件需要检查。"
+      return 0
+    fi
+    echo "  找到 ${#files[@]} 个文件待检查"
+  fi
+
+  _run_checks "${files[@]}"
+}
+
+# 内部版本（供 xirang end 调用，无头部输出）
+_xirang_check_internal() {
+  local files=()
+  while IFS= read -r f; do
+    [[ -n "$f" ]] && _is_content_file "$f" && files+=("$f")
+  done < <(cd "$VAULT_ROOT" && git diff --name-only --diff-filter=ACMR HEAD 2>/dev/null | grep '\.md$' || true)
+  while IFS= read -r f; do
+    [[ -n "$f" ]] && _is_content_file "$f" && files+=("$f")
+  done < <(cd "$VAULT_ROOT" && git ls-files --others --exclude-standard 2>/dev/null | grep '\.md$' || true)
+
+  if [[ ${#files[@]} -eq 0 ]]; then
+    echo -e "  ${GREEN}[OK]${NC} 无变更的 .md 文件需要检查。"
+    return 0
+  fi
+
+  echo "  扫描 ${#files[@]} 个变更文件..."
+  _run_checks "${files[@]}"
+}
+
+# 判断文件是否为内容文件（跳过基础设施目录）
+_is_content_file() {
+  local file="$1"
+  # 跳过 dotfile 目录（.claude/ .prompt-src/ .skills/ .codex/ .obsidian/ .standards/ .gbrain/）
+  # 跳过根目录的非内容文件（AGENTS.md 等）
+  case "$file" in
+    .claude/*|.prompt-src/*|.skills/*|.codex/*|.obsidian/*|.standards/*|.gbrain/*) return 1 ;;
+    AGENTS.md|README.md|CHANGELOG.md) return 1 ;;
+    _temp/cowork-handoff/*) return 0 ;;  # 暂存区需要检查
+    [0-9]*|_temp/*) return 0 ;;  # 内容目录
+    50-*|30-*|00-*|02-*|10-*|20-*|40-*) return 0 ;;
+    *) return 1 ;;  # 未知位置默认跳过
+  esac
+}
+
+# 执行检查的核心逻辑
+_run_checks() {
+  local files=("$@")
+  local total=${#files[@]}
+  local passed=0
+  local failed=0
+  local fail_list=()
+
+  for file in "${files[@]}"; do
+    local full_path="$VAULT_ROOT/$file"
+    if [[ ! -f "$full_path" ]]; then
+      # 文件可能已被删除
+      continue
+    fi
+
+    local result exit_code
+    result=$(python3 "$SCRIPT_DIR/pre-write-check.py" "$full_path" 2>&1) && exit_code=0 || exit_code=$?
+
+    if [[ $exit_code -eq 0 ]]; then
+      passed=$((passed + 1))
+    else
+      failed=$((failed + 1))
+      fail_list+=("$file")
+      echo -e "  ${RED}[FAIL]${NC} $file"
+      echo "$result" | sed 's/^/    /'
+    fi
+  done
+
+  echo ""
+  echo -e "  结果: ${GREEN}$passed 通过${NC} / ${RED}$failed 失败${NC} / $total 总计"
+
+  if [[ $failed -gt 0 ]]; then
+    echo ""
+    echo -e "  ${YELLOW}失败文件列表:${NC}"
+    for f in "${fail_list[@]}"; do
+      echo "    - $f"
+    done
+    return 1
+  fi
+
+  return 0
+}
+
+# ============================================================
+# xirang status
+# ============================================================
+_xirang_status() {
+  local target_agent="${1:-}"
+  local state_dir="$VAULT_ROOT/02-项目管理/智能体状态"
+
+  if [[ -n "$target_agent" ]]; then
+    # 单个 Agent 详情
+    _xirang_status_detail "$target_agent"
+  else
+    # 全部 Agent 一览
+    _xirang_status_all
+  fi
+}
+
+_xirang_status_all() {
+  local state_dir="$VAULT_ROOT/02-项目管理/智能体状态"
+
+  echo -e "${BOLD}xirang status${NC} — Agent 状态一览"
+  echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  printf "  %-12s %-8s %s\n" "Agent" "Status" "Current Task"
+  echo "  ────────────────────────────────────────────────────"
+
+  for md_file in "$state_dir"/*.md; do
+    [[ -f "$md_file" ]] || continue
+    # 跳过事件流等非状态文件
+    [[ "$(basename "$md_file")" == "智能体事件"* ]] && continue
+
+    local name status task
+    name=$(basename "$md_file" .md)
+    status=$(grep '^status:' "$md_file" 2>/dev/null | head -1 | sed 's/^status: *//' || true)
+    task=$(grep '^current_task:' "$md_file" 2>/dev/null | head -1 | sed 's/^current_task: *//' | sed 's/^"//;s/"$//' || true)
+
+    # 跳过没有 status 字段的文件（不是状态文件）
+    [[ -z "$status" ]] && continue
+
+    # 状态着色
+    local status_color
+    case "$status" in
+      busy)    status_color="${RED}busy${NC}" ;;
+      idle)    status_color="${GREEN}idle${NC}" ;;
+      error)   status_color="${RED}ERROR${NC}" ;;
+      standby) status_color="${YELLOW}standby${NC}" ;;
+      *)       status_color="$status" ;;
+    esac
+
+    [[ "$task" == "null" || -z "$task" ]] && task="-"
+
+    printf "  %-12s %-18b %s\n" "$name" "$status_color" "$task"
+  done
+
+  echo ""
+
+  # 最近 5 条事件
+  echo -e "${BOLD}最近事件:${NC}"
+  local event_file="$VAULT_ROOT/02-项目管理/智能体状态/智能体事件.jsonl"
+  if [[ -f "$event_file" ]]; then
+    tail -5 "$event_file" | python3 -c "
+import sys, json
+for line in sys.stdin:
+    line = line.strip()
+    if not line: continue
+    try:
+        d = json.loads(line)
+        ts = d.get('ts','?')[:16]
+        event = d.get('event','?')
+        agent = d.get('agent','?')
+        task = d.get('task','')[:30]
+        print(f'  {ts} | {event:<12} | {agent:<10} | {task}')
+    except:
+        pass
+" 2>/dev/null || echo "  (事件解析失败)"
+  else
+    echo "  (无事件记录)"
+  fi
+}
+
+_xirang_status_detail() {
+  local agent_id="$1"
+  local state_dir="$VAULT_ROOT/02-项目管理/智能体状态"
+
+  # 查找对应的状态文件
+  local status_file
+  status_file=$(_v8_resolve_status_file "$agent_id")
+
+  if [[ -z "$status_file" || ! -f "$status_file" ]]; then
+    echo -e "${RED}[ERROR]${NC} 未找到 Agent: $agent_id"
+    echo "  可用: claudian, workbuddy, amox, ceph, peni, eryth"
+    return 1
+  fi
+
+  local name
+  name=$(basename "$status_file" .md)
+
+  echo -e "${BOLD}xirang status${NC} — $name 详情"
+  echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+  # 提取关键字段
+  local status task heartbeat
+  status=$(grep '^status:' "$status_file" | head -1 | sed 's/^status: *//')
+  task=$(grep '^current_task:' "$status_file" | head -1 | sed 's/^current_task: *//' | sed 's/^"//;s/"$//')
+  heartbeat=$(grep '^last_heartbeat:' "$status_file" | head -1 | sed 's/^last_heartbeat: *//' | sed 's/^"//;s/"$//')
+
+  echo "  状态:       $status"
+  echo "  当前任务:   ${task:-无}"
+  echo "  最后心跳:   ${heartbeat:-未知}"
+
+  echo ""
+  echo -e "${BOLD}该 Agent 最近 5 条事件:${NC}"
+  local event_file="$VAULT_ROOT/02-项目管理/智能体状态/智能体事件.jsonl"
+  if [[ -f "$event_file" ]]; then
+    grep "\"agent\":\"$agent_id\"" "$event_file" 2>/dev/null | tail -5 | python3 -c "
+import sys, json
+for line in sys.stdin:
+    line = line.strip()
+    if not line: continue
+    try:
+        d = json.loads(line)
+        ts = d.get('ts','?')[:16]
+        event = d.get('event','?')
+        task = d.get('task','')[:40]
+        print(f'  {ts} | {event:<12} | {task}')
+    except:
+        pass
+" 2>/dev/null || echo "  (事件解析失败)"
+  fi
+}
+
+# ============================================================
+# 主路由
+# ============================================================
+main() {
+  local cmd="${1:-help}"
+  shift 2>/dev/null || true
+
+  case "$cmd" in
+    start)  _xirang_start "$@" ;;
+    end)    _xirang_end "$@" ;;
+    check)  _xirang_check "$@" ;;
+    status) _xirang_status "$@" ;;
+    help|--help|-h) _xirang_help ;;
+    *)
+      echo -e "${RED}[ERROR]${NC} 未知命令: $cmd"
+      echo "  可用命令: start | end | check | status | help"
+      return 1
+      ;;
+  esac
+}
+
+main "$@"

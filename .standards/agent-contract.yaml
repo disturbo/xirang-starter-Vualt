@@ -1,0 +1,79 @@
+# agent-contract.yaml — V9 最小公共契约
+# 每个 agent 必须声明以下 6 个标准字段。
+# 本文件是 agents-registry.md 的结构化补充，不替代它。
+#
+# 版本: 1.0.0 | 创建: 2026-05-31 | 息壤 V9.2
+# 任务: T-20260531-18
+
+agents:
+  - agent_id: claudian
+    platform: claude-code
+    status_path: "02-项目管理/智能体状态/Claudian.md"
+    hook_support:
+      - pre-write    # pre-write-hook.sh, blocking
+      - post-write   # post-write-hook.sh, audit
+      - session-guard # session-guard.sh, advisory
+    cost_policy: per-task-append  # gate-enforce task_end 检查
+    fallback_model:
+      primary: opus
+      chain: [sonnet, haiku]
+      auto_fallback: false  # FUSE 时建议不强切
+
+  - agent_id: xiaochong
+    platform: openclaw
+    status_path: "02-项目管理/智能体状态/阿莫西林.md"
+    hook_support:
+      - task-start   # v8-runtime/scripts/task-start.sh, 手动调用
+      - task-end     # v8-runtime/scripts/task-end.sh, 手动调用
+      - heartbeat    # v8-runtime/scripts/heartbeat.sh, cron
+      - watchdog     # v8-runtime/scripts/v8-watchdog.sh, cron */5
+    cost_policy: per-task-append  # task-end.sh 可选参数
+    fallback_model:
+      primary: o3
+      chain: [o4-mini]
+      auto_fallback: false
+
+  - agent_id: toubao
+    platform: hermes
+    status_path: "02-项目管理/智能体状态/头孢.md"
+    hook_support: []  # hooks/ 目录存在但为空，待验证平台是否支持
+    compliance_mode: manual_compliance_required
+    cost_policy: manual  # 无自动追踪
+    fallback_model:
+      primary: deepseek-v4-pro
+      chain: [deepseek-v4]
+      auto_fallback: false
+
+  - agent_id: hongmeisu
+    platform: codex
+    status_path: "02-项目管理/智能体状态/红霉素.md"
+    hook_support: []  # 平台不支持 hook
+    compliance_mode: manual_compliance_required
+    cost_policy: manual  # 无自动追踪
+    fallback_model:
+      primary: gpt-5.5
+      chain: [o4-mini]
+      auto_fallback: false
+
+  - agent_id: workbuddy
+    platform: codebuddy
+    status_path: "02-项目管理/智能体状态/WorkBuddy.md"
+    hook_support: []  # 待验证
+    compliance_mode: manual_compliance_required
+    cost_policy: manual
+    fallback_model:
+      primary: null  # 平台内置模型
+      chain: []
+      auto_fallback: false
+
+# 契约字段说明:
+#   agent_id:          唯一标识符，与 v8-handshake.sh 中 _v8_resolve_status_file 对齐
+#   platform:          运行平台名称
+#   status_path:       状态文件相对路径（相对于 vault root）
+#   hook_support:      平台支持的 hook 类型列表（空=无 hook）
+#   compliance_mode:   仅 hook_support 为空时填写，标记为 manual_compliance_required
+#   cost_policy:       成本追踪策略 (per-task-append | manual)
+#   fallback_model:    模型降级配置
+#     primary:         主模型
+#     chain:           降级链（按优先级排列）
+#     auto_fallback:   cost-fuse FUSE 时是否自动降级（默认 false）
