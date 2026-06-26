@@ -16,7 +16,7 @@ settings:
         level: 3
     - 
         id: undefined
-        title: tag is project/yijing
+        title: tag is project/project_slug
         description: Example note
         type: heading
         collapsed: true

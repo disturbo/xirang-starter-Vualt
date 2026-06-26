@@ -7,15 +7,15 @@ type: index
 
 # 智能体约束文件索引
 
-> 本文件夹存放各 Agent 当前生效的运行时配置快照，方便在 Obsidian 内阅读和对比。
-> 这些文件是**只读镜像**，编辑无效。修改请到源文件。
+> 本文件夹存放可分发的 Agent 约束参考。prompt / instructions 可作为只读镜像阅读；
+> `*MEMORY.md` 只保留分发占位，禁止带入真实会话记忆、用户偏好、账号 ID 或运行日志。
 
 ## 刷新方式
 
 ```bash
 python3 .prompt-src/prompt-build.py --apply       # 重建自动平台
 python3 .prompt-src/prompt-build.py --apply-block # 同步手动平台合规块
-# 然后重新拷贝到本文件夹（或用下方一键脚本）
+# prompt 类文件可刷新；MEMORY 类文件不要从真实运行时拷贝进 starter
 ```
 
 ---
@@ -27,9 +27,9 @@ python3 .prompt-src/prompt-build.py --apply-block # 同步手动平台合规块
 | Claudian + WorkBuddy | Claudian（Obsidian嵌入） | [[Claudian-CLAUDE.md]] | `.claude/CLAUDE.md` | 手动 + apply-block |
 | WorkBuddy | Claudian（Obsidian嵌入） | [[WorkBuddy-agent.md]] | `.claude/agents/workbuddy.md` | prompt-build --apply |
 | 阿莫西林 | OpenClaw | [[阿莫西林-AGENTS.md]] | `~/.openclaw/workspace/AGENTS.md` | 手动 + apply-block |
-| 阿莫西林 | OpenClaw | [[阿莫西林-MEMORY.md]] | `~/.openclaw/workspace/MEMORY.md` | 阿莫西林自维护 |
+| 阿莫西林 | OpenClaw | [[阿莫西林-MEMORY.md]] | `~/.openclaw/workspace/MEMORY.md` | 分发占位，本地自维护 |
 | 头孢 | Hermes | [[头孢-SOUL.md]] | `~/.hermes/SOUL.md` | 手动 + apply-block |
-| 头孢 | Hermes | [[头孢-MEMORY.md]] | `~/.hermes/memories/MEMORY.md` | 头孢自维护 |
+| 头孢 | Hermes | [[头孢-MEMORY.md]] | `~/.hermes/memories/MEMORY.md` | 分发占位，本地自维护 |
 | 红霉素 | Codex | [[红霉素-instructions.md]] | `.codex/instructions.md` | prompt-build --apply |
 
 ---
@@ -50,4 +50,4 @@ prompt-build.py 生成链：
 
 ## 快照日期
 
-最近一次全量刷新：**2026-05-28**
+最近一次可分发清理：**2026-06-10**

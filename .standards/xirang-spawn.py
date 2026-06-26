@@ -37,7 +37,7 @@ import datetime
 import subprocess
 from pathlib import Path
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$VAULT_ROOT"))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", os.getcwd()))
 
 # === 任务类型 × 配置矩阵（对齐 V8 S6.1 超时量化规范） ===
 TASK_TYPES = {
@@ -118,7 +118,7 @@ TASK_TYPES = {
 # === 约束维度定义（每个维度对应约束包中的一段） ===
 CONSTRAINT_BLOCKS = {
     "brand": """### Brand Compliance
-- Primary: #861B2F (Xi Jing Red), Accent: #2D9C4F (Green)
+- Primary: #2563EB (Starter Blue), Accent: #2D9C4F (Green)
 - Font: PingFang SC / Microsoft YaHei
 - Spacing: 8px base grid
 - Buttons: primary fill, border-radius 6px

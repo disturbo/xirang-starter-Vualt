@@ -16,10 +16,10 @@
 | 写 PRD / 设计方案 / 规范 | publish-wiki | Vault | `.skills/publish-wiki/SKILL.md` |
 | 发现资料冲突 | review-contradictions | Vault | `.skills/review-contradictions/SKILL.md` |
 | 任务交接 / 结束 | handoff-task | Vault | `.skills/handoff-task/SKILL.md` |
-| PRD 品牌合规审查 | prd-brand-audit | Hermes | `~/.hermes/skills/yijing-dms/prd-brand-audit/` |
-| PRD 骨架生成 + 校验 | yijing-prd-spec | Hermes | `~/.hermes/skills/yijing-dms/yijing-prd-spec/` |
-| AI 方法论采集 | agent-methodology-collection | Hermes | `~/.hermes/skills/yijing-dms/agent-methodology-collection/` |
-| 企业系统字段采集 | enterprise-system-field-collection | Hermes | `~/.hermes/skills/yijing-dms/enterprise-system-field-collection/` |
+| PRD 品牌合规审查 | prd-brand-audit | Hermes | `~/.hermes/skills/project_slug-skills/prd-brand-audit/` |
+| PRD 骨架生成 + 校验 | project_slug-prd-spec | Hermes | `~/.hermes/skills/project_slug-skills/project_slug-prd-spec/` |
+| AI 方法论采集 | agent-methodology-collection | Hermes | `~/.hermes/skills/project_slug-skills/agent-methodology-collection/` |
+| 企业系统字段采集 | enterprise-system-field-collection | Hermes | `~/.hermes/skills/project_slug-skills/enterprise-system-field-collection/` |
 | 知识沉淀合成 | obsidian-knowledge-synthesis | Hermes | `~/.hermes/skills/note-taking/obsidian-knowledge-synthesis/` |
 | Wikilink 批量替换 | obsidian-batch-wikilink-update | Hermes | `~/.hermes/skills/note-taking/obsidian-batch-wikilink-update/` |
 | AI 幻觉审计 | ai-execution-hallucination-audit | Hermes | `~/.hermes/skills/productivity/ai-execution-hallucination-audit/` |
@@ -101,7 +101,7 @@
 
 - **用途**：一条命令完成飞书文档→Vault 的全流程采集
 - **语法**：`/feishu <飞书URL> [保存路径]`
-- **路径 A（API 全自动）**：`python3 .scripts/feishu_to_md.py "<URL>" "<路径>"` — 同租户（`acno1000gd58.feishu.cn`）
+- **路径 A（API 全自动）**：`python3 .scripts/feishu_to_md.py "<URL>" "<路径>"` — 本地配置 `FEISHU_APP_ID` / `FEISHU_APP_SECRET`
 - **路径 B（浏览器提取）**：AppleScript + Chrome JS 注入 — 跨租户或 API 失败降级
 - **产出**：Markdown + 图片文件夹 + frontmatter
 - **质量检查**：大纲可见 / 表格渲染 / 图片显示 / frontmatter 齐全 / 无乱码
@@ -132,7 +132,7 @@
 #### 9. feishu-collection（Hermes 版）· 飞书采集
 
 - **用途**：与 Vault 版/.claude 版同功能，三平台共享同一规范和脚本
-- **入口**：`~/.hermes/skills/yijing-dms/feishu-collection/SKILL.md`
+- **入口**：`~/.hermes/skills/project_slug-skills/feishu-collection/SKILL.md`
 - **备注**：三平台（Vault / OpenClaw / Hermes）的 feishu-collection 共享 `.scripts/feishu_to_md.py` 和 `30-规范/飞书文档采集规范.md`
 
 #### 10. prd-brand-audit · PRD 品牌合规审查
@@ -142,7 +142,7 @@
 - **6 条检查项**：品牌用词 / 品牌色值 / 编码规则 / 按钮数量 / 字段表格式 / 章节骨架
 - **产出**：自动修复高置信度违规 + JSON 格式 P0/P1 问题报告
 
-#### 11. yijing-prd-spec · PRD 骨架生成与校验
+#### 11. project_slug-prd-spec · PRD 骨架生成与校验
 
 - **用途**：标准化 PRD 产出——6 章固定骨架（背景/流程/用户故事/权限/功能/变更日志）
 - **触发**：编写或审查项目模块 PRD
@@ -241,7 +241,7 @@
 |------|-----------|-----------|---------|------|
 | **Vault** `.skills/` | 所有 agent 共用 | 5 个工作流 | vault 内 | 协作工作流骨架，与看板联动 |
 | **Claude** `.claude/` | ⚡Claudian | 1 个命令 | vault 内 | `/feishu` 斜杠命令 |
-| **Hermes** `~/.hermes/skills/` | 🌊 头孢 | 33 类 100+ | 用户目录 | 最丰富，含通用 + DMS 专用 |
+| **Hermes** `~/.hermes/skills/` | 🌊 头孢 | 33 类 100+ | 用户目录 | 最丰富，含通用 + 项目专用 |
 | **OpenClaw** `~/.openclaw/skills/` | 🐛 阿莫西林 | 3 个核心 | 用户目录 | 飞书采集 + 代码流水线 + GBrain |
 
 ### Skill 去重说明
@@ -257,7 +257,7 @@
 
 | 状态 | 含义 | 当前 Skill |
 |------|------|-----------|
-| 🟢 Active | 生产可用 | start-task, ingest-source, publish-wiki, handoff-task, review-contradictions, /feishu, prd-brand-audit, yijing-prd-spec, obsidian-knowledge-synthesis, flowforge |
+| 🟢 Active | 生产可用 | start-task, ingest-source, publish-wiki, handoff-task, review-contradictions, /feishu, prd-brand-audit, project_slug-prd-spec, obsidian-knowledge-synthesis, flowforge |
 | 🟡 Experimental | 实验中，功能不完整 | gbrain, enterprise-system-field-collection |
 | ⚪ Passive | 按需调用，非核心链路 | obsidian, obsidian-batch-wikilink-update, ai-execution-hallucination-audit, agent-methodology-collection |
 

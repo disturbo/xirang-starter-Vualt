@@ -10,7 +10,7 @@ v1.0 · 2026-05-17 | 息壤 V8.5.0
   python3 .standards/brand-lint.py --all        # 扫描全 vault
 
 检查项：
-  1. 品牌色值（主色 #861B2F / 辅助色）
+  1. 品牌色值（主色 #2563EB / 辅助色）
   2. 字体引用（PingFang SC / Microsoft YaHei）
   3. drawio 节点色值合规
   4. 已废弃品牌名检测（启境 M7 等）
@@ -26,7 +26,7 @@ from pathlib import Path
 # === 品牌色系 ===
 BRAND_COLORS = {
     # 核心品牌色
-    "#861B2F": "品牌主色（核心操作节点）",
+    "#2563EB": "品牌主色（核心操作节点）",
     "#2D9C4F": "品牌辅助色",
     # drawio 流程图色系（V8 流程图规范 v3.0）
     "#FAAD14": "判断/警告色",

@@ -144,7 +144,7 @@ bash ~/.openclaw/workspace/skills/v8-runtime/scripts/v8-validate.sh T-{id}
 2. `~/Desktop/obsidianVault/00-MOC/{项目名}-MOC.md`
 3. `~/Desktop/obsidianVault/40-决策/2026-Q2-决策日志.md`
 
-**Skill 加载**：yijing-prd-spec + dms-three-carrier-sync + enterprise-system-field-collection
+**Skill 加载**：project_slug-prd-spec + project-three-carrier-sync + enterprise-system-field-collection
 
 **崩溃恢复**：workspace 可能丢失，vault 不受影响 → 读 Home → MOC → 决策日志重建上下文。切勿重走 BOOTSTRAP。
 
@@ -173,8 +173,8 @@ bash ~/.openclaw/workspace/skills/v8-runtime/scripts/v8-validate.sh T-{id}
 | L0 | 单步失败 | 重试 1 次 |
 | L0.5 | 重试仍失败 | 换策略 |
 | L1 | 策略耗尽 | 调其他 Agent（见路由表） |
-| L2 | 其他 Agent 也失败 | error 事件 + 微信通知波波 |
-| L3 | 系统级故障 | 停止一切 + 通知波波 + 等人工 |
+| L2 | 其他 Agent 也失败 | error 事件 + 微信通知负责人 |
+| L3 | 系统级故障 | 停止一切 + 通知负责人 + 等人工 |
 
 `bash escalate.sh <level> xiaochong <task_id> "<reason>"`
 
@@ -193,7 +193,7 @@ bash ~/.openclaw/workspace/skills/v8-runtime/scripts/v8-validate.sh T-{id}
 | 代码评审/规范 | 红霉素 | `codex exec -C ~/Desktop/obsidianVault "任务"` | 300s |
 | 资料采集/联网 | 头孢 | vault 看板留言，5h 异步 | async |
 | 崩溃/心跳超时 | WorkBuddy | watchdog 自动触发 | auto |
-| 人工决策 | 波波 | `escalate.sh L2` | async |
+| 人工决策 | 负责人 | `escalate.sh L2` | async |
 
 ### 心跳规则
 
@@ -203,7 +203,7 @@ bash ~/.openclaw/workspace/skills/v8-runtime/scripts/v8-validate.sh T-{id}
 
 ### 成本治理
 
-- 60% 告警→降级；100% 熔断→停子Agent+通知波波
+- 60% 告警→降级；100% 熔断→停子Agent+通知负责人
 - `task_end` 的 tokens/cost 填 0；真实成本走 `agent-cost-events.py append`
 
 ---

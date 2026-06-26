@@ -5,7 +5,7 @@ Usage: python3 .prompt-src/prompt-build.py [--apply] [--apply-block] [--verify] 
   默认：生成到 .prompt-src/_build/ 并输出 diff 报告
   --apply：覆盖自动平台目标文件（需人工确认）
   --apply-block：替换手动平台 V9-COMPLIANCE-BLOCK 标记间的共享内容
-  --verify：检查所有目标（自动+手动+deprecated）的一致性，任何 drift 非零退出
+  --verify：检查所有目标（自动+手动）的一致性，任何 drift 非零退出
   --diff：只输出 diff，不生成文件
 
 V9 Phase 0.5 (2026-05-28):
@@ -14,7 +14,7 @@ V9 Phase 0.5 (2026-05-28):
   - preflight-auto-template.md 提供自动平台的 pre-flight 模板
   - --verify 全文块比较，任何 drift 非零退出
   - content_hash 修正：只在有 header 时剥离
-  - DEPRECATED 追踪（dongfeng → claudian）
+  - Starter 版默认从当前工作目录读取 Vault；可用 VAULT_ROOT 覆盖。
 """
 
 import os
@@ -24,7 +24,7 @@ import hashlib
 import difflib
 from pathlib import Path
 
-VAULT = Path(os.path.expanduser("~/Desktop/obsidianVault"))
+VAULT = Path(os.environ.get("VAULT_ROOT", os.getcwd())).expanduser().resolve()
 SRC = VAULT / ".prompt-src"
 BUILD = SRC / "_build"
 AGENTS_DIR = SRC / "agents"
@@ -77,15 +77,6 @@ MANUAL_TARGETS = {"xiaochong", "toubao", "claude-md"}
 
 # 自动平台：--apply 直接覆盖
 AUTO_TARGETS = {k for k in TARGETS if k not in MANUAL_TARGETS}
-
-# Deprecated 入口（--verify 检查是否仍被引用）
-DEPRECATED = {
-    "dongfeng": {
-        "old_target": VAULT / ".claude" / "agents" / "dongfeng.md",
-        "replaced_by": "claudian",
-        "reason": "agent_id renamed dongfeng → claudian (2026-05-26)",
-    },
-}
 
 # CLAUDE.md 通过 TARGETS["claude-md"] 管理（手动平台，--apply-block 可替换合规块）
 
@@ -374,15 +365,7 @@ def verify_all():
     """全目标一致性检查：任何 drift → 非零退出"""
     issues = []
 
-    # 1. 检查 deprecated 入口
-    for old_id, info in DEPRECATED.items():
-        old_path = info["old_target"]
-        if old_path.exists():
-            content = read_file(old_path)
-            if "DEPRECATED" not in content[:200]:
-                issues.append(f"[P0] DEPRECATED target {old_id} ({old_path}) exists but not marked deprecated")
-
-    # 2. 检查自动平台：当前文件合规块 vs 从 v9-compliance-block.md 生成的期望块
+    # 1. 检查自动平台：当前文件合规块 vs 从 v9-compliance-block.md 生成的期望块
     base = load_base()
     for agent_id in AUTO_TARGETS:
         meta = TARGETS[agent_id]
@@ -424,7 +407,7 @@ def verify_all():
                 if current_hash != expected_hash:
                     issues.append(f"[P2] {agent_id}: header hash stale ({current_hash} != {expected_hash})")
 
-    # 3. 检查手动平台：合规块全文比较
+    # 2. 检查手动平台：合规块全文比较
     for agent_id in MANUAL_TARGETS:
         meta = TARGETS[agent_id]
         current = read_file(meta["target"])
@@ -458,7 +441,7 @@ def verify_all():
             diff_count += abs(len(current_lines) - len(expected_lines))
             issues.append(f"[P1] {agent_id}: compliance block drift ({diff_count} lines differ)")
 
-    # 4. 报告
+    # 3. 报告
     if not issues:
         print("\n  [OK] All targets verified. No drift detected.")
         return 0
@@ -555,14 +538,6 @@ def main():
             meta["target"].write_text(content, encoding="utf-8")
             print(f"  [APPLIED] {agent_id} -> {meta['target']}")
 
-    # 检查 deprecated
-    for old_id, info in DEPRECATED.items():
-        old_path = info["old_target"]
-        if old_path.exists():
-            content = read_file(old_path)
-            if "DEPRECATED" not in content[:200]:
-                print(f"  [WARN] Deprecated target {old_id} ({old_path}) not marked")
-
     # 报告
     print(f"\n{'='*60}")
     print(f"prompt-build.py 报告")
@@ -573,7 +548,6 @@ def main():
     print(f"    基类: .prompt-src/prompt-base.md")
     print(f"  Auto targets: {len(AUTO_TARGETS)} ({', '.join(sorted(AUTO_TARGETS))})")
     print(f"  Manual targets: {len(MANUAL_TARGETS)} ({', '.join(sorted(MANUAL_TARGETS))})")
-    print(f"  Deprecated: {len(DEPRECATED)} ({', '.join(DEPRECATED.keys())})")
     print(f"  结果: {stats['unchanged']} 不变 / {stats['changed']} 有变更 / {stats['new']} 新文件")
     print(f"  模式: {'--apply (已覆盖自动目标)' if apply_mode else '--diff (仅预览)' if diff_only else '生成到 _build/'}")
 

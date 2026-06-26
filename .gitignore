@@ -19,6 +19,7 @@ media/
 # Python 编译缓存
 __pycache__/
 *.pyc
+.prompt-src/_build/
 
 # 系统文件
 .DS_Store
@@ -27,14 +28,26 @@ Thumbs.db
 # Obsidian 运行时
 .obsidian/workspace.json
 .obsidian/workspace-mobile.json
+.obsidian/plugins/**/data*.json
 
 # 运行时产物（不入版本控制）
 _temp/
 02-项目管理/agent-cost-events.jsonl
 02-项目管理/pre-write-check.log.jsonl
+02-项目管理/巡检/.reflex.lock
+02-项目管理/巡检/health-latest.json
+02-项目管理/巡检/reflex-state.json
+02-项目管理/巡检/*.log
 
 # 会话记录
 .claudian/sessions/
+.claudian/
+.claude/projects/
+.claude/sessions/
+.claude/logs/
+.claude/cache/
+.claude/statsig/
+.claude/settings.local.json
 
 # Cloudflare/Wrangler 缓存
 .wrangler/

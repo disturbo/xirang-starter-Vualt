@@ -37,7 +37,7 @@ check() {
 
 echo "▶ 基础工具检查"
 check "Python 3.9+" "python3 -c 'import sys; assert sys.version_info >= (3,9)'" "required"
-check "Node.js 22+" "node -e 'process.exit(+process.version.slice(1).split(\".\")[0] < 22)'" "required"
+check "Node.js 22+" "node -e 'process.exit(+process.version.slice(1).split(\".\")[0] < 22)'" "optional"
 check "Ollama" "command -v ollama" "optional"
 check "bge-m3 模型" "ollama list 2>/dev/null | grep -q bge-m3" "optional"
 check "Git" "command -v git" "required"
@@ -57,7 +57,8 @@ echo "▶ Vault 结构检查"
 check ".standards/ 存在" "[ -d '$VAULT_ROOT/.standards' ]" "required"
 check ".prompt-src/ 存在" "[ -d '$VAULT_ROOT/.prompt-src' ]" "required"
 check ".claude/CLAUDE.md" "[ -f '$VAULT_ROOT/.claude/CLAUDE.md' ]" "required"
-check "Agent 状态文件" "[ $(ls '$VAULT_ROOT/02-项目管理/智能体状态/'*.md 2>/dev/null | wc -l) -ge 6 ]" "required"
+AGENT_STATE_COUNT=$(find "$VAULT_ROOT/02-项目管理/智能体状态" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+check "Agent 状态文件" "[ $AGENT_STATE_COUNT -ge 6 ]" "required"
 
 SCRIPT_COUNT=$(find "$VAULT_ROOT/.standards" -name "*.py" -o -name "*.sh" | wc -l | tr -d ' ')
 check ".standards/ 脚本 (≥25)" "[ $SCRIPT_COUNT -ge 25 ]" "required"
@@ -74,7 +75,7 @@ echo ""
 # ─── 5. Prompt-build 验证 ─────────────────────────────
 
 echo "▶ Prompt-build 一致性"
-if python3 "$VAULT_ROOT/.prompt-src/prompt-build.py" --verify > /dev/null 2>&1; then
+if VAULT_ROOT="$VAULT_ROOT" python3 "$VAULT_ROOT/.prompt-src/prompt-build.py" --verify > /dev/null 2>&1; then
   echo "  prompt-build --verify ✅ No drift"
   PASS=$((PASS + 1))
 else

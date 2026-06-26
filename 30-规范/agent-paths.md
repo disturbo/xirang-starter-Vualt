@@ -101,7 +101,7 @@ done
 | **共享 Skill 库** | `~/skills/` | 所有 agent 共享的能力源文件（单一真相源） |
 
 **跨平台共享规则**：
-- 通用 skill（obsidian-markdown、yijing-prd-spec 等）→ `clawhub install --dir ~/skills`
+- 通用 skill（obsidian-markdown、project_slug-prd-spec 等）→ `clawhub install --dir ~/skills`
 - 各平台通过 symlink 指向 `~/skills/`：
   - `~/.openclaw/workspace/skills/{slug}` → `~/skills/{slug}`
   - `~/.hermes/skills/{slug}` → `~/skills/{slug}`

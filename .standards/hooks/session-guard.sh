@@ -21,7 +21,7 @@ V8_AGENT_ID="${V8_AGENT_ID:-claudian}"
 # 根据 agent_id 解析状态文件名
 _resolve_status_name() {
   case "$1" in
-    claudian|dongfeng)               echo "Claudian" ;;
+    claudian)               echo "Claudian" ;;
     xiaochong|amoxicillin|amox)      echo "阿莫西林" ;;
     toubao|cephalosporin|ceph)       echo "头孢" ;;
     hongmeisu|erythromycin|eryth)    echo "红霉素" ;;

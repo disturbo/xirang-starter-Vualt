@@ -27,7 +27,7 @@ import re
 import argparse
 from pathlib import Path
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$VAULT_ROOT"))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", os.getcwd()))
 EVENTS_PATH = VAULT_ROOT / "02-项目管理" / "智能体状态" / "智能体事件.jsonl"
 COST_EVENTS_PATH = VAULT_ROOT / "02-项目管理" / "agent-cost-events.jsonl"
 TASKS_DIR = VAULT_ROOT / "02-项目管理" / "任务卡"

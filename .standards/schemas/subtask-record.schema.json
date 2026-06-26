@@ -18,7 +18,7 @@
     },
     "parent_agent": {
       "type": "string",
-      "enum": ["claudian", "dongfeng", "xiaochong", "toubao", "workbuddy", "qingmeisu", "hongmeisu"],
+      "enum": ["claudian", "xiaochong", "toubao", "workbuddy", "qingmeisu", "hongmeisu"],
       "description": "父 Agent ID"
     },
     "parent_task_id": {

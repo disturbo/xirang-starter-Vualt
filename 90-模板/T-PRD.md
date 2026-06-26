@@ -6,7 +6,7 @@ status: "draft"
 author: "{你的名字}"
 created: "{{date}}"
 updated: "{{date}}"
-tags: [PRD, project/yijing]
+tags: [PRD, project/project_slug]
 ---
 
 # {{module_name}} PRD v1.0
@@ -14,7 +14,7 @@ tags: [PRD, project/yijing]
 > **模块编号**：{{module_no}}
 > **模块定位**：{项目名} · {{domain}}域 · {{module_name}}
 > **业务编码**：{{business_code}}
-> **品牌口径**：{项目} / X9（含纯电版 / 增程版）
+> **品牌口径**：{项目} / {产品代号}（含纯电版 / 增程版）
 > **遵循规范**：[[{项目}PRD硬约束-v3.3]]
 > **文档版本**：v1.0（{{date}}，初版）
 > **编写人**：{你的名字}

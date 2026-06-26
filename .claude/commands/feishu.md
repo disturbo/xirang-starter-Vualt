@@ -24,13 +24,27 @@
 从 URL 中提取：
 - **路径类型**：`/wiki/` 或 `/docx/`
 - **租户域名**：`xxx.feishu.cn` 的 `xxx` 部分
-- 判断是否为已知租户（`acno1000gd58` 有 APP 凭证）
+- 判断本地是否已配置该租户的 APP 凭证
 
 ### Step 2: 选择采集路径
 
-**路径 A（API 全自动）**——同租户或有凭证：
+**路径 A（API 全自动）**——本地有凭证：
 ```bash
 python3 .scripts/feishu_to_md.py "<URL>" "<保存路径>"
+```
+
+凭证不随 starter 分发，需要使用者本地配置：
+
+```bash
+export FEISHU_APP_ID="你的飞书应用 App ID"
+export FEISHU_APP_SECRET="你的飞书应用 App Secret"
+```
+
+多租户可按 URL 子域配置：
+
+```bash
+export FEISHU_YOURTENANT_APP_ID="你的飞书应用 App ID"
+export FEISHU_YOURTENANT_APP_SECRET="你的飞书应用 App Secret"
 ```
 
 **路径 B（浏览器提取）**——跨租户或 API 失败时降级：
@@ -83,11 +97,11 @@ python3 .scripts/feishu_to_md.py "<URL>" "<保存路径>"
 ## 示例
 
 ```
-/feishu https://acno1000gd58.feishu.cn/wiki/VfibwtkJdiBGGFk5gyZchyaDnNb
-→ 自动识别: wiki 类型, 同租户, 走 API 路径
-→ 产出: 20-资料/业务文件/{项目}服务模块PRD-飞书源文档.md + 260 张图片
+/feishu https://yourtenant.feishu.cn/wiki/xxx
+→ 自动识别: wiki 类型；如本地已配置 FEISHU_YOURTENANT_* 或 FEISHU_APP_*，走 API 路径
+→ 产出: 20-资料/业务文件/{项目}服务模块PRD-飞书源文档.md + 图片目录
 
-/feishu https://dongfengyipai.feishu.cn/docx/Yec5d1iLwoFzBNxR4vfcXSIbnLb
-→ 自动识别: docx 类型, 跨租户, API 失败后降级浏览器提取
-→ 产出: 20-资料/会议纪要/20260514-智能纪要-xxx.md（无图片）
+/feishu https://external.feishu.cn/docx/xxx
+→ 自动识别: docx 类型；无 API 凭证时降级浏览器提取
+→ 产出: 20-资料/会议纪要/YYYYMMDD-主题.md（无图片）
 ```

@@ -5,23 +5,13 @@
 支持自动下载图片到本地。
 """
 
-import json, sys, os, urllib.request, urllib.parse, time
+import json, sys, os, re, urllib.request, urllib.parse, time
 
-# Tenant credentials — keyed by Feishu domain
-TENANTS = {
-    "acno1000gd58": {
-        "app_id": "cli_a945a3415962dcce",
-        "app_secret": "pDtOoLDsgCo2OEF00Ue8rXYcKFT0tNWh",
-    },
-    "dongfengyipai": {
-        "app_id": "cli_aa9be6d4fbb9dcce",
-        "app_secret": "cpcpPwR6Umi23ppZOaUELfBuEFmZ2z3S",
-    },
-}
-
-# Default fallback (backward compat)
-APP_ID = TENANTS["acno1000gd58"]["app_id"]
-APP_SECRET = TENANTS["acno1000gd58"]["app_secret"]
+# Credentials are intentionally not shipped with the starter vault.
+# Configure them locally with environment variables:
+#   FEISHU_APP_ID / FEISHU_APP_SECRET
+# or per tenant domain:
+#   FEISHU_<TENANT>_APP_ID / FEISHU_<TENANT>_APP_SECRET
 
 # ── helpers ──────────────────────────────────────────────
 
@@ -35,25 +25,49 @@ def api(method, path, body=None, token=None):
     with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read())
 
-def get_token(app_id=None, app_secret=None):
-    """Get tenant access token. Auto-detects from URL if not specified."""
-    if app_id is None:
-        app_id = APP_ID
-    if app_secret is None:
-        app_secret = APP_SECRET
+def get_token(app_id, app_secret):
+    """Get tenant access token."""
     r = api("POST", "/auth/v3/tenant_access_token/internal",
             {"app_id": app_id, "app_secret": app_secret})
     return r["tenant_access_token"]
 
 def detect_tenant(url):
-    """Extract tenant domain from Feishu URL. Returns (domain, app_id, app_secret)."""
-    import re
+    """Extract tenant domain from Feishu URL."""
     m = re.search(r'https?://([a-z0-9]+)\.feishu\.cn', url)
     if m:
-        domain = m.group(1)
-        if domain in TENANTS:
-            return domain, TENANTS[domain]["app_id"], TENANTS[domain]["app_secret"]
-    return None, APP_ID, APP_SECRET
+        return m.group(1)
+    return None
+
+def env_key_for_tenant(domain):
+    return re.sub(r"[^A-Z0-9]", "_", domain.upper())
+
+def resolve_credentials(domain=None, cli_app_id=None, cli_app_secret=None):
+    """Resolve Feishu app credentials without embedding tenant data in the repo."""
+    if cli_app_id or cli_app_secret:
+        if not (cli_app_id and cli_app_secret):
+            raise ValueError("--app-id and --app-secret must be provided together")
+        return cli_app_id, cli_app_secret, "command line"
+
+    if domain:
+        key = env_key_for_tenant(domain)
+        tenant_app_id = os.getenv(f"FEISHU_{key}_APP_ID")
+        tenant_app_secret = os.getenv(f"FEISHU_{key}_APP_SECRET")
+        if tenant_app_id and tenant_app_secret:
+            return tenant_app_id, tenant_app_secret, f"FEISHU_{key}_*"
+
+    app_id = os.getenv("FEISHU_APP_ID")
+    app_secret = os.getenv("FEISHU_APP_SECRET")
+    if app_id and app_secret:
+        return app_id, app_secret, "FEISHU_APP_ID/FEISHU_APP_SECRET"
+
+    hint = [
+        "Missing Feishu app credentials.",
+        "Set FEISHU_APP_ID and FEISHU_APP_SECRET, or pass --app-id and --app-secret.",
+    ]
+    if domain:
+        key = env_key_for_tenant(domain)
+        hint.append(f"For this tenant, you can also set FEISHU_{key}_APP_ID and FEISHU_{key}_APP_SECRET.")
+    raise ValueError(" ".join(hint))
 
 def get_wiki_node(token, wiki_token):
     r = api("GET", f"/wiki/v2/spaces/get_node?token={wiki_token}", token=token)
@@ -410,8 +424,7 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: feishu_to_md.py <feishu_url_or_token> [output.md] [--no-images] [--app-id ID] [--app-secret SECRET]", file=sys.stderr)
         print("  Supports /wiki/TOKEN and /docx/TOKEN URLs", file=sys.stderr)
-        print("  Auto-detects tenant from URL domain; use --app-id to override", file=sys.stderr)
-        print(f"  Known tenants: {', '.join(TENANTS.keys())}", file=sys.stderr)
+        print("  Credentials: set FEISHU_APP_ID/FEISHU_APP_SECRET or pass --app-id/--app-secret", file=sys.stderr)
         sys.exit(1)
 
     url_or_token = sys.argv[1]
@@ -432,14 +445,20 @@ def main():
     is_docx = "/docx/" in url_or_token
     doc_token = url_or_token.split("/")[-1].split("?")[0]
 
-    # Detect tenant from URL domain
-    tenant_domain, tenant_app_id, tenant_app_secret = detect_tenant(url_or_token)
-    app_id = cli_app_id or tenant_app_id
-    app_secret = cli_app_secret or tenant_app_secret
+    # Detect tenant from URL domain, then resolve credentials from local env/CLI.
+    tenant_domain = detect_tenant(url_or_token)
+    try:
+        app_id, app_secret, credential_source = resolve_credentials(
+            tenant_domain, cli_app_id, cli_app_secret
+        )
+    except ValueError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(2)
 
     print(f"[1/5] Getting access token...", file=sys.stderr)
     if tenant_domain:
         print(f"  Tenant: {tenant_domain}.feishu.cn", file=sys.stderr)
+    print(f"  Credential source: {credential_source}", file=sys.stderr)
     token = get_token(app_id, app_secret)
 
     if is_wiki or (not is_docx):

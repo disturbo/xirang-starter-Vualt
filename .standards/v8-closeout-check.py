@@ -33,7 +33,7 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$VAULT_ROOT"))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", os.getcwd()))
 EVENT_FILE = VAULT_ROOT / "02-项目管理" / "智能体状态" / "智能体事件.jsonl"
 LOG_DIR = VAULT_ROOT / "02-项目管理" / "运行日志"
 KANBAN_FILE = VAULT_ROOT / "00-MOC" / "多智能体协作看板.md"
@@ -125,7 +125,7 @@ def _get_write_scope(agent: str) -> str:
     """从状态文件读取当前 write_scope"""
     agent_files = {
         "claudian": "Claudian.md",
-        "dongfeng": "Claudian.md",
+        "claudian": "Claudian.md",
         "workbuddy": "WorkBuddy.md",
         "xiaochong": "阿莫西林.md",
         "toubao": "头孢.md",

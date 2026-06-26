@@ -49,7 +49,7 @@ _hb_safe_update_yaml() {
 # 解析状态文件路径
 _resolve_status_file() {
   case "$1" in
-    claudian|dongfeng)               echo "$STATUS_DIR/Claudian.md" ;;
+    claudian)               echo "$STATUS_DIR/Claudian.md" ;;
     xiaochong|amoxicillin|amox)      echo "$STATUS_DIR/阿莫西林.md" ;;
     toubao|cephalosporin|ceph)       echo "$STATUS_DIR/头孢.md" ;;
     hongmeisu|erythromycin|eryth)    echo "$STATUS_DIR/红霉素.md" ;;

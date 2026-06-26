@@ -4,7 +4,7 @@ title: ""
 module: ""
 min_level: M4                   # 最低档位：M4/M5 才开卡（V8 §3 触发路由器）
 task_size: S                    # S / M / L / XL
-owner: ""                       # agent_id: xiaochong / dongfeng / qingmeisu / hongmeisu / toubao / cowork
+owner: ""                       # agent_id: xiaochong / claudian / qingmeisu / hongmeisu / toubao / cowork
 participants: []
 status: ready                   # ready / in_progress / submitted / reviewing / done / blocked / cancelled
 priority: P1                    # P0 / P1 / P2 / P3

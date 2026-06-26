@@ -11,7 +11,8 @@
 #
 # 版本: 1.4.1 | 创建: 2026-05-23 | 修订: 2026-05-31（cost事件集成+文档头订正） | 息壤 V9.2
 
-VAULT_ROOT="${VAULT_ROOT:-$VAULT_ROOT}"
+# Starter 默认以当前目录作为 Vault 根目录；如需放在其他位置，可先 export VAULT_ROOT=/path/to/vault。
+VAULT_ROOT="${VAULT_ROOT:-$(pwd)}"
 EVENT_FILE="$VAULT_ROOT/02-项目管理/智能体状态/智能体事件.jsonl"
 LOG_DIR="$VAULT_ROOT/02-项目管理/运行日志"
 
@@ -68,13 +69,38 @@ _v8_yaml_escape() {
 }
 
 # ============================================================
+# _v8_scope_with_moc_for_m4plus - M4/M5 自动补看板写入范围
+# ============================================================
+_v8_scope_with_moc_for_m4plus() {
+  local gear="$1"
+  local scope="$2"
+
+  if [[ "$gear" != "M4" && "$gear" != "M5" ]]; then
+    printf '%s' "$scope"
+    return 0
+  fi
+
+  # 用 python3 做解析+去重+补 00-MOC/，避免 bash/zsh `read -a` 差异（zsh 不支持 -ra）。
+  # 与本脚本下方 scope->YAML 列表的解析方式保持一致。
+  python3 -c "
+import sys
+scope = sys.argv[1]
+parts = [p.strip() for p in scope.split(',') if p.strip()]
+norm = [p.rstrip('/').lstrip('./').lstrip('/') for p in parts]
+if '00-MOC' not in norm:
+    parts.append('00-MOC/')
+print(','.join(parts), end='')
+" "$scope"
+}
+
+# ============================================================
 # _v8_resolve_status_file - 根据 agent_id 返回状态文件路径
 # ============================================================
 _v8_resolve_status_file() {
   local agent="$1"
   local base="$VAULT_ROOT/02-项目管理/智能体状态"
   case "$agent" in
-    claudian|dongfeng)               echo "$base/Claudian.md" ;;
+    claudian)                        echo "$base/Claudian.md" ;;
     workbuddy)                       echo "$base/WorkBuddy.md" ;;
     xiaochong|amoxicillin|amox)      echo "$base/阿莫西林.md" ;;
     toubao|cephalosporin|ceph)       echo "$base/头孢.md" ;;
@@ -90,7 +116,7 @@ _v8_resolve_status_file() {
 _v8_normalize_agent_id() {
   local agent="$1"
   case "$agent" in
-    claudian|dongfeng)               echo "claudian" ;;
+    claudian)                        echo "claudian" ;;
     workbuddy)                       echo "workbuddy" ;;
     xiaochong|amoxicillin|amox)      echo "xiaochong" ;;
     toubao|cephalosporin|ceph)       echo "toubao" ;;
@@ -143,6 +169,9 @@ v8_handshake() {
     echo "[ERROR] 用法: v8_handshake <档位> <任务名> <写入范围> [验收方] [agent_id]"
     return 1
   fi
+
+  # M4/M5 收工必须登记看板；默认补入 00-MOC/，避免收工阶段被自己的 scope 门禁拦住。
+  scope=$(_v8_scope_with_moc_for_m4plus "$gear" "$scope")
 
   local ts
   ts=$(date '+%Y-%m-%dT%H:%M:%S+08:00')

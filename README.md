@@ -1,7 +1,7 @@
 # 息壤 V9 · Starter Vault
 
 > 多智能体协作方法论的最小可运行 Obsidian Vault 骨架。
-> Clone 即用，3 分钟从零到可运行。
+> V9.3.0 · Clone 即用，3 分钟从零到可运行。
 
 ---
 
@@ -11,9 +11,26 @@
 
 - 文件系统即协作黑板 — Agent 通过读写 Markdown 文件协作
 - 二元触发器 — 写文件要声明，不写直接做
+- 第一反射器 — 巡检任务卡、状态、心跳、规范冲突，区分真静默与假静默
 - 渐进收敛 — L0→L3 四阶段，按需升级，不强制完全体
 
 详细文档：[息壤 V9 在线文档](https://disturbo.github.io/xirang/)
+
+---
+
+## Starter 分发边界
+
+这个仓库是给组内同事一键启用 V9 的**干净启动骨架**，只保留通用运行时、方法论、规范模板和空项目目录。
+
+不应包含：
+
+- 个人姓名、个人路径、会话记录
+- 具体项目文档、客户资料、业务数据
+- API Key、App Secret、登录 token、账号配置
+- 巡检快照、Agent 事件流、成本事件等运行期产物
+- Obsidian 插件的本机 `data.json` 配置
+
+如需从个人 Vault 同步到 starter，请先运行 `sync-to-dist.sh`，再用敏感词扫描确认无个人/项目痕迹。
 
 ---
 
@@ -22,12 +39,12 @@
 ### 方式一：Git Clone（推荐）
 
 ```bash
-git clone https://github.com/disturbo/xirang-starter ~/Desktop/obsidianVault
+git clone https://github.com/disturbo/xirang-starter-Vualt.git ~/Desktop/obsidianVault
 ```
 
 ### 方式二：下载 ZIP
 
-从 [Releases](https://github.com/disturbo/xirang-starter/releases) 下载最新 zip，解压到 `~/Desktop/obsidianVault/`。
+从 [Releases](https://github.com/disturbo/xirang-starter-Vualt/releases) 下载最新 zip，解压到 `~/Desktop/obsidianVault/`。
 
 ### 打开 Vault
 
@@ -69,10 +86,10 @@ bash setup.sh
 .claude/            ← Claude Code 项目配置 + Agent prompts
 .codex/             ← Codex 平台指令
 .prompt-src/        ← 合规内容单源分发系统
-.standards/         ← V9 运行时工具链（32 文件，零外部依赖）
+.standards/         ← V9 运行时工具链（零外部依赖）
 .skills/            ← 工作流技能定义
 00-MOC/             ← 导航中枢
-02-项目管理/        ← 运行时状态（Agent 状态、日志、任务卡）
+02-项目管理/        ← 运行时状态（Agent 状态、日志、任务卡、巡检）
 10-项目/            ← 你的项目文档（空，待填充）
 20-资料/            ← 原始资料（空，待填充）
 30-规范/            ← 输出规范（通用版，需按项目扩展）
@@ -90,6 +107,24 @@ bash setup.sh
 2. **定制 Home** — 编辑 `00-MOC/🏠-Home.md`，写上你的项目信息
 3. **创建项目 MOC** — 复制 `00-MOC/T-项目MOC.md` 到 `00-MOC/`，重命名并填入具体内容
 4. **生成项目规范** — 根据需要在 `30-规范/` 下创建项目专属规范
+
+## V9.3.0 新增
+
+| 能力 | 文件 |
+|---|---|
+| 第一反射器聚合器 | `02-项目管理/脚本/v9-reflex-check.py` |
+| 任务卡/运行日志 JSON 巡检 | `02-项目管理/脚本/project-ops-check.py` |
+| 规范冲突扫描 | `02-项目管理/脚本/v9-policy-conflict-check.py` |
+| 巡检输出目录 | `02-项目管理/巡检/` |
+| 公开迭代记录 | `50-经验/Agent协作方法论/V9.3.0-迭代记录-2026-06-26.md` |
+
+即时巡检：
+
+```bash
+python3 02-项目管理/脚本/v9-reflex-check.py
+```
+
+健康口径：`summary.active=0` 且 `sources_failed=[]` 才是真静默。
 
 ---
 

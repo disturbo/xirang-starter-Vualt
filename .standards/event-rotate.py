@@ -32,7 +32,7 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$VAULT_ROOT"))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", os.getcwd()))
 TZ = timezone(timedelta(hours=8))
 
 # 需要轮转的事件流文件

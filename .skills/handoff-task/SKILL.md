@@ -13,7 +13,7 @@
 - 产物路径: {vault 或沙箱路径}
 - 来源/依据: {source / summary / PRD / 规范}
 - next action: {下一步最小动作}
-- blocked by: {无 / 需波波确认 / 需某 agent / 需资料}
+- blocked by: {无 / 需负责人确认 / 需某 agent / 需资料}
 - 风险: {可选}
 ```
 

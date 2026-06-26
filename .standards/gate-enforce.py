@@ -32,7 +32,7 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, asdict
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$VAULT_ROOT"))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", os.getcwd()))
 STANDARDS_DIR = VAULT_ROOT / ".standards"
 EVENT_FILE = VAULT_ROOT / "02-项目管理" / "智能体状态" / "智能体事件.jsonl"
 AGENT_STATUS_DIR = VAULT_ROOT / "02-项目管理" / "智能体状态"
@@ -46,7 +46,7 @@ FORBIDDEN_PATHS = ["00-MOC/", "30-规范/", "40-决策/", ".standards/"]
 # Agent ID -> 中文名映射
 AGENT_STATUS_FILES = {
     "claudian": "Claudian.md",
-    "dongfeng": "Claudian.md",  # backward compat alias
+    "claudian": "Claudian.md",  # backward compat alias
     "xiaochong": "阿莫西林.md",
     "toubao": "头孢.md",
     "workbuddy": "WorkBuddy.md",
