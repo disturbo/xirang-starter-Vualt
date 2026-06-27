@@ -12,7 +12,7 @@ Usage:
   --json     结构化 JSON，统一 severity schema（p0/p1/advisory），供 V9 第一反射器消费。
 
 severity 约定（统一 schema，与 gate-enforce / health-latest 对齐）:
-  p0        阻断级，需立即处理 / @负责人
+  p0        阻断级，需立即处理 / @人工Reviewer
   p1        结构性问题，需修复（字段缺失、状态非法、in_progress 超期）
   advisory  提示级，不一定要动（日志缺 frontmatter、距上次开卡天数）
 """
@@ -141,7 +141,7 @@ def check_task_cards(f: Findings, today: date, max_gap_days: int, all_months: bo
     cards = task_cards()
 
     if not cards:
-        f.add("advisory", "NO_TASK_CARDS", str(TASK_ROOT), "没有找到任何任务卡；新建 M4/M5 任务后会自动进入巡检。")
+        f.add("p1", "NO_TASK_CARDS", str(TASK_ROOT), "没有找到任何任务卡。")
         return
 
     latest_date = max(

@@ -193,6 +193,10 @@ def compute_metrics(days: int) -> dict[str, Any]:
     total_cost = 0.0
     event_types: Counter = Counter()
     phase_costs: dict[str, dict[str, float]] = defaultdict(lambda: {"tokens": 0, "cost_cny": 0.0, "events": 0})
+    billing_statuses: Counter = Counter()
+    usage_sources: Counter = Counter()
+    connected_cost_events = 0
+    usage_token_events = 0
 
     for event in all_cost_rows:
         event_type = normalize_event_type(event)
@@ -200,6 +204,15 @@ def compute_metrics(days: int) -> dict[str, Any]:
         tokens = int(event.get("tokens") or 0)
         cost = float(event.get("cost_cny") or 0)
         phase = str(event.get("phase") or "unknown")
+        billing_status = str(event.get("billing_status") or "legacy_unmarked")
+        usage_source = str(event.get("usage_source") or "unknown")
+        cost_source = str(event.get("cost_source") or "")
+        billing_statuses[billing_status] += 1
+        usage_sources[usage_source] += 1
+        if tokens > 0 and usage_source not in {"", "unknown", "manual"}:
+            usage_token_events += 1
+        if billing_status == "connected" and cost_source in {"platform_billing", "provider_invoice", "platform_usage"}:
+            connected_cost_events += 1
         total_tokens += tokens
         total_cost += cost
 
@@ -247,21 +260,31 @@ def compute_metrics(days: int) -> dict[str, Any]:
 
     failed_ratio = (failed_cost["cost_cny"] / total_cost * 100) if total_cost else 0.0
     positive_cost_events = sum(1 for e in all_cost_rows if float(e.get("cost_cny") or 0) > 0)
-    if total_cost == 0:
+    if connected_cost_events and connected_cost_events == positive_cost_events:
+        billing_status = "connected"
+        billing_note = "事件窗口内正成本事件均声明平台成本来源；仍需与平台账单对账。"
+    elif connected_cost_events:
+        billing_status = "partial"
+        billing_note = "部分事件已接平台成本来源，但事件流仍混有未标记或估算成本。"
+    elif usage_token_events:
+        billing_status = "usage_only"
+        billing_note = "已接入部分真实 usage token；CNY 仍未接平台账单，不可当账单金额。"
+    elif total_cost == 0:
         billing_status = "not_connected"
         billing_note = "未接真实计费；当前 CNY 只能说明事件流里没有真实 cost_cny。"
-    elif positive_cost_events < len(all_cost_rows):
-        billing_status = "partial"
-        billing_note = "部分事件含 cost_cny，仍不能视为完整账单。"
     else:
-        billing_status = "connected"
-        billing_note = "事件窗口内 cost_cny 全部来自事件流；仍需与平台账单对账。"
+        billing_status = "estimated"
+        billing_note = "事件流含 cost_cny，但无平台成本来源标记；只能视为估算/自报。"
 
     coverage_notes = []
     if not COST_EVENTS_LOG.exists():
         coverage_notes.append("agent-cost-events.jsonl 不存在，当前主要依赖智能体事件流中的 tokens/cost_cny。")
     if not any(e.get("phase") for e in all_cost_rows):
         coverage_notes.append("事件未记录 phase，暂不能精确拆分仪式 token 与产出 token。")
+    if usage_token_events:
+        coverage_notes.append(f"真实 usage token 事件数：{usage_token_events}；可用于工程消耗观察。")
+    if not connected_cost_events:
+        coverage_notes.append("未发现 billing_status=connected 且带平台成本来源的事件；CNY 仍非账单。")
     if not total_cost:
         coverage_notes.append("未接真实计费；成本指标只能看 token/事件结构分布，不能作为费用账单。")
 
@@ -272,6 +295,8 @@ def compute_metrics(days: int) -> dict[str, Any]:
         "billing_status": billing_status,
         "billing_note": billing_note,
         "positive_cost_event_count": positive_cost_events,
+        "connected_cost_event_count": connected_cost_events,
+        "usage_token_event_count": usage_token_events,
         "total_tokens": total_tokens,
         "total_cost_cny": round(total_cost, 4),
         "failed_retry_cost_cny": round(failed_cost["cost_cny"], 4),
@@ -295,6 +320,8 @@ def compute_metrics(days: int) -> dict[str, Any]:
             }
             for phase, values in sorted(phase_costs.items())
         },
+        "billing_statuses": dict(billing_statuses.most_common()),
+        "usage_sources": dict(usage_sources.most_common()),
         "top_tasks": top_tasks,
         "task_card_count": len(cards),
         "event_count": len(events),
@@ -331,6 +358,8 @@ def render_markdown(metrics: dict[str, Any]) -> str:
         f"| 计费状态 | {metrics['billing_status']} |",
         f"| 总成本 CNY | {metrics['total_cost_cny']} |",
         f"| 正成本事件数 | {metrics['positive_cost_event_count']} |",
+        f"| 平台成本事件数 | {metrics['connected_cost_event_count']} |",
+        f"| 真实 usage token 事件数 | {metrics['usage_token_event_count']} |",
         f"| 失败/重试成本 CNY | {metrics['failed_retry_cost_cny']} |",
         f"| 失败/重试成本占比 | {metrics['failed_retry_ratio_pct']}% |",
         f"| 事件数 | {metrics['event_count']} |",

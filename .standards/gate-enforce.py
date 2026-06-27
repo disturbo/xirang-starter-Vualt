@@ -28,6 +28,7 @@ import json
 import re
 import subprocess
 import argparse
+import hashlib
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, asdict
@@ -46,7 +47,7 @@ FORBIDDEN_PATHS = ["00-MOC/", "30-规范/", "40-决策/", ".standards/"]
 # Agent ID -> 中文名映射
 AGENT_STATUS_FILES = {
     "claudian": "Claudian.md",
-    "claudian": "Claudian.md",  # backward compat alias
+    "legacy_agent": "Claudian.md",  # backward compat alias
     "xiaochong": "阿莫西林.md",
     "toubao": "头孢.md",
     "workbuddy": "WorkBuddy.md",
@@ -542,6 +543,80 @@ def cmd_pre_end(args) -> list[GateResult]:
     return results
 
 
+TASK_STATE_CHECK = VAULT_ROOT / "02-项目管理" / "脚本" / "v9-task-state-check.py"
+
+
+def _run_pyscript(script_path: Path, args: list[str], timeout: int = 30) -> tuple[int, str, str]:
+    """调用任意路径的 py 工具（区别于 _run_tool 仅限 .standards/）。"""
+    if not script_path.exists():
+        return 98, "", f"工具不存在: {script_path}"
+    try:
+        r = subprocess.run([sys.executable, str(script_path), *args],
+                           capture_output=True, text=True, timeout=timeout, cwd=str(VAULT_ROOT))
+        return r.returncode, r.stdout, r.stderr
+    except (subprocess.TimeoutExpired, OSError) as e:
+        return 99, "", f"工具调用失败: {e}"
+
+
+def _file_sha16(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+
+
+def cmd_pre_accept(args) -> list[GateResult]:
+    """pre-accept 门禁：验收转移（submitted→accepted）前检查（V9.4.1）。
+    - --candidate: 校验候选任务卡（self-accept / 缺 accepted_by 等）→ 委托 v9-task-state-check
+    - --require-fresh-eval --eval-report: harness 类验收要求 eval 报告新鲜（hash 匹配当前脚本）
+    """
+    results: list[GateResult] = []
+
+    candidate = getattr(args, "candidate", None)
+    if candidate:
+        code, stdout, _ = _run_pyscript(TASK_STATE_CHECK, ["--task", candidate, "--json", "--strict"])
+        if stdout.strip():
+            try:
+                data = json.loads(stdout)
+                for f in data.get("findings", []):
+                    if f.get("severity") in ("p0", "p1"):
+                        results.append(GateResult(
+                            priority=0, rule_id=f.get("rule_id", "ACCEPT_BLOCKED"),
+                            message=f.get("message", "候选验收卡校验未过"),
+                            source="v9-task-state-check.py", details=f.get("detail"),
+                        ))
+            except json.JSONDecodeError:
+                results.append(GateResult(priority=0, rule_id="ACCEPT_CHECK_FAILED",
+                    message="候选校验输出无法解析", source="internal"))
+
+    if getattr(args, "require_fresh_eval", False):
+        report_path = Path(getattr(args, "eval_report", "") or "")
+        reason = None
+        if not report_path.exists():
+            reason = "eval 报告不存在"
+        else:
+            try:
+                rep = json.loads(report_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                rep = None
+            if rep is None:
+                reason = "eval 报告无法解析"
+            elif rep.get("summary", {}).get("failed", 1) != 0:
+                reason = "eval 报告存在失败用例"
+            elif not rep.get("tested_hashes"):
+                reason = "eval 报告缺 tested_hashes，无法证明针对当前代码"
+            else:
+                mismatched = []
+                for rel, h in rep["tested_hashes"].items():
+                    p = VAULT_ROOT / rel
+                    if not p.exists() or _file_sha16(p) != h:
+                        mismatched.append(rel)
+                if mismatched:
+                    reason = f"eval 报告 hash 与当前脚本不符: {mismatched[:3]}"
+        if reason:
+            results.append(GateResult(priority=0, rule_id="STALE_EVAL",
+                message=f"eval 新鲜度校验未过: {reason}", source="internal", details={"reason": reason}))
+
+    return results
+
+
 # === 主函数 ===
 
 def main():
@@ -589,6 +664,15 @@ def main():
     p_end.add_argument("--gear", choices=["M4", "M5"], default="M4", help="档位（影响收工检查严格度）")
     p_end.add_argument("--json", action="store_true", default=True)
 
+    # pre-accept (V9.4.1)
+    p_accept = subparsers.add_parser("pre-accept", help="验收转移（submitted→accepted）前门禁")
+    p_accept.add_argument("--candidate", help="候选任务卡路径（含拟写入的 accepted 状态）")
+    p_accept.add_argument("--source", choices=["edit", "write"], help="候选来源（仅记录）")
+    p_accept.add_argument("--task-id", help="任务 ID")
+    p_accept.add_argument("--require-fresh-eval", action="store_true", help="要求 eval 报告新鲜")
+    p_accept.add_argument("--eval-report", help="eval 报告路径")
+    p_accept.add_argument("--json", action="store_true", default=True)
+
     args = parser.parse_args()
 
     # 路由到子命令
@@ -597,6 +681,7 @@ def main():
         "pre-spawn": cmd_pre_spawn,
         "pre-write": cmd_pre_write,
         "pre-end": cmd_pre_end,
+        "pre-accept": cmd_pre_accept,
     }
 
     results = handlers[args.command](args)

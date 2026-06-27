@@ -1,12 +1,12 @@
 #!/bin/bash
-# sync-to-dist.sh — 将 Vault 基建文件同步到 xirang-dist 分发仓库
+# sync-to-dist.sh — 将 Vault 基建文件同步到 xi-rang-v9-starter 分发仓库
 # 用法: bash sync-to-dist.sh
 # 只同步基建，不动个人项目数据。可重复执行。
 
 set -euo pipefail
 
 VAULT="${VAULT:-$HOME/Desktop/obsidianVault}"
-DIST="${DIST:-$HOME/Desktop/xirang-dist}"
+DIST="${DIST:-$HOME/Desktop/xi-rang-v9-starter}"
 
 echo "=== 息壤分发同步 ==="
 echo "源: $VAULT"
@@ -27,6 +27,7 @@ DIRS=(
   "00-MOC"
   "02-项目管理/脚本"
   "02-项目管理/巡检"
+  "02-项目管理/evals"
   "30-规范"
   "50-经验/Agent协作方法论"
   "90-模板"
@@ -34,8 +35,8 @@ DIRS=(
 
 # --- 需要同步的根文件 ---
 FILES=(
-  "AGENTS.md"
-  "🚀启动说明.md"
+  "README.md"
+  "setup.sh"
 )
 
 RSYNC_EXCLUDES=(
@@ -101,12 +102,16 @@ fi
 # --- 敏感信息扫描：旧租户、硬编码凭证、会话记录、个人账号 ---
 echo "[scan] 敏感信息..."
 SENSITIVE_PATTERN='(https://[a-z0-9]+\.feishu\.cn/(wiki|docx)/[A-Za-z0-9_-]{12,}|cli_[a-z0-9]{12,}|"app_secret"[[:space:]]*:[[:space:]]*"[A-Za-z0-9_-]{20,}"|APP_SECRET[[:space:]]*=[[:space:]]*"[A-Za-z0-9_-]{20,}"|Session ID|Conversation Summary|openclaw-memory-promotion|\.claudian/sessions|@im\.wechat|Bot [0-9]{6,})'
-if grep -RInIE "$SENSITIVE_PATTERN" "$DIST" --exclude-dir=".git" >/tmp/xirang-dist-sensitive-scan.txt 2>/dev/null; then
+if grep -RInIE "$SENSITIVE_PATTERN" "$DIST" --exclude-dir=".git" >/tmp/xirang-starter-sensitive-scan.txt 2>/dev/null; then
   echo "ERROR: 分发目录仍包含敏感信息，已停止。命中如下："
-  cat /tmp/xirang-dist-sensitive-scan.txt
+  cat /tmp/xirang-starter-sensitive-scan.txt
   exit 1
 fi
-rm -f /tmp/xirang-dist-sensitive-scan.txt
+rm -f /tmp/xirang-starter-sensitive-scan.txt
+
+if [[ -f "$DIST/02-项目管理/脚本/v9-starter-leak-check.py" ]]; then
+  python3 "$DIST/02-项目管理/脚本/v9-starter-leak-check.py" --root "$DIST" --strict
+fi
 
 echo ""
 echo "=== 同步完成 ==="

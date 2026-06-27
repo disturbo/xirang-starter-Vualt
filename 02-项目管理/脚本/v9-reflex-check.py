@@ -13,6 +13,10 @@ v9-reflex-check.py — V9 第一反射器 MVP 聚合器（子任务 2/3/4）
   2. agent-state-lint.py --json    Agent 状态文件 schema 校验
   3. 内置 heartbeat 检查            status=busy 但 last_heartbeat 超时（子任务 2）
   4. v9-policy-conflict-check.py    规范管辖权索引 + 冲突扫描（动作 C）
+  5. v9-starter-leak-check.py       starter 分发泄漏扫描（V9.4）
+  6. v9-task-state-check.py         任务验收状态扫描（V9.4）
+  7. v9-scope-tamper-check.py       write_scope Bash 旁路扩权扫描（V9.4.1）
+  8. v9-handoff-check.py            Handoff 可接手性扫描（V9.4.2）
 
 统一 severity：p0（阻断）/ p1（结构性）/ advisory（提示）。
   agent-state-lint 的 error→p1、warning→advisory。
@@ -233,6 +237,122 @@ def collect_policy_conflicts() -> list[dict]:
     return findings
 
 
+# ---------- 源 5：starter 分发泄漏扫描（V9.4）----------
+def collect_starter_leaks() -> list[dict]:
+    script = SCRIPT_DIR / "v9-starter-leak-check.py"
+    if not script.exists():
+        return [make_finding("advisory", "SOURCE_MISSING", str(script), f"巡检源缺失：{script}", "reflex")]
+    try:
+        out = subprocess.run(
+            [sys.executable, str(script), "--json"],
+            capture_output=True, text=True, timeout=60,
+        )
+        data = json.loads(out.stdout)
+    except (subprocess.SubprocessError, json.JSONDecodeError, OSError) as exc:
+        return [make_finding("p1", "SOURCE_FAILED", str(script), f"starter 泄漏扫描执行失败：{exc}", "reflex")]
+
+    findings = []
+    for item in data.get("findings", []):
+        findings.append(
+            make_finding(
+                item.get("severity", "advisory"),
+                item.get("rule_id", "UNKNOWN"),
+                item.get("object", ""),
+                item.get("message", ""),
+                "starter-leak",
+                detail=item.get("detail"),
+            )
+        )
+    return findings
+
+
+# ---------- 源 6：任务验收状态扫描（V9.4）----------
+def collect_task_state() -> list[dict]:
+    script = SCRIPT_DIR / "v9-task-state-check.py"
+    if not script.exists():
+        return [make_finding("advisory", "SOURCE_MISSING", str(script), f"巡检源缺失：{script}", "reflex")]
+    try:
+        out = subprocess.run(
+            [sys.executable, str(script), "--json"],
+            capture_output=True, text=True, timeout=60,
+        )
+        data = json.loads(out.stdout)
+    except (subprocess.SubprocessError, json.JSONDecodeError, OSError) as exc:
+        return [make_finding("p1", "SOURCE_FAILED", str(script), f"任务验收状态扫描执行失败：{exc}", "reflex")]
+
+    findings = []
+    for item in data.get("findings", []):
+        findings.append(
+            make_finding(
+                item.get("severity", "advisory"),
+                item.get("rule_id", "UNKNOWN"),
+                item.get("object", ""),
+                item.get("message", ""),
+                "task-state",
+                detail=item.get("detail"),
+            )
+        )
+    return findings
+
+
+# ---------- 源 7：write_scope Bash 旁路扩权扫描（V9.4.1）----------
+def collect_scope_tamper() -> list[dict]:
+    script = SCRIPT_DIR / "v9-scope-tamper-check.py"
+    if not script.exists():
+        return [make_finding("advisory", "SOURCE_MISSING", str(script), f"巡检源缺失：{script}", "reflex")]
+    try:
+        out = subprocess.run(
+            [sys.executable, str(script), "--json"],
+            capture_output=True, text=True, timeout=60,
+        )
+        data = json.loads(out.stdout)
+    except (subprocess.SubprocessError, json.JSONDecodeError, OSError) as exc:
+        return [make_finding("p1", "SOURCE_FAILED", str(script), f"write_scope 扩权扫描执行失败：{exc}", "reflex")]
+
+    findings = []
+    for item in data.get("findings", []):
+        findings.append(
+            make_finding(
+                item.get("severity", "advisory"),
+                item.get("rule_id", "UNKNOWN"),
+                item.get("object", ""),
+                item.get("message", ""),
+                "scope-tamper",
+                detail=item.get("detail"),
+            )
+        )
+    return findings
+
+
+# ---------- 源 8：Handoff 可接手性扫描（V9.4.2）----------
+def collect_handoff() -> list[dict]:
+    script = SCRIPT_DIR / "v9-handoff-check.py"
+    if not script.exists():
+        return [make_finding("advisory", "SOURCE_MISSING", str(script), f"巡检源缺失：{script}", "reflex")]
+    try:
+        out = subprocess.run(
+            [sys.executable, str(script), "--json"],
+            capture_output=True, text=True, timeout=60,
+        )
+        data = json.loads(out.stdout)
+    except (subprocess.SubprocessError, json.JSONDecodeError, OSError) as exc:
+        return [make_finding("p1", "SOURCE_FAILED", str(script), f"Handoff 可接手性扫描执行失败：{exc}", "reflex")]
+
+    findings = []
+    for item in data.get("findings", []):
+        findings.append(
+            make_finding(
+                item.get("severity", "advisory"),
+                item.get("rule_id", "UNKNOWN"),
+                item.get("object", ""),
+                item.get("message", ""),
+                "handoff",
+                detail=item.get("detail"),
+            )
+        )
+    return findings
+
+
 # ---------- 去重 + 冷却（子任务 4）----------
 def dedup_key(finding: dict) -> str:
     rule = finding["rule_id"]
@@ -335,6 +455,10 @@ def main() -> int:
         ("agent-state", collect_agent_state),
         ("heartbeat", lambda: collect_heartbeat(now, args.stale_heartbeat_hours)),
         ("policy-conflict", collect_policy_conflicts),
+        ("starter-leak", collect_starter_leaks),
+        ("task-state", collect_task_state),
+        ("scope-tamper", collect_scope_tamper),
+        ("handoff", collect_handoff),
     ]
     findings: list[dict] = []
     sources_run: list[dict] = []

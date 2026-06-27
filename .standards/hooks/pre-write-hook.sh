@@ -19,7 +19,7 @@
 set -uo pipefail
 # 注意：不用 set -e，因为需要手动处理各步退出码
 
-VAULT_ROOT="${VAULT_ROOT:-$VAULT_ROOT}"
+VAULT_ROOT="${VAULT_ROOT:-$(pwd)}"
 STATUS_DIR="$VAULT_ROOT/02-项目管理/智能体状态"
 EVENT_FILE="$STATUS_DIR/智能体事件.jsonl"
 
@@ -32,7 +32,7 @@ V8_PLATFORM="${V8_PLATFORM:-claude-code}"
 # 根据 agent_id 解析状态文件名
 _resolve_status_name() {
   case "$1" in
-    claudian)               echo "Claudian" ;;
+    claudian|legacy_agent)               echo "Claudian" ;;
     xiaochong|amoxicillin|amox)      echo "阿莫西林" ;;
     toubao|cephalosporin|ceph)       echo "头孢" ;;
     hongmeisu|erythromycin|eryth)    echo "红霉素" ;;
@@ -119,6 +119,60 @@ for prefix in "${WHITELIST[@]}"; do
     exit 0
   fi
 done
+
+# ============================================================
+# Layer 0.6: 任务卡验收转移拦截（V9.4.1，热路径）
+# 仅当"写任务卡 且 候选内容拟设 review_status: accepted"时介入；其余写入完全不进入。
+# 内部任何异常一律 fail-open（exit 0 放行），把爆炸半径锁死在"自验收"这一种情形。
+# ============================================================
+if [[ "$REL_PATH" == 02-项目管理/任务卡/*/T-*.md || "$REL_PATH" == 02-项目管理/任务卡/T-*.md ]]; then
+  ACCEPT_MSG=$(V9_INPUT="$INPUT" V9_VAULT="$VAULT_ROOT" V9_REL="$REL_PATH" python3 - <<'PYEOF'
+import os, sys, json, re, tempfile, subprocess
+try:
+    raw = os.environ.get("V9_INPUT", "")
+    d = json.loads(raw) if raw.strip() else {}
+    ti = d.get("tool_input", {})
+    ti = ti if isinstance(ti, dict) else {}
+    vault = os.environ["V9_VAULT"]
+    target = os.path.join(vault, os.environ["V9_REL"])
+    content = ti.get("content")
+    if content is None:  # Edit：用 old->new 在当前文件上重建候选全文
+        old = ti.get("old_string", "") or ""
+        new = ti.get("new_string", "") or ""
+        try:
+            cur = open(target, encoding="utf-8").read()
+        except OSError:
+            sys.exit(0)
+        content = cur.replace(old, new, 1) if (old and old in cur) else cur
+    if not re.search(r"^review_status:\s*accepted\b", content, re.MULTILINE):
+        sys.exit(0)  # 不涉及 accepted 转移 → 放行
+    gate = os.path.join(vault, ".standards", "gate-enforce.py")
+    if not os.path.exists(gate):
+        sys.exit(0)  # gate 缺失 → 降级放行（与 hook 既有策略一致）
+    tf = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8")
+    tf.write(content); tf.close()
+    try:
+        r = subprocess.run([sys.executable, gate, "pre-accept", "--candidate", tf.name, "--json"],
+                           capture_output=True, text=True, timeout=30, cwd=vault)
+        out = json.loads(r.stdout) if r.stdout.strip() else {}
+    finally:
+        os.unlink(tf.name)
+    if out.get("p0_count", 0) > 0:
+        sys.stdout.write(",".join(v.get("rule_id", "") for v in out.get("violations", [])))
+        sys.exit(2)
+    sys.exit(0)
+except SystemExit:
+    raise
+except Exception:
+    sys.exit(0)  # fail-open：绝不因本检查误伤写入
+PYEOF
+)
+  if [[ "$?" == "2" ]]; then
+    echo "[V8-HOOK-BLOCK] 任务卡验收转移被拦：${ACCEPT_MSG}。" >&2
+    echo "  请用 v9_accept 完成验收，且 accepted_by 不能是 owner/author（self-accept）。" >&2
+    exit 2
+  fi
+fi
 
 # ============================================================
 # Layer 1A: 禁止路径硬拦截（无条件执行，不依赖 busy/idle 状态）

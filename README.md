@@ -1,7 +1,7 @@
 # 息壤 V9 · Starter Vault
 
 > 多智能体协作方法论的最小可运行 Obsidian Vault 骨架。
-> V9.3.0 · Clone 即用，3 分钟从零到可运行。
+> V9.4.3 · Clone 即用，3 分钟从零到可运行。
 
 ---
 
@@ -11,7 +11,8 @@
 
 - 文件系统即协作黑板 — Agent 通过读写 Markdown 文件协作
 - 二元触发器 — 写文件要声明，不写直接做
-- 第一反射器 — 巡检任务卡、状态、心跳、规范冲突，区分真静默与假静默
+- 第一反射器 — 巡检任务卡、状态、心跳、规范冲突、分发泄漏、状态机和 Handoff，区分真静默与假静默
+- 自证门禁 — harness eval 用 positive/negative fixture 验证门禁、巡检、状态机不会假绿
 - 渐进收敛 — L0→L3 四阶段，按需升级，不强制完全体
 
 详细文档：[息壤 V9 在线文档](https://disturbo.github.io/xirang/)
@@ -30,7 +31,7 @@
 - 巡检快照、Agent 事件流、成本事件等运行期产物
 - Obsidian 插件的本机 `data.json` 配置
 
-如需从个人 Vault 同步到 starter，请先运行 `sync-to-dist.sh`，再用敏感词扫描确认无个人/项目痕迹。
+如需从个人 Vault 同步到 starter，请先运行 `sync-to-dist.sh`，再用 `v9-starter-leak-check.py --strict` 确认无个人/项目痕迹。
 
 ---
 
@@ -108,15 +109,22 @@ bash setup.sh
 3. **创建项目 MOC** — 复制 `00-MOC/T-项目MOC.md` 到 `00-MOC/`，重命名并填入具体内容
 4. **生成项目规范** — 根据需要在 `30-规范/` 下创建项目专属规范
 
-## V9.3.0 新增
+## V9.4.3 新增
 
 | 能力 | 文件 |
 |---|---|
-| 第一反射器聚合器 | `02-项目管理/脚本/v9-reflex-check.py` |
+| 八源第一反射器聚合器 | `02-项目管理/脚本/v9-reflex-check.py` |
 | 任务卡/运行日志 JSON 巡检 | `02-项目管理/脚本/project-ops-check.py` |
 | 规范冲突扫描 | `02-项目管理/脚本/v9-policy-conflict-check.py` |
+| starter 泄漏扫描 | `02-项目管理/脚本/v9-starter-leak-check.py` |
+| 任务验收状态机 | `02-项目管理/脚本/v9-task-state-check.py` |
+| Handoff 可接手性扫描 | `02-项目管理/脚本/v9-handoff-check.py` |
+| Harness 回归测试 | `02-项目管理/脚本/v9-harness-eval-runner.py` |
+| 安全验收正门 | `.standards/v9-accept.py` |
+| usage token 成本事件 | `.standards/agent-cost-events.py` |
 | 巡检输出目录 | `02-项目管理/巡检/` |
-| 公开迭代记录 | `50-经验/Agent协作方法论/V9.3.0-迭代记录-2026-06-26.md` |
+| 自证回归目录 | `02-项目管理/evals/` |
+| 公开迭代记录 | `50-经验/Agent协作方法论/V9.4.3-迭代记录-2026-06-27.md` |
 
 即时巡检：
 
@@ -125,6 +133,18 @@ python3 02-项目管理/脚本/v9-reflex-check.py
 ```
 
 健康口径：`summary.active=0` 且 `sources_failed=[]` 才是真静默。
+
+回归测试：
+
+```bash
+python3 02-项目管理/脚本/v9-harness-eval-runner.py
+```
+
+分发前脱敏扫描：
+
+```bash
+python3 02-项目管理/脚本/v9-starter-leak-check.py --root . --strict
+```
 
 ---
 

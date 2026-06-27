@@ -3,6 +3,7 @@
 # 用法：source .standards/v8-handshake.sh
 #       v8_handshake <档位> <任务名> <写入范围> [验收方] [agent_id]
 #       v8_end <task_id> <agent_id> <结果>
+#       v9_accept <task_id> <accepted_by> [--reviewer NAME] [--require-fresh-eval]
 #       v8_spawn <parent_task_id> <sub_id> <model> <type> <name> <write_scope> [timeout]
 #       v8_collect <parent_task_id> <sub_id> [tokens] [cost]
 #
@@ -11,7 +12,6 @@
 #
 # 版本: 1.4.1 | 创建: 2026-05-23 | 修订: 2026-05-31（cost事件集成+文档头订正） | 息壤 V9.2
 
-# Starter 默认以当前目录作为 Vault 根目录；如需放在其他位置，可先 export VAULT_ROOT=/path/to/vault。
 VAULT_ROOT="${VAULT_ROOT:-$(pwd)}"
 EVENT_FILE="$VAULT_ROOT/02-项目管理/智能体状态/智能体事件.jsonl"
 LOG_DIR="$VAULT_ROOT/02-项目管理/运行日志"
@@ -100,7 +100,7 @@ _v8_resolve_status_file() {
   local agent="$1"
   local base="$VAULT_ROOT/02-项目管理/智能体状态"
   case "$agent" in
-    claudian)                        echo "$base/Claudian.md" ;;
+    claudian|legacy_agent)               echo "$base/Claudian.md" ;;
     workbuddy)                       echo "$base/WorkBuddy.md" ;;
     xiaochong|amoxicillin|amox)      echo "$base/阿莫西林.md" ;;
     toubao|cephalosporin|ceph)       echo "$base/头孢.md" ;;
@@ -116,7 +116,7 @@ _v8_resolve_status_file() {
 _v8_normalize_agent_id() {
   local agent="$1"
   case "$agent" in
-    claudian)                        echo "claudian" ;;
+    claudian|legacy_agent)               echo "claudian" ;;
     workbuddy)                       echo "workbuddy" ;;
     xiaochong|amoxicillin|amox)      echo "xiaochong" ;;
     toubao|cephalosporin|ceph)       echo "toubao" ;;
@@ -495,6 +495,23 @@ except:
 
   echo "[v8_collect] 子任务已收集: $sub_id (tokens=$tokens, cost=$cost)"
   echo "$result"
+}
+
+# ============================================================
+# v9_accept - V9.4.1: 安全验收任务卡
+# 用法: v9_accept <task_id> <accepted_by> [--reviewer NAME] [--require-fresh-eval]
+# ============================================================
+v9_accept() {
+  local task_id="$1"
+  local accepted_by="$2"
+
+  if [[ -z "$task_id" || -z "$accepted_by" ]]; then
+    echo "[ERROR] 用法: v9_accept <task_id> <accepted_by> [--reviewer NAME] [--require-fresh-eval]" >&2
+    return 1
+  fi
+
+  shift 2
+  python3 "$VAULT_ROOT/.standards/v9-accept.py" "$task_id" "$accepted_by" "$@"
 }
 
 # ============================================================
