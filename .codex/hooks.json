@@ -1,0 +1,64 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 .standards/hooks/codex-hook-adapter.py session-start",
+            "timeout": 30,
+            "statusMessage": "Syncing Xirang Codex identity"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "apply_patch|Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 .standards/hooks/codex-hook-adapter.py pre-write",
+            "timeout": 60,
+            "statusMessage": "Checking Xirang write scope"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|apply_patch|Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 .standards/hooks/codex-hook-adapter.py session-guard",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 .standards/hooks/codex-hook-adapter.py post-write",
+            "timeout": 60,
+            "statusMessage": "Recording Xirang write event"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 .standards/hooks/codex-hook-adapter.py session-stop",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

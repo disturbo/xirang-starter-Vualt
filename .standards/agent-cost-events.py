@@ -90,7 +90,7 @@ def validate_row(row: dict[str, Any]) -> list[str]:
             errors.append(f"line {line}: {key} 不能为负数")
 
     usage_parts: dict[str, int] = {}
-    for key in ("input_tokens", "output_tokens"):
+    for key in ("input_tokens", "output_tokens", "cached_input_tokens", "reasoning_output_tokens"):
         if key not in row:
             continue
         try:
@@ -150,6 +150,10 @@ def command_append(args: argparse.Namespace) -> int:
         event["input_tokens"] = args.input_tokens
     if args.output_tokens is not None:
         event["output_tokens"] = args.output_tokens
+    if args.cached_input_tokens is not None:
+        event["cached_input_tokens"] = args.cached_input_tokens
+    if args.reasoning_output_tokens is not None:
+        event["reasoning_output_tokens"] = args.reasoning_output_tokens
     if args.usage_source:
         event["usage_source"] = args.usage_source
     if args.billing_status:
@@ -446,6 +450,8 @@ def build_parser() -> argparse.ArgumentParser:
     append.add_argument("--tokens", type=int)
     append.add_argument("--input-tokens", type=int)
     append.add_argument("--output-tokens", type=int)
+    append.add_argument("--cached-input-tokens", type=int)
+    append.add_argument("--reasoning-output-tokens", type=int)
     append.add_argument("--cost-cny", type=float, required=True)
     append.add_argument("--phase", choices=sorted(PHASES), required=True)
     append.add_argument("--source", default="manual")

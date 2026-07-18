@@ -1,7 +1,7 @@
 # 息壤 V9 · Starter Vault
 
 > 多智能体协作方法论的最小可运行 Obsidian Vault 骨架。
-> V9.4.3 · Clone 即用，3 分钟从零到可运行。
+> V9.4.3 · 2026-07-18 runtime recovery · Clone 即用，3 分钟从零到可运行。
 
 ---
 
@@ -113,7 +113,7 @@ bash setup.sh
 
 | 能力 | 文件 |
 |---|---|
-| 八源第一反射器聚合器 | `02-项目管理/脚本/v9-reflex-check.py` |
+| 九源第一反射器聚合器 + 运行时消费链自检 | `02-项目管理/脚本/v9-reflex-check.py` |
 | 任务卡/运行日志 JSON 巡检 | `02-项目管理/脚本/project-ops-check.py` |
 | 规范冲突扫描 | `02-项目管理/脚本/v9-policy-conflict-check.py` |
 | starter 泄漏扫描 | `02-项目管理/脚本/v9-starter-leak-check.py` |
@@ -122,6 +122,9 @@ bash setup.sh
 | Harness 回归测试 | `02-项目管理/脚本/v9-harness-eval-runner.py` |
 | 安全验收正门 | `.standards/v9-accept.py` |
 | usage token 成本事件 | `.standards/agent-cost-events.py` |
+| Codex Desktop 门禁/成本适配 | `.standards/hooks/codex-hook-adapter.py` / `.standards/codex-cost-import.py` |
+| Harness trust/hash 新鲜度校验 | `.standards/harness-eval-verify.py` / `.standards/harness-tested-files.txt` |
+| skill 版本遮蔽校验 | `02-项目管理/脚本/v9-skill-shadow-check.py` |
 | 巡检输出目录 | `02-项目管理/巡检/` |
 | 自证回归目录 | `02-项目管理/evals/` |
 | 公开迭代记录 | `50-经验/Agent协作方法论/V9.4.3-迭代记录-2026-06-27.md` |
@@ -132,12 +135,13 @@ bash setup.sh
 python3 02-项目管理/脚本/v9-reflex-check.py
 ```
 
-健康口径：`summary.active=0` 且 `sources_failed=[]` 才是真静默。
+健康口径：`summary.active=0`、`sources_failed=[]` 且 `runtime_checks` 无 `failed/stale` 才是真静默。GBrain、LLM Wiki、成本、熵治理等部署依赖未配置时会保持红色，不以脚本退出成功冒充生效。
 
 回归测试：
 
 ```bash
 python3 02-项目管理/脚本/v9-harness-eval-runner.py
+python3 .standards/harness-eval-verify.py --json
 ```
 
 分发前脱敏扫描：
@@ -145,6 +149,8 @@ python3 02-项目管理/脚本/v9-harness-eval-runner.py
 ```bash
 python3 02-项目管理/脚本/v9-starter-leak-check.py --root . --strict
 ```
+
+Phoenix 在本版本中仅为 design/reference；starter 未部署 scheduler 或 executor，不包含自动自愈能力。
 
 ---
 

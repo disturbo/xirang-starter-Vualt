@@ -26,6 +26,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from jsonl_reader import JsonlDiagnostics, read_jsonl as read_jsonl_with_diagnostics
+
 
 TZ = timezone(timedelta(hours=8))
 VAULT_ROOT = Path(__file__).resolve().parent.parent
@@ -114,19 +116,8 @@ def load_task_cards() -> dict[str, TaskCard]:
     return cards
 
 
-def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    if not path.exists():
-        return rows
-    for line in path.read_text(encoding="utf-8").splitlines():
-        text = line.strip()
-        if not text:
-            continue
-        try:
-            rows.append(json.loads(text))
-        except json.JSONDecodeError:
-            continue
-    return rows
+def read_jsonl(path: Path) -> tuple[list[dict[str, Any]], JsonlDiagnostics]:
+    return read_jsonl_with_diagnostics(path, warn=True)
 
 
 def within_window(event: dict[str, Any], since: datetime) -> bool:
@@ -176,8 +167,10 @@ def compute_metrics(days: int) -> dict[str, Any]:
     now = datetime.now(TZ)
     since = now - timedelta(days=days)
     cards = load_task_cards()
-    events = [e for e in read_jsonl(EVENTS_LOG) if within_window(e, since)]
-    cost_events = [e for e in read_jsonl(COST_EVENTS_LOG) if within_window(e, since)]
+    event_rows, event_quality = read_jsonl(EVENTS_LOG)
+    cost_rows, cost_quality = read_jsonl(COST_EVENTS_LOG)
+    events = [e for e in event_rows if within_window(e, since)]
+    cost_events = [e for e in cost_rows if within_window(e, since)]
     all_cost_rows = events + cost_events
 
     events_by_task: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -326,6 +319,10 @@ def compute_metrics(days: int) -> dict[str, Any]:
         "task_card_count": len(cards),
         "event_count": len(events),
         "cost_event_count": len(cost_events),
+        "jsonl_data_quality": {
+            "events": event_quality.to_dict(),
+            "cost_events": cost_quality.to_dict(),
+        },
         "coverage_notes": coverage_notes,
     }
 

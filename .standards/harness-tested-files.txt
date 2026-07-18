@@ -1,0 +1,25 @@
+# Starter V9 Harness trust set. Must match the distributed runner's tested_hashes.
+.codex/hooks.json
+.standards/agent-cost-events.py
+.standards/codex-cost-import.py
+.standards/gate-enforce.py
+.standards/harness-eval-verify.py
+.standards/harness-tested-files.txt
+.standards/tests/test_v9_phase_g.py
+.standards/hooks/codex-hook-adapter.py
+.standards/hooks/pre-commit-harness-eval.sh
+.standards/hooks/pre-write-hook.sh
+.standards/v8-handshake.sh
+.standards/v8-cost-observability.py
+.standards/v9-accept.py
+02-项目管理/脚本/project-ops-check.py
+02-项目管理/脚本/v9-harness-eval-runner.py
+02-项目管理/脚本/v9-handoff-check.py
+02-项目管理/脚本/v9-entropy-governance.py
+02-项目管理/脚本/v9-iteration-ops-check.py
+02-项目管理/脚本/v9-reflex-check.py
+02-项目管理/脚本/v9-scope-tamper-check.py
+02-项目管理/脚本/v9-skill-shadow-check.py
+02-项目管理/脚本/v9-starter-leak-check.py
+02-项目管理/脚本/v9-status-summary.py
+02-项目管理/脚本/v9-task-state-check.py

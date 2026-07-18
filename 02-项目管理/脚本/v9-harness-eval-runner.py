@@ -49,10 +49,17 @@ TASK_STATE = SCRIPT_DIR / "v9-task-state-check.py"
 HANDOFF_CHECK = SCRIPT_DIR / "v9-handoff-check.py"
 REFLEX = SCRIPT_DIR / "v9-reflex-check.py"
 COST_EVENTS = REPO_ROOT / ".standards" / "agent-cost-events.py"
+PHASE_G_TEST = REPO_ROOT / ".standards" / "tests" / "test_v9_phase_g.py"
 LATEST_REPORT = REPO_ROOT / "02-项目管理" / "巡检" / "harness-eval-latest.json"
 TESTED_FILES = [
+    Path(".codex/hooks.json"),
     Path(".standards/agent-cost-events.py"),
+    Path(".standards/codex-cost-import.py"),
     Path(".standards/gate-enforce.py"),
+    Path(".standards/harness-eval-verify.py"),
+    Path(".standards/harness-tested-files.txt"),
+    Path(".standards/tests/test_v9_phase_g.py"),
+    Path(".standards/hooks/codex-hook-adapter.py"),
     Path(".standards/hooks/pre-commit-harness-eval.sh"),
     Path(".standards/hooks/pre-write-hook.sh"),
     Path(".standards/v8-handshake.sh"),
@@ -61,9 +68,13 @@ TESTED_FILES = [
     Path("02-项目管理/脚本/project-ops-check.py"),
     Path("02-项目管理/脚本/v9-harness-eval-runner.py"),
     Path("02-项目管理/脚本/v9-handoff-check.py"),
+    Path("02-项目管理/脚本/v9-entropy-governance.py"),
+    Path("02-项目管理/脚本/v9-iteration-ops-check.py"),
     Path("02-项目管理/脚本/v9-reflex-check.py"),
     Path("02-项目管理/脚本/v9-scope-tamper-check.py"),
+    Path("02-项目管理/脚本/v9-skill-shadow-check.py"),
     Path("02-项目管理/脚本/v9-starter-leak-check.py"),
+    Path("02-项目管理/脚本/v9-status-summary.py"),
     Path("02-项目管理/脚本/v9-task-state-check.py"),
 ]
 
@@ -668,14 +679,28 @@ def case_handoff_negative_incomplete() -> EvalResult:
 def case_reflex_negative_missing_sources_visible() -> EvalResult:
     with tempfile.TemporaryDirectory(prefix="v9-eval-reflex-missing-") as tmp:
         root = Path(tmp)
+        runtime_root = root / ".v9-runtime"
+        env = dict(os.environ)
+        env.update({
+            "XIRANG_V9_RUNTIME_DIR": str(runtime_root),
+            "XIRANG_GBRAIN_CLI": "/usr/bin/false",
+            "XIRANG_OLLAMA_CLI": "/usr/bin/false",
+            "XIRANG_CRONTAB": "/usr/bin/false",
+            "XIRANG_GBRAIN_CONTRACT_VERIFY": "/usr/bin/false",
+            "XIRANG_LLM_WIKI_CHECKER": "/usr/bin/false",
+            "XIRANG_SKILL_SHADOW_CHECKER": "/usr/bin/false",
+            "XIRANG_GBRAIN_SYNC_STATE": str(root / "missing-sync.json"),
+            "XIRANG_GBRAIN_DREAM_STATE": str(root / "missing-dream.json"),
+        })
         proc = subprocess.run(
             [sys.executable, str(REFLEX), "--today", TODAY.isoformat(), "--quiet"],
             cwd=str(root),
             capture_output=True,
             text=True,
             timeout=60,
+            env=env,
         )
-        report_path = root / "02-项目管理" / "巡检" / "health-latest.json"
+        report_path = runtime_root / "巡检" / "health-latest.json"
         report = json.loads(report_path.read_text(encoding="utf-8")) if report_path.exists() else {}
         failed_sources = set(report.get("sources_failed", []))
         expected_missing = {
@@ -686,6 +711,7 @@ def case_reflex_negative_missing_sources_visible() -> EvalResult:
             "task-state",
             "scope-tamper",
             "handoff",
+            "iteration-ops",
         }
         passed = proc.returncode == 0 and expected_missing.issubset(failed_sources)
         observed = "missing sources surfaced" if passed else "missing sources were silent"
@@ -984,8 +1010,29 @@ def case_eval_freshness_negative_stale_hash() -> EvalResult:
         return EvalResult(cid, kind, target, passed, exp, observed, {"returncode": code, "stderr_head": err[:160]})
 
 
+def case_phase_g_positive_distribution_truth() -> EvalResult:
+    proc = subprocess.run(
+        [sys.executable, str(PHASE_G_TEST)],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
+    )
+    passed = proc.returncode == 0 and "Ran 3 tests" in proc.stderr and "OK" in proc.stderr
+    return EvalResult(
+        "phase_g_positive_distribution_truth", "positive",
+        "skill resolution + portable Codex adapters", passed,
+        "Phase G shadow rejection, explicit variants, and portable paths all pass",
+        "3/3 Phase G distribution tests passed" if passed else "Phase G regression suite failed",
+        {"returncode": proc.returncode, "stdout": proc.stdout[-500:], "stderr": proc.stderr[-1000:]},
+    )
+
+
 def cases() -> list[EvalCase]:
     return [
+        EvalCase(
+            "phase_g_positive_distribution_truth", "positive",
+            "skill resolution + portable Codex adapters",
+            "Phase G distribution and resolution regression suite passes.",
+            case_phase_g_positive_distribution_truth,
+        ),
         EvalCase(
             "project_ops_positive_clean",
             "positive",
