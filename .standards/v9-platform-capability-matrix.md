@@ -3,6 +3,7 @@ type: 规范
 domain: 多智能体治理
 version: "1.0.0"
 created: 2026-05-31
+updated: 2026-07-19
 maintainer: Claudian
 task_id: T-20260531-18
 tags: [规范, 治理, hook]
@@ -17,15 +18,15 @@ tags: [规范, 治理, hook]
 
 | 能力维度 | Claude Code (Claudian) | OpenClaw (阿莫西林) | Hermes (头孢) | Codex (红霉素) |
 |----------|:---------------------:|:-------------------:|:-------------:|:--------------:|
-| **pre-write 硬拦截** | ✅ 原生 hook | ❌ 无平台 hook | ❌ 无平台 hook | ❌ 无平台 hook |
-| **post-write 审计** | ✅ 原生 hook | ❌ 手动脚本 | ❌ 无 | ❌ 无 |
-| **session 状态检测** | ✅ session-guard.sh | ❌ 手动 | ❌ 无 | ❌ 无 |
-| **gate-enforce 集成** | ✅ hook 自动调用 | ⚠️ 需手动调用 | ❌ 无 | ❌ 无 |
-| **事件流自动写入** | ✅ hook 自动 | ⚠️ 脚本手动 | ❌ 依赖 SOUL 合规 | ❌ 无 |
-| **心跳更新** | ✅ heartbeat-update.sh (V9.2) | ⚠️ heartbeat.sh 需手动调 | ❌ 无 | ❌ 无 |
+| **pre-write 硬拦截** | ✅ 原生 hook | ❌ 无平台 hook | ❌ 无平台 hook | ⚠️ `apply_patch` 硬拦；`exec_command` 仍有 shell 写入盲区 |
+| **post-write 审计** | ✅ 原生 hook | ❌ 手动脚本 | ❌ 无 | ⚠️ `apply_patch` 自动审计；shell 写入不自动逐文件记账 |
+| **session 状态检测** | ✅ session-guard.sh | ❌ 手动 | ❌ 无 | ✅ Desktop session hook |
+| **gate-enforce 集成** | ✅ hook 自动调用 | ⚠️ 需手动调用 | ❌ 无 | ⚠️ Desktop adapter 自动调用；shell 写入依赖事后 scope 检查 |
+| **事件流自动写入** | ✅ hook 自动 | ⚠️ 脚本手动 | ❌ 依赖 SOUL 合规 | ✅ 生命周期与 `apply_patch` 写入事件 |
+| **心跳更新** | ✅ heartbeat-update.sh (V9.2) | ⚠️ heartbeat.sh 需手动调 | ❌ 无 | ⚠️ 有生命周期状态，无独立长任务 heartbeat |
 | **成本追踪** | 已退役 | 已退役 | 已退役 | 已退役 |
-| **任务卡授权** | ✅ task-card.yaml | ⚠️ 脚本创建 | ❌ 无 | ❌ 无 |
-| **合规执行方式** | 自动 (hook 强制) | 半自动 (脚本辅助) | 信任制 (SOUL 契约) | 无 (静态权限) |
+| **任务卡授权** | ✅ task-card.yaml | ⚠️ 脚本创建 | ❌ 无 | ✅ handshake + task card |
+| **合规执行方式** | 自动 (hook 强制) | 半自动 (脚本辅助) | 信任制 (SOUL 契约) | 半自动（Desktop hook + shell 写入事后检查） |
 
 > 图例：✅ 已实现且自动 | ⚠️ 部分实现或需手动 | ❌ 无
 
@@ -98,20 +99,19 @@ agent 必须自觉调用脚本，平台不会自动拦截违规写入。
 
 ---
 
-### Codex (红霉素) — 无治理
+### Codex (红霉素) — Desktop hook 已接入，仍有 shell 写入盲区
 
-**配置位置**: `~/.codex/`
+**配置位置**: Vault `.codex/hooks.json` + `.standards/hooks/codex-hook-adapter.py`
 
 **治理机制**:
-- `config.toml`: 只有 trust_level 和 sandbox_permissions（静态）
-- `instructions.md`: 生成式指令（如存在），不包含 hook 配置
-- 无 hook 目录、无 hook 配置、无生命周期脚本
+- Desktop 的 `SessionStart / PreToolUse / PostToolUse / Stop` 已映射到现有 V9 门禁与生命周期协议。
+- `apply_patch` 真实触发 pre-write 与 post-write；拒绝 canary 已证明阻断路径可达。
+- Codex 身份固定记录为 `agent=hongmeisu, platform=codex`，不再误记为 claudian。
+- hook 固定使用 `/usr/bin/python3` 与系统 PATH，避免长会话中的 Homebrew Python 动态加载卡死。
 
 **已知限制**:
-- Codex 平台不支持自定义 hook
-- 唯一的"门控"是 sandbox_permissions（disk-read/disk-write），粒度太粗
-- 无法拦截特定路径写入
-- 合规只能靠 instructions.md 中注入规则 + agent 自觉
+- `exec_command` 可以通过 shell 间接写文件，当前只有 session guard 与事后 scope-tamper 检查，不能声明逐文件硬拦截。
+- 仅以 hook 配置存在不足以验收；必须保留 write/deny canary 与生命周期事件证据。
 
 ---
 
@@ -128,10 +128,10 @@ agent 必须自觉调用脚本，平台不会自动拦截违规写入。
 
 | 指标 | V9.2 当前值 | 备注 |
 |------|--------|-------------|
-| hook 硬拦截覆盖 | 1/5 (20%) — Claudian 参数化完成 | OpenClaw 脚本辅助, Hermes/Codex manual |
-| 事件流自动写入 | 生命周期事件按已适配平台写入 | 成本事件流已于 2026-07-19 退役，不计入覆盖率 |
-| 心跳可信度 | 1/5 (20%) — Claudian heartbeat-update.sh | 需 V8_AGENT_PID 环境变量 |
-| 合规执行方式分布 | 自动:1, 半自动:1, 信任:1, manual标记:2 | agent-contract.yaml 统一注册 |
+| hook 硬拦截覆盖 | 1 个完整 + 1 个部分 / 4 平台 | Claudian 完整；Codex `apply_patch` 已覆盖但 shell 写入仍是盲区 |
+| 事件流自动写入 | 2/4 平台有自动生命周期/写入事件 | Claudian 完整；Codex 部分；成本事件流已退役 |
+| 心跳可信度 | 1/4 完整 + Codex 生命周期状态 | Codex 尚无独立长任务 heartbeat |
+| 合规执行方式分布 | 自动:1，半自动:2，信任:1 | Claudian 自动；OpenClaw/Codex 半自动；Hermes 信任制 |
 
 ## 相关文档
 
