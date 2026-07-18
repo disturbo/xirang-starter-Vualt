@@ -115,7 +115,8 @@ def parse_iso(value: str) -> datetime | None:
     if not value or value in {"null", "None"}:
         return None
     try:
-        dt = datetime.fromisoformat(value)
+        # macOS system Python 3.9 does not accept the RFC 3339 `Z` suffix.
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return None
     if dt.tzinfo is None:

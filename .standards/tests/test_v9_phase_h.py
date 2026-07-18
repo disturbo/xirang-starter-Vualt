@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 IMPORTER = ROOT / ".standards/codex-cost-import.py"
 ADAPTER = ROOT / ".standards/hooks/codex-hook-adapter.py"
 HANDSHAKE = ROOT / ".standards/v8-handshake.sh"
+REFLEX = ROOT / "02-项目管理/脚本/v9-reflex-check.py"
 
 
 def load(path: Path, name: str):
@@ -113,6 +114,7 @@ class PhaseHTests(unittest.TestCase):
 
     def test_codex_hooks_pin_system_python(self) -> None:
         adapter = load(ADAPTER, "phase_h_adapter")
+        reflex = load(REFLEX, "phase_h_reflex")
         env = adapter.hook_env(ROOT)
         self.assertTrue(env["PATH"].startswith("/usr/bin:/bin:/usr/sbin:/sbin:"))
         self.assertEqual("/usr/bin/python3", env["XIRANG_PYTHON_BIN"])
@@ -124,6 +126,9 @@ class PhaseHTests(unittest.TestCase):
             if "python3" in line and not line.lstrip().startswith("#") and not line.startswith("V8_PYTHON=")
         ]
         self.assertEqual([], executable_bare)
+        parsed = reflex.parse_iso("2026-07-18T15:07:37.303Z")
+        self.assertIsNotNone(parsed)
+        self.assertIsNotNone(parsed.tzinfo)
 
 
 if __name__ == "__main__":
