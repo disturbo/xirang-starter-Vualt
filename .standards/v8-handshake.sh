@@ -15,6 +15,7 @@
 VAULT_ROOT="${VAULT_ROOT:-$(pwd)}"
 EVENT_FILE="$VAULT_ROOT/02-项目管理/智能体状态/智能体事件.jsonl"
 LOG_DIR="$VAULT_ROOT/02-项目管理/运行日志"
+V8_PYTHON="${XIRANG_PYTHON_BIN:-/usr/bin/python3}"
 
 # ============================================================
 # _v8_safe_update_yaml - 安全更新 YAML frontmatter 字段（用 awk 避免 sed 分隔符问题）
@@ -82,7 +83,7 @@ _v8_scope_with_moc_for_m4plus() {
 
   # 用 python3 做解析+去重+补 00-MOC/，避免 bash/zsh `read -a` 差异（zsh 不支持 -ra）。
   # 与本脚本下方 scope->YAML 列表的解析方式保持一致。
-  python3 -c "
+  "$V8_PYTHON" -c "
 import sys
 scope = sys.argv[1]
 parts = [p.strip() for p in scope.split(',') if p.strip()]
@@ -140,7 +141,7 @@ _v8_gate_check() {
   fi
 
   local output
-  output=$(python3 "$gate_script" "$@" 2>&1)
+  output=$("$V8_PYTHON" "$gate_script" "$@" 2>&1)
   local gate_exit=${PIPESTATUS[0]:-$?}
 
   # 输出 gate 结果到 stderr（缩进，不干扰主输出）
@@ -242,7 +243,7 @@ v8_handshake() {
 
   # 将 scope 拆成 YAML 列表（兼容 bash/zsh）
   local scope_yaml_list=""
-  scope_yaml_list=$(python3 -c "
+  scope_yaml_list=$("$V8_PYTHON" -c "
 import sys
 scope = sys.argv[1]
 parts = [p.strip() for p in scope.split(',') if p.strip()]
@@ -308,7 +309,7 @@ v8_end() {
     for f in "$subtasks_dir"/*.json; do
       [[ -f "$f" ]] || continue
       local state
-      state=$(python3 -c "import json; print(json.load(open('$f'))['state'])" 2>/dev/null)
+      state=$("$V8_PYTHON" -c "import json; print(json.load(open('$f'))['state'])" 2>/dev/null)
       if [[ "$state" != "COLLECTED" && "$state" != "DESTROYED" ]]; then
         active_count=$((active_count + 1))
       fi
@@ -391,7 +392,7 @@ v8_spawn() {
 
   # 调用 subtask-record.py create（norm_agent 已在 gate check 中计算）
   local result
-  result=$(python3 "$VAULT_ROOT/.standards/subtask-record.py" create \
+  result=$("$V8_PYTHON" "$VAULT_ROOT/.standards/subtask-record.py" create \
     --task-id "$task_id" --sub-id "$sub_id" \
     --parent "$norm_agent" --model "$model" --type "$task_type" \
     --name "$name" --write-scope "$write_scope" --timeout "$timeout" 2>&1)
@@ -455,7 +456,7 @@ v8_collect() {
   fi
 
   local result
-  result=$(python3 "$VAULT_ROOT/.standards/subtask-record.py" collect "${cmd_args[@]}" 2>&1)
+  result=$("$V8_PYTHON" "$VAULT_ROOT/.standards/subtask-record.py" collect "${cmd_args[@]}" 2>&1)
   local exit_code=$?
 
   if [[ $exit_code -ne 0 ]]; then
@@ -480,7 +481,7 @@ v8_collect() {
     if [[ -n "$current_subs" && "$current_subs" != "[]" ]]; then
       # 用 python 安全移除数组元素
       local new_subs
-      new_subs=$(python3 -c "
+      new_subs=$("$V8_PYTHON" -c "
 import json, sys
 try:
     arr = json.loads('$current_subs')
@@ -511,7 +512,7 @@ v9_accept() {
   fi
 
   shift 2
-  python3 "$VAULT_ROOT/.standards/v9-accept.py" "$task_id" "$accepted_by" "$@"
+  "$V8_PYTHON" "$VAULT_ROOT/.standards/v9-accept.py" "$task_id" "$accepted_by" "$@"
 }
 
 # ============================================================

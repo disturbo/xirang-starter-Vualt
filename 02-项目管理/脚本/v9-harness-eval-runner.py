@@ -50,6 +50,7 @@ HANDOFF_CHECK = SCRIPT_DIR / "v9-handoff-check.py"
 REFLEX = SCRIPT_DIR / "v9-reflex-check.py"
 COST_EVENTS = REPO_ROOT / ".standards" / "agent-cost-events.py"
 PHASE_G_TEST = REPO_ROOT / ".standards" / "tests" / "test_v9_phase_g.py"
+PHASE_H_TEST = REPO_ROOT / ".standards" / "tests" / "test_v9_phase_h.py"
 LATEST_REPORT = REPO_ROOT / "02-项目管理" / "巡检" / "harness-eval-latest.json"
 TESTED_FILES = [
     Path(".codex/hooks.json"),
@@ -59,6 +60,7 @@ TESTED_FILES = [
     Path(".standards/harness-eval-verify.py"),
     Path(".standards/harness-tested-files.txt"),
     Path(".standards/tests/test_v9_phase_g.py"),
+    Path(".standards/tests/test_v9_phase_h.py"),
     Path(".standards/hooks/codex-hook-adapter.py"),
     Path(".standards/hooks/pre-commit-harness-eval.sh"),
     Path(".standards/hooks/pre-write-hook.sh"),
@@ -1025,8 +1027,27 @@ def case_phase_g_positive_distribution_truth() -> EvalResult:
     )
 
 
+def case_phase_h_positive_long_session_stability() -> EvalResult:
+    proc = subprocess.run(
+        [sys.executable, str(PHASE_H_TEST)],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
+    )
+    passed = proc.returncode == 0 and "Ran 3 tests" in proc.stderr and "OK" in proc.stderr
+    return EvalResult(
+        "phase_h_positive_long_session_stability", "positive",
+        "incremental Codex cost cursor + system-Python hook runtime", passed,
+        "Phase H incremental, truncation, partial-line, and interpreter regressions all pass",
+        "3/3 Phase H long-session tests passed" if passed else "Phase H regression suite failed",
+        {"returncode": proc.returncode, "stdout": proc.stdout[-500:], "stderr": proc.stderr[-1000:]},
+    )
 def cases() -> list[EvalCase]:
     return [
+        EvalCase(
+            "phase_h_positive_long_session_stability", "positive",
+            "incremental Codex cost cursor + system-Python hook runtime",
+            "Phase H long-session runtime stability regression suite passes.",
+            case_phase_h_positive_long_session_stability,
+        ),
         EvalCase(
             "phase_g_positive_distribution_truth", "positive",
             "skill resolution + portable Codex adapters",

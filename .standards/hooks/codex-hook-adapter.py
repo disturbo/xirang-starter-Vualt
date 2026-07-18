@@ -52,8 +52,11 @@ def legacy_event(event: dict, path: str, operation: str) -> dict:
 
 
 def hook_env(vault: Path) -> dict[str, str]:
+    inherited_path = os.environ.get("PATH", "")
     return {
         **os.environ,
+        "PATH": f"/usr/bin:/bin:/usr/sbin:/sbin:{inherited_path}",
+        "XIRANG_PYTHON_BIN": "/usr/bin/python3",
         "VAULT_ROOT": str(vault),
         "V8_AGENT_ID": AGENT_ID,
         "V8_PLATFORM": PLATFORM,

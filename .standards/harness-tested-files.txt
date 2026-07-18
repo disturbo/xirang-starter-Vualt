@@ -6,6 +6,7 @@
 .standards/harness-eval-verify.py
 .standards/harness-tested-files.txt
 .standards/tests/test_v9_phase_g.py
+.standards/tests/test_v9_phase_h.py
 .standards/hooks/codex-hook-adapter.py
 .standards/hooks/pre-commit-harness-eval.sh
 .standards/hooks/pre-write-hook.sh

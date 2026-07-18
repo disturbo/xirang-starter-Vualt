@@ -57,14 +57,42 @@ def find_rollout(session_id: str, sessions_root: Path) -> Path | None:
 
 
 def rollout_metadata(path: Path) -> tuple[str, dict[str, int], str]:
-    model = "unknown"
-    latest: dict[str, int] = {}
-    usage_timestamp = ""
-    with path.open(encoding="utf-8") as handle:
-        for line in handle:
+    model, usage, timestamp, _cursor = rollout_metadata_incremental(path, {})
+    return model, usage, timestamp
+
+
+def rollout_metadata_incremental(
+    path: Path, previous: dict,
+) -> tuple[str, dict[str, int], str, dict[str, int | bool]]:
+    """Read only complete JSONL records appended after the persisted byte cursor."""
+    stat = path.stat()
+    previous_offset = int(previous.get("offset") or 0)
+    same_file = (
+        str(previous.get("rollout") or "") == str(path)
+        and int(previous.get("device") or -1) == stat.st_dev
+        and int(previous.get("inode") or -1) == stat.st_ino
+        and 0 <= previous_offset <= stat.st_size
+    )
+    start_offset = previous_offset if same_file else 0
+    model = str(previous.get("model") or "unknown") if same_file else "unknown"
+    latest = dict(previous.get("usage") or {}) if same_file else {}
+    usage_timestamp = str(previous.get("usage_timestamp") or "") if same_file else ""
+    next_offset = start_offset
+
+    with path.open("rb") as handle:
+        handle.seek(start_offset)
+        while True:
+            line_start = handle.tell()
+            raw = handle.readline()
+            if not raw:
+                break
+            if not raw.endswith(b"\n"):
+                next_offset = line_start
+                break
+            next_offset = handle.tell()
             try:
-                row = json.loads(line)
-            except json.JSONDecodeError:
+                row = json.loads(raw.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
                 continue
             payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
             if row.get("type") == "turn_context" and payload.get("model"):
@@ -75,7 +103,14 @@ def rollout_metadata(path: Path) -> tuple[str, dict[str, int], str]:
                 if usage:
                     latest = {key: int(usage.get(key) or 0) for key in USAGE_KEYS}
                     usage_timestamp = str(row.get("timestamp") or "")
-    return model, latest, usage_timestamp
+    cursor: dict[str, int | bool] = {
+        "offset": next_offset,
+        "device": stat.st_dev,
+        "inode": stat.st_ino,
+        "bytes_read": max(0, next_offset - start_offset),
+        "reset": not same_file,
+    }
+    return model, latest, usage_timestamp, cursor
 
 
 def active_task_id(status_path: Path) -> str:
@@ -132,12 +167,6 @@ def main() -> int:
         result = {"status": "failed", "reason": "rollout_missing", "session_id": args.session_id}
         print(json.dumps(result, ensure_ascii=False))
         return 1
-    model, current, timestamp = rollout_metadata(rollout)
-    if not current or model == "unknown":
-        result = {"status": "failed", "reason": "usage_or_model_missing", "session_id": args.session_id}
-        print(json.dumps(result, ensure_ascii=False))
-        return 1
-
     args.state.parent.mkdir(parents=True, exist_ok=True)
     lock_path = args.state.with_suffix(".lock")
     with lock_path.open("a+") as lock:
@@ -145,6 +174,11 @@ def main() -> int:
         state = load_json(args.state)
         sessions = state.setdefault("sessions", {})
         previous = sessions.get(args.session_id, {}) if isinstance(sessions.get(args.session_id), dict) else {}
+        model, current, timestamp, cursor = rollout_metadata_incremental(rollout, previous)
+        if not current or model == "unknown":
+            result = {"status": "failed", "reason": "usage_or_model_missing", "session_id": args.session_id}
+            print(json.dumps(result, ensure_ascii=False))
+            return 1
         prior_usage = previous.get("usage", {}) if isinstance(previous.get("usage"), dict) else {}
         task_id = args.task_id or active_task_id(args.status) or str(previous.get("last_task_id") or "unknown")
         delta = delta_usage(current, prior_usage)
@@ -160,14 +194,15 @@ def main() -> int:
         sessions[args.session_id] = {
             "rollout": str(rollout), "model": model, "usage": current,
             "usage_timestamp": timestamp, "last_task_id": task_id, "updated_at": now,
+            "offset": cursor["offset"], "device": cursor["device"], "inode": cursor["inode"],
         }
-        state.update({"schema_version": 1, "updated_at": now, "source": "codex_rollout_token_count"})
+        state.update({"schema_version": 2, "updated_at": now, "source": "codex_rollout_token_count"})
         atomic_write(args.state, state)
 
     result = {
         "status": "success", "session_id": args.session_id, "rollout": str(rollout),
         "task_id": task_id, "model": model, "initialized": args.initialize,
-        "appended": appended, "delta": delta, "state": str(args.state),
+        "appended": appended, "delta": delta, "scan": cursor, "state": str(args.state),
     }
     print(json.dumps(result, ensure_ascii=False, indent=2) if args.json else json.dumps(result, ensure_ascii=False))
     return 0
