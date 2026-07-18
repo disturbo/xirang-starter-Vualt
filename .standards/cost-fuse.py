@@ -167,6 +167,13 @@ def notify_msg_queue(task_id: str, agent_id: str, pct: float, spent: float, ceil
 
 
 def main():
+    print(json.dumps({
+        "status": "retired",
+        "retired_at": "2026-07-19",
+        "message": "成本治理已退出当前 V9 运行能力；未执行熔断。",
+    }, ensure_ascii=False))
+    return 3
+
     if len(sys.argv) < 2:
         print("用法: cost-fuse.py <task_id> [--ceiling <CNY>] [--json]", file=sys.stderr)
         sys.exit(2)
@@ -251,4 +258,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

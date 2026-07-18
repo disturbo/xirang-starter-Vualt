@@ -760,47 +760,6 @@ def collect_runtime_liveness(
     else:
         checks.append(_runtime_check("llm_wiki", "ok", str(wiki_data.get("prototype_root"))))
 
-    cost_log = Path(os.environ.get(
-        "XIRANG_COST_EVENTS", str(ROOT / "02-项目管理/agent-cost-events.jsonl"),
-    ))
-    recent_codex_usage: dict = {}
-    try:
-        for raw in cost_log.read_text(encoding="utf-8").splitlines():
-            row = json.loads(raw)
-            if row.get("source") == "codex_rollout_token_count" and row.get("agent") == "hongmeisu":
-                recent_codex_usage = row
-    except (OSError, json.JSONDecodeError):
-        recent_codex_usage = {}
-    cost_issues: list[str] = []
-    cost_ts = parse_iso(str(recent_codex_usage.get("ts", "")))
-    if not recent_codex_usage:
-        cost_issues.append("codex_usage_missing")
-    else:
-        if int(recent_codex_usage.get("tokens") or 0) <= 0:
-            cost_issues.append("tokens_zero")
-        if str(recent_codex_usage.get("model") or "") in {"", "unknown"}:
-            cost_issues.append("model_missing")
-        if recent_codex_usage.get("usage_source") != "codex_rollout":
-            cost_issues.append("usage_source_invalid")
-        if recent_codex_usage.get("billing_status") != "usage_only":
-            cost_issues.append("billing_status_invalid")
-        if cost_ts is None:
-            cost_issues.append("timestamp_missing")
-        elif now - cost_ts > timedelta(hours=24):
-            cost_issues.append(f"stale_hours={round((now - cost_ts).total_seconds() / 3600, 1)}")
-    if cost_issues:
-        findings.append(make_finding(
-            "p1", "CODEX_COST_TELEMETRY_INVALID", str(cost_log),
-            f"Codex token/model 遥测未形成新鲜的非零消费事件：{', '.join(cost_issues)}。", "runtime-liveness",
-            detail={"issues": cost_issues, "latest": recent_codex_usage},
-        ))
-        checks.append(_runtime_check("codex_cost_telemetry", "failed", ",".join(cost_issues)))
-    else:
-        checks.append(_runtime_check(
-            "codex_cost_telemetry", "ok",
-            f"model={recent_codex_usage.get('model')} tokens={recent_codex_usage.get('tokens')} task={recent_codex_usage.get('task_id')}",
-        ))
-
     phoenix_method = ROOT / "50-经验/Agent协作方法论/息壤方法论-V9.md"
     phoenix_eval = ROOT / "50-经验/Agent进化/不死鸟Phoenix-借鉴评估报告.md"
     try:

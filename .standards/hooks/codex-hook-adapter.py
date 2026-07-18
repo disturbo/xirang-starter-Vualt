@@ -139,21 +139,6 @@ def append_lifecycle(event: dict, vault: Path, lifecycle: str) -> int:
     return 0
 
 
-def import_cost_usage(event: dict, vault: Path) -> None:
-    """Best-effort incremental import from the local Codex rollout metadata."""
-    session_id = str(event.get("session_id") or "").strip()
-    importer = vault / ".standards/codex-cost-import.py"
-    if not session_id or not importer.is_file():
-        return
-    try:
-        subprocess.run(
-            ["/usr/bin/python3", str(importer), "--session-id", session_id, "--json"],
-            capture_output=True, text=True, env=hook_env(vault), timeout=45, check=False,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return
-
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=("pre-write", "post-write", "session-guard", "session-start", "session-stop"))
@@ -163,13 +148,9 @@ def main() -> int:
     if args.mode == "pre-write":
         return run_path_hook(event, vault, args.mode)
     if args.mode == "post-write":
-        result = run_path_hook(event, vault, args.mode)
-        import_cost_usage(event, vault)
-        return result
+        return run_path_hook(event, vault, args.mode)
     if args.mode == "session-guard":
         return run_session_guard(event, vault)
-    if args.mode == "session-stop":
-        import_cost_usage(event, vault)
     return append_lifecycle(event, vault, args.mode.replace("-", "_"))
 
 

@@ -11,7 +11,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CHECKER = ROOT / "02-项目管理/脚本/v9-skill-shadow-check.py"
-COST_IMPORTER = ROOT / ".standards/codex-cost-import.py"
 CODEX_ADAPTER = ROOT / ".standards/hooks/codex-hook-adapter.py"
 CODEX_HOOKS = ROOT / ".codex/hooks.json"
 
@@ -55,13 +54,10 @@ class PhaseGTests(unittest.TestCase):
             self.assertEqual(1, report["summary"]["explicit_variant_groups"])
 
     def test_distributed_codex_tools_derive_vault_root(self) -> None:
-        importer = COST_IMPORTER.read_text(encoding="utf-8")
         adapter = CODEX_ADAPTER.read_text(encoding="utf-8")
         hooks = CODEX_HOOKS.read_text(encoding="utf-8")
         personal_path = "/Users/" + bytes.fromhex("7975646f6e67626f").decode() + "/Desktop/obsidianVault"
-        self.assertNotIn(personal_path, importer)
         self.assertNotIn(personal_path, adapter)
-        self.assertIn("Path(__file__).resolve()", importer)
         self.assertIn("Path(__file__).resolve().parents[2]", adapter)
         self.assertIn('"matcher": "apply_patch|Write|Edit"', hooks)
         self.assertIn("codex-hook-adapter.py pre-write", hooks)

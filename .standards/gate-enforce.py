@@ -60,9 +60,9 @@ AGENT_STATUS_FILES = {
 class GateResult:
     """门禁检查结果"""
     priority: int       # 0=P0 硬阻断, 1-3=advisory
-    rule_id: str        # e.g. "AGENT_BUSY", "FUSE_BLOWN"
+    rule_id: str        # e.g. "AGENT_BUSY", "SCOPE_VIOLATION"
     message: str        # 人类可读描述
-    source: str         # 来源工具 (e.g. "cost-fuse.py", "internal")
+    source: str         # 来源工具 (e.g. "v9-task-state-check.py", "internal")
     details: dict = None
 
     def to_dict(self) -> dict:
@@ -282,22 +282,6 @@ def cmd_pre_start(args) -> list[GateResult]:
                 source="internal"
             ))
 
-    # P1: cost-fuse 预警（如果有 task_id）
-    if args.task_id:
-        exit_code, stdout, _ = _run_tool("cost-fuse.py", [args.task_id, "--json"])
-        if exit_code == 0 and stdout:
-            try:
-                fuse_data = json.loads(stdout)
-                if fuse_data.get("pct", 0) >= 60:
-                    results.append(GateResult(
-                        priority=1, rule_id="BUDGET_WARNING",
-                        message=f"预算已用 {fuse_data['pct']:.0f}% ({fuse_data['cost_cny']:.2f}/{fuse_data['ceiling_cny']:.2f} CNY)",
-                        source="cost-fuse.py",
-                        details=fuse_data
-                    ))
-            except json.JSONDecodeError:
-                pass
-
     return results
 
 
@@ -314,23 +298,6 @@ def cmd_pre_spawn(args) -> list[GateResult]:
         ))
         return results  # 无 task_id 则后续检查无意义
 
-    # P0: cost-fuse 熔断
-    exit_code, stdout, _ = _run_tool("cost-fuse.py", [args.task_id, "--json"])
-    if exit_code == 1:
-        # fuse blown
-        fuse_msg = "成本已达上限，熔断"
-        try:
-            fuse_data = json.loads(stdout)
-            fuse_msg = f"成本熔断: {fuse_data.get('cost_cny', '?')}/{fuse_data.get('ceiling_cny', '?')} CNY ({fuse_data.get('pct', '?')}%)"
-        except json.JSONDecodeError:
-            fuse_data = {}
-        results.append(GateResult(
-            priority=0, rule_id="FUSE_BLOWN",
-            message=fuse_msg,
-            source="cost-fuse.py",
-            details=fuse_data if 'fuse_data' in dir() else {}
-        ))
-
     # P0: write_scope 越权检查（子任务 scope 必须在允许范围内）
     # 这里检查子任务 scope 是否包含禁止路径
     if args.write_scope:
@@ -345,41 +312,6 @@ def cmd_pre_spawn(args) -> list[GateResult]:
                         source="internal"
                     ))
                     break
-
-    # P1/P2: spawn-budget-check advisory
-    exit_code, stdout, _ = _run_tool("spawn-budget-check.py", [
-        "check", "--task-id", args.task_id, "--type", args.type,
-        "--model", args.model, "--json"
-    ])
-    if exit_code == 1:
-        # 黄灯：建议降级
-        try:
-            budget_data = json.loads(stdout)
-            recommended = budget_data.get("model_recommended", "haiku")
-            results.append(GateResult(
-                priority=2, rule_id="MODEL_DOWNGRADE",
-                message=f"预算紧张，建议降级到 {recommended}",
-                source="spawn-budget-check.py",
-                details=budget_data
-            ))
-        except json.JSONDecodeError:
-            pass
-    elif exit_code == 2 and not any(r.rule_id == "FUSE_BLOWN" for r in results):
-        # 红灯（如果不是已经有 FUSE_BLOWN）
-        try:
-            budget_data = json.loads(stdout)
-            results.append(GateResult(
-                priority=0, rule_id="BUDGET_EXHAUSTED",
-                message=f"所有模型均超预算: {budget_data.get('reason', '')}",
-                source="spawn-budget-check.py",
-                details=budget_data
-            ))
-        except json.JSONDecodeError:
-            results.append(GateResult(
-                priority=0, rule_id="BUDGET_EXHAUSTED",
-                message="所有模型均超预算",
-                source="spawn-budget-check.py"
-            ))
 
     return results
 

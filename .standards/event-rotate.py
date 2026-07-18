@@ -3,7 +3,7 @@
 event-rotate.py -- V8.5 事件流轮转工具
 v1.0.0 | 2026-05-25 | 息壤 V8.5.0
 
-解决 智能体事件.jsonl 和 agent-cost-events.jsonl 无限增长问题。
+轮转 智能体事件.jsonl；成本日志自 2026-07-19 起只读隔离，不再由本工具改写。
 按日期/大小自动归档旧事件，保留最近 N 天活跃数据。
 
 用法:
@@ -38,7 +38,6 @@ TZ = timezone(timedelta(hours=8))
 # 需要轮转的事件流文件
 EVENT_FILES = [
     VAULT_ROOT / "02-项目管理" / "智能体状态" / "智能体事件.jsonl",
-    VAULT_ROOT / "02-项目管理" / "agent-cost-events.jsonl",
 ]
 
 # 归档目录

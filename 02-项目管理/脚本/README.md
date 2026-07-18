@@ -26,7 +26,7 @@ updated: 2026-06-27
 | 命令 | 用途 | 常用命令 |
 |---|---|---|
 | `.standards/v9-accept.py` / `v9_accept` | 安全验收任务卡：候选 accepted → pre-accept 门禁 → 原子写回 | `v9_accept T-xxxx 人工Reviewer` |
-| `.standards/agent-cost-events.py` | 成本事件流：支持 usage token 分项与 `billing_status` 校验 | `python3 .standards/agent-cost-events.py append ...` |
+| `.standards/agent-cost-events.py` | **已退役（2026-07-19）**：仅保留隔离期审计，不再进入运行链 | 不得用于当前任务完成条件 |
 | `.standards/hooks/pre-commit-harness-eval.sh` | git pre-commit：当 staged 文件触达 `.standards/` 或 `02-项目管理/脚本/` 时自动跑 harness eval；中文路径用 `core.quotepath=false` 识别 | `.git/hooks/pre-commit` 自动调用 |
 
 ## 使用规则

@@ -48,14 +48,11 @@ STARTER_LEAK = SCRIPT_DIR / "v9-starter-leak-check.py"
 TASK_STATE = SCRIPT_DIR / "v9-task-state-check.py"
 HANDOFF_CHECK = SCRIPT_DIR / "v9-handoff-check.py"
 REFLEX = SCRIPT_DIR / "v9-reflex-check.py"
-COST_EVENTS = REPO_ROOT / ".standards" / "agent-cost-events.py"
 PHASE_G_TEST = REPO_ROOT / ".standards" / "tests" / "test_v9_phase_g.py"
 PHASE_H_TEST = REPO_ROOT / ".standards" / "tests" / "test_v9_phase_h.py"
 LATEST_REPORT = REPO_ROOT / "02-项目管理" / "巡检" / "harness-eval-latest.json"
 TESTED_FILES = [
     Path(".codex/hooks.json"),
-    Path(".standards/agent-cost-events.py"),
-    Path(".standards/codex-cost-import.py"),
     Path(".standards/gate-enforce.py"),
     Path(".standards/harness-eval-verify.py"),
     Path(".standards/harness-tested-files.txt"),
@@ -65,7 +62,6 @@ TESTED_FILES = [
     Path(".standards/hooks/pre-commit-harness-eval.sh"),
     Path(".standards/hooks/pre-write-hook.sh"),
     Path(".standards/v8-handshake.sh"),
-    Path(".standards/v8-cost-observability.py"),
     Path(".standards/v9-accept.py"),
     Path("02-项目管理/脚本/project-ops-check.py"),
     Path("02-项目管理/脚本/v9-harness-eval-runner.py"),
@@ -331,96 +327,6 @@ def case_starter_leak_negative_secret() -> EvalResult:
             "known-bad starter fixture is rejected with SECRET_JSON_APP_SECRET p1",
             observed,
             {"returncode": code, "summary": (report or {}).get("summary"), "stderr": stderr, "stdout_head": stdout[:200]},
-        )
-
-
-def case_cost_usage_positive_usage_only() -> EvalResult:
-    with tempfile.TemporaryDirectory(prefix="v9-eval-cost-usage-ok-") as tmp:
-        log = Path(tmp) / "agent-cost-events.jsonl"
-        code, report, stdout, stderr = run_json(
-            COST_EVENTS,
-            [
-                "--log", str(log),
-                "append",
-                "--task-id", "T-COST-USAGE",
-                "--agent", "codex",
-                "--model", "gpt-5",
-                "--input-tokens", "120",
-                "--output-tokens", "30",
-                "--cost-cny", "0",
-                "--phase", "execution",
-                "--source", "eval",
-                "--usage-source", "api_usage",
-                "--billing-status", "usage_only",
-                "--json",
-            ],
-            REPO_ROOT,
-        )
-        s_code, summary, s_stdout, s_stderr = run_json(
-            COST_EVENTS,
-            ["--log", str(log), "summary", "--task-id", "T-COST-USAGE", "--json"],
-            REPO_ROOT,
-        )
-        passed = (
-            code == 0
-            and report is not None
-            and s_code == 0
-            and summary is not None
-            and summary.get("tokens") == 150
-            and summary.get("input_tokens") == 120
-            and summary.get("output_tokens") == 30
-            and summary.get("billing_statuses", {}).get("usage_only") == 1
-        )
-        observed = "usage-only token event appended and summarized" if passed else "usage-only token event failed"
-        return EvalResult(
-            "cost_usage_positive_usage_only",
-            "positive",
-            "agent-cost-events.py",
-            passed,
-            "input/output usage tokens can be recorded without pretending CNY billing is connected",
-            observed,
-            {
-                "append_returncode": code,
-                "summary_returncode": s_code,
-                "append_stderr": stderr,
-                "summary_stderr": s_stderr,
-                "summary": summary,
-                "stdout_head": (stdout + s_stdout)[:200],
-            },
-        )
-
-
-def case_cost_usage_negative_connected_without_source() -> EvalResult:
-    with tempfile.TemporaryDirectory(prefix="v9-eval-cost-connected-bad-") as tmp:
-        log = Path(tmp) / "agent-cost-events.jsonl"
-        code, report, stdout, stderr = run_json(
-            COST_EVENTS,
-            [
-                "--log", str(log),
-                "append",
-                "--task-id", "T-COST-BAD",
-                "--agent", "codex",
-                "--model", "gpt-5",
-                "--tokens", "10",
-                "--cost-cny", "0.01",
-                "--phase", "execution",
-                "--source", "eval",
-                "--usage-source", "api_usage",
-                "--billing-status", "connected",
-                "--json",
-            ],
-            REPO_ROOT,
-        )
-        passed = code == 2 and "cost_source" in stderr
-        observed = "connected billing without cost_source rejected" if passed else "connected billing without cost_source was accepted"
-        return EvalResult(
-            "cost_usage_negative_connected_without_source",
-            "negative",
-            "agent-cost-events.py",
-            passed,
-            "billing_status=connected requires explicit platform cost source",
-            observed,
-            {"returncode": code, "stderr_head": stderr[:200], "stdout_head": stdout[:200], "report": report},
         )
 
 
@@ -1035,8 +941,8 @@ def case_phase_h_positive_long_session_stability() -> EvalResult:
     passed = proc.returncode == 0 and "Ran 3 tests" in proc.stderr and "OK" in proc.stderr
     return EvalResult(
         "phase_h_positive_long_session_stability", "positive",
-        "incremental Codex cost cursor + system-Python hook runtime", passed,
-        "Phase H incremental, truncation, partial-line, and interpreter regressions all pass",
+        "system-Python Codex hook runtime", passed,
+        "Phase H adapter, handshake interpreter, and retirement regressions all pass",
         "3/3 Phase H long-session tests passed" if passed else "Phase H regression suite failed",
         {"returncode": proc.returncode, "stdout": proc.stdout[-500:], "stderr": proc.stderr[-1000:]},
     )
@@ -1044,7 +950,7 @@ def cases() -> list[EvalCase]:
     return [
         EvalCase(
             "phase_h_positive_long_session_stability", "positive",
-            "incremental Codex cost cursor + system-Python hook runtime",
+            "system-Python Codex hook runtime",
             "Phase H long-session runtime stability regression suite passes.",
             case_phase_h_positive_long_session_stability,
         ),
@@ -1095,20 +1001,6 @@ def cases() -> list[EvalCase]:
             "v9-starter-leak-check.py",
             "Starter fixture with secret-shaped value is blocked.",
             case_starter_leak_negative_secret,
-        ),
-        EvalCase(
-            "cost_usage_positive_usage_only",
-            "positive",
-            "agent-cost-events.py",
-            "Usage tokens can be recorded while billing remains usage_only.",
-            case_cost_usage_positive_usage_only,
-        ),
-        EvalCase(
-            "cost_usage_negative_connected_without_source",
-            "negative",
-            "agent-cost-events.py",
-            "Connected billing cannot be claimed without platform cost source.",
-            case_cost_usage_negative_connected_without_source,
         ),
         EvalCase(
             "task_state_positive_submitted",

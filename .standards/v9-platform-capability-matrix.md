@@ -23,7 +23,7 @@ tags: [规范, 治理, hook]
 | **gate-enforce 集成** | ✅ hook 自动调用 | ⚠️ 需手动调用 | ❌ 无 | ❌ 无 |
 | **事件流自动写入** | ✅ hook 自动 | ⚠️ 脚本手动 | ❌ 依赖 SOUL 合规 | ❌ 无 |
 | **心跳更新** | ✅ heartbeat-update.sh (V9.2) | ⚠️ heartbeat.sh 需手动调 | ❌ 无 | ❌ 无 |
-| **成本追踪** | ✅ 三阶段自动(start/checkpoint/finalize) | ⚠️ task-end.sh 可选参数 | ❌ 无 | ❌ 无 |
+| **成本追踪** | 已退役 | 已退役 | 已退役 | 已退役 |
 | **任务卡授权** | ✅ task-card.yaml | ⚠️ 脚本创建 | ❌ 无 | ❌ 无 |
 | **合规执行方式** | 自动 (hook 强制) | 半自动 (脚本辅助) | 信任制 (SOUL 契约) | 无 (静态权限) |
 
@@ -122,14 +122,14 @@ agent 必须自觉调用脚本，平台不会自动拦截违规写入。
 | **Claude Code** | ✅ 已完成参数化 (V9.2) | V8_AGENT_ID 环境变量 | Done |
 | **OpenClaw** | 高 — 脚本体系已有 | 在现有脚本中嵌入 gate-enforce 调用 | P0.1 |
 | **Hermes** | 中 — 需验证 hook 支持 | 优先验证 hooks/ 目录；不支持则标记 manual | P0.1 (conditional) |
-| **Codex** | 低 — 平台不支持 hook | 只能加强 instructions.md 规则注入 | 标记 manual_compliance_required |
+| **Codex** | 高 — Desktop 已适配 `apply_patch` / `exec_command` | `.codex/hooks.json` + `codex-hook-adapter.py` | Done |
 
 ## 全平台治理覆盖率
 
 | 指标 | V9.2 当前值 | 备注 |
 |------|--------|-------------|
 | hook 硬拦截覆盖 | 1/5 (20%) — Claudian 参数化完成 | OpenClaw 脚本辅助, Hermes/Codex manual |
-| 事件流自动写入 | 2/5 (40%) — Claudian(自动) + OpenClaw(脚本) | 三阶段 cost-event.sh 已集成 v8_handshake/v8_end |
+| 事件流自动写入 | 生命周期事件按已适配平台写入 | 成本事件流已于 2026-07-19 退役，不计入覆盖率 |
 | 心跳可信度 | 1/5 (20%) — Claudian heartbeat-update.sh | 需 V8_AGENT_PID 环境变量 |
 | 合规执行方式分布 | 自动:1, 半自动:1, 信任:1, manual标记:2 | agent-contract.yaml 统一注册 |
 

@@ -28,7 +28,7 @@
 - 个人姓名、个人路径、会话记录
 - 具体项目文档、客户资料、业务数据
 - API Key、App Secret、登录 token、账号配置
-- 巡检快照、Agent 事件流、成本事件等运行期产物
+- 巡检快照、Agent 事件流等运行期产物；历史成本事件仅作隔离审计，不随 starter 运行
 - Obsidian 插件的本机 `data.json` 配置
 
 如需从个人 Vault 同步到 starter，请先运行 `sync-to-dist.sh`，再用 `v9-starter-leak-check.py --strict` 确认无个人/项目痕迹。
@@ -121,8 +121,8 @@ bash setup.sh
 | Handoff 可接手性扫描 | `02-项目管理/脚本/v9-handoff-check.py` |
 | Harness 回归测试 | `02-项目管理/脚本/v9-harness-eval-runner.py` |
 | 安全验收正门 | `.standards/v9-accept.py` |
-| usage token 成本事件 | `.standards/agent-cost-events.py` |
-| Codex Desktop 门禁/成本适配 | `.standards/hooks/codex-hook-adapter.py` / `.standards/codex-cost-import.py` |
+| 成本治理（已退役） | 历史脚本只读保留至 2026-08-02，不计入运行能力 |
+| Codex Desktop 门禁/生命周期适配 | `.standards/hooks/codex-hook-adapter.py` |
 | Harness trust/hash 新鲜度校验 | `.standards/harness-eval-verify.py` / `.standards/harness-tested-files.txt` |
 | skill 版本遮蔽校验 | `02-项目管理/脚本/v9-skill-shadow-check.py` |
 | 巡检输出目录 | `02-项目管理/巡检/` |
@@ -135,7 +135,7 @@ bash setup.sh
 python3 02-项目管理/脚本/v9-reflex-check.py
 ```
 
-健康口径：`summary.active=0`、`sources_failed=[]` 且 `runtime_checks` 无 `failed/stale` 才是真静默。GBrain、LLM Wiki、成本、熵治理等部署依赖未配置时会保持红色，不以脚本退出成功冒充生效。
+健康口径：`summary.active=0`、`sources_failed=[]` 且 `runtime_checks` 无 `failed/stale` 才是真静默。GBrain、LLM Wiki、熵治理等部署依赖未配置时会保持红色，不以脚本退出成功冒充生效；成本治理已退役，不参与健康度。
 
 回归测试：
 

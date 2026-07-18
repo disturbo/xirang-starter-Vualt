@@ -1,7 +1,5 @@
 # Starter V9 Harness trust set. Must match the distributed runner's tested_hashes.
 .codex/hooks.json
-.standards/agent-cost-events.py
-.standards/codex-cost-import.py
 .standards/gate-enforce.py
 .standards/harness-eval-verify.py
 .standards/harness-tested-files.txt
@@ -11,7 +9,6 @@
 .standards/hooks/pre-commit-harness-eval.sh
 .standards/hooks/pre-write-hook.sh
 .standards/v8-handshake.sh
-.standards/v8-cost-observability.py
 .standards/v9-accept.py
 02-项目管理/脚本/project-ops-check.py
 02-项目管理/脚本/v9-harness-eval-runner.py

@@ -278,6 +278,13 @@ def cmd_advise(args):
 
 
 def main():
+    print(json.dumps({
+        "status": "retired",
+        "retired_at": "2026-07-19",
+        "message": "成本预算检查已退出当前 V9 运行能力。",
+    }, ensure_ascii=False))
+    return 3
+
     parser = argparse.ArgumentParser(description="V8.5 Pre-Spawn Budget Check")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -306,4 +313,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

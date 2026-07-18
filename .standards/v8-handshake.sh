@@ -271,12 +271,6 @@ for p in parts:
   local event="{\"ts\":\"$ts\",\"event\":\"task_start\",\"agent\":\"$agent\",\"task_id\":\"$task_id\",\"task\":\"$task_escaped\",\"gear\":\"$gear\"}"
   echo "$event" >> "$EVENT_FILE"
 
-  # V9.2: 自动写入 cost_start 事件
-  local cost_script="$VAULT_ROOT/.standards/hooks/cost-event.sh"
-  if [[ -f "$cost_script" ]]; then
-    bash "$cost_script" start "$task_id" "$agent" 2>/dev/null || true
-  fi
-
   echo ""
   echo "[handshake] task_id=$task_id"
   echo "            状态:busy | 事件:已写入"
@@ -350,12 +344,6 @@ v8_end() {
   # 追加 task_end 事件
   local event="{\"ts\":\"$ts\",\"event\":\"task_end\",\"agent\":\"$agent\",\"task_id\":\"$task_id\",\"result\":\"$result\",\"tokens\":0,\"cost_cny\":0}"
   echo "$event" >> "$EVENT_FILE"
-
-  # V9.2: 自动写入 cost_finalize 事件
-  local cost_script="$VAULT_ROOT/.standards/hooks/cost-event.sh"
-  if [[ -f "$cost_script" ]]; then
-    bash "$cost_script" finalize "$task_id" "$agent" 0 0 "$result" 2>/dev/null || true
-  fi
 
   echo "[v8_end] $task_id -> $result, 状态已回idle"
 }

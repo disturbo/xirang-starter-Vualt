@@ -385,8 +385,8 @@ V8.5 Options:
   --emit-record     Create subtask runtime record (default: ON)
   --no-emit-record  Skip record creation
   --tool-blacklist  Comma-separated tool blacklist
-  --budget-check    Enable pre-spawn budget check (default: ON)
-  --no-budget-check Disable pre-spawn budget check
+  --budget-check    Legacy no-op（成本能力已退役）
+  --no-budget-check Legacy no-op（兼容旧调用）
 
 Examples:
   python3 .standards/xirang-spawn.py --task "重绘取送车流程图" --type diagram --module 20-取送车 --task-id T-20260524-01
@@ -434,7 +434,7 @@ Examples:
     model = "sonnet"  # V8.5: spawn 使用的模型（用于预算检查和记录）
     emit_record = True  # V8.5 默认开启
     tool_blacklist = None
-    budget_check = True  # V8.5 Phase 3: 默认开启预算检查
+    budget_check = False  # 2026-07-19: 成本能力退役；仅保留 CLI 兼容字段
 
     i = 1
     while i < len(sys.argv):
@@ -510,38 +510,6 @@ Examples:
     # 默认工具黑名单
     if tool_blacklist is None:
         tool_blacklist = ["v8_handshake", "v8_end", "xirang-spawn.py"]
-
-    # V8.5 Phase 3: Pre-spawn budget check
-    if budget_check and task_id:
-        try:
-            budget_result = subprocess.run(
-                [sys.executable, str(VAULT_ROOT / ".standards" / "spawn-budget-check.py"),
-                 "check", "--task-id", task_id, "--type", task_type,
-                 "--model", model, "--json"],
-                capture_output=True, text=True, timeout=10, cwd=str(VAULT_ROOT)
-            )
-            if budget_result.returncode == 2:
-                # 红灯：超预算
-                try:
-                    budget_data = json.loads(budget_result.stdout)
-                except json.JSONDecodeError:
-                    budget_data = {"reason": "budget check failed"}
-                if output_json:
-                    print(json.dumps({"status": "budget_exceeded", "detail": budget_data}, ensure_ascii=False, indent=2))
-                else:
-                    print(f"[ABORT] 预算超出: {budget_data.get('reason', 'unknown')}", file=sys.stderr)
-                sys.exit(2)
-            elif budget_result.returncode == 1:
-                # 黄灯：建议降级，输出 warning 但继续
-                try:
-                    budget_data = json.loads(budget_result.stdout)
-                    recommended = budget_data.get("model_recommended", "")
-                except json.JSONDecodeError:
-                    recommended = ""
-                if not output_json:
-                    print(f"[WARN] 预算紧张，建议模型: {recommended}", file=sys.stderr)
-        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-            pass  # budget check 失败不阻断 spawn
 
     # 生成 prompt
     type_config = TASK_TYPES[task_type]
