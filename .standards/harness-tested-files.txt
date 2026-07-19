@@ -2,9 +2,11 @@
 .codex/hooks.json
 .standards/gate-enforce.py
 .standards/agent-contract.yaml
+.standards/agent-state-lint.py
 .standards/harness-eval-verify.py
 .standards/harness-tested-files.txt
 .standards/pre-start-check.py
+.standards/schemas/agent-state.schema.json
 .standards/tests/test_v9_codex_hooks.py
 .standards/tests/test_v9_phase_g.py
 .standards/tests/test_v9_phase_h.py

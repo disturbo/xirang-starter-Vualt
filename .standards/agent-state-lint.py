@@ -23,7 +23,7 @@ import json
 import argparse
 import re
 from pathlib import Path
-from datetime import datetime, date
+from datetime import datetime
 
 VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", os.getcwd()))
 STATE_DIR = VAULT_ROOT / "02-项目管理" / "智能体状态"
@@ -52,17 +52,7 @@ REQUIRED_FIELDS_DEFAULTS = {
     "spawn_count": "0",
     "active_subtasks": "[]",
     "cooldown_until": "null",
-    "cost_tracking": None,  # 结构体，特殊处理
     "tags": None,  # 保留现有
-}
-
-COST_TRACKING_DEFAULTS = {
-    "session_tokens": "0",
-    "session_cost_cny": "0.0",
-    "weekly_tokens": "0",
-    "weekly_cost_cny": "0.0",
-    "model_used": "null",
-    "last_reset": None,  # 当天日期
 }
 
 VALID_STATUS = {"idle", "busy", "cooling", "error", "standby", "retired"}
@@ -88,7 +78,6 @@ def parse_frontmatter(filepath: Path) -> tuple[dict, str, str]:
         line = line.strip()
         if not line or line.startswith("#"):
             continue
-        # 处理嵌套（cost_tracking 子字段）
         if ":" in line:
             key, _, value = line.partition(":")
             key = key.strip()
@@ -205,10 +194,6 @@ def validate_agent_file(filepath: Path) -> list[dict]:
             if not already_reported:
                 errors.append({"severity": "warning", "field": field, "message": f"缺失 V8.5 字段: {field}（可用 --fix 补齐）"})
 
-    # 检查 cost_tracking 存在
-    if "cost_tracking" not in fm_raw:
-        errors.append({"severity": "warning", "field": "cost_tracking", "message": "缺失 cost_tracking 块"})
-
     return errors
 
 
@@ -245,7 +230,6 @@ def fix_agent_file(filepath: Path) -> dict:
 
     # 需要补齐的字段
     additions = []
-    today = date.today().isoformat()
     now = datetime.now().astimezone().isoformat()
 
     if "current_task_id" not in existing_fields:
@@ -267,21 +251,6 @@ def fix_agent_file(filepath: Path) -> dict:
     if "last_heartbeat" not in existing_fields:
         additions.append(f'last_heartbeat: "{now}"')
         result["fixed_fields"].append("last_heartbeat")
-
-    # 检查 cost_tracking
-    has_cost_tracking = "cost_tracking" in existing_fields
-    if not has_cost_tracking:
-        cost_block = [
-            "cost_tracking:",
-            "  session_tokens: 0",
-            "  session_cost_cny: 0.0",
-            "  weekly_tokens: 0",
-            "  weekly_cost_cny: 0.0",
-            "  model_used: null",
-            f'  last_reset: "{today}"',
-        ]
-        additions.extend(cost_block)
-        result["fixed_fields"].append("cost_tracking")
 
     if not additions:
         result["message"] = "无需修复"
