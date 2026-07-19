@@ -33,6 +33,8 @@ CURRENT_GUIDANCE = (
     ROOT / "50-经验/Agent协作方法论/息壤V9-Gate与Hook机制.md",
     ROOT / "50-经验/Agent协作方法论/息壤V9-子任务与通信.md",
 )
+CONSTRAINT_DIR = ROOT / "30-规范/智能体约束"
+STATUS_TEMPLATE_DIR = ROOT / "02-项目管理/智能体状态"
 
 
 def load(path: Path, name: str):
@@ -106,6 +108,13 @@ class PhaseHTests(unittest.TestCase):
                 text = text.split("## 13 ·", 1)[0]
             for marker in forbidden_guidance:
                 self.assertNotIn(marker, text, source)
+        for source in sorted(CONSTRAINT_DIR.glob("*.md")):
+            text = source.read_text(encoding="utf-8")
+            for marker in forbidden_guidance:
+                self.assertNotIn(marker, text, source)
+        for source in sorted(STATUS_TEMPLATE_DIR.glob("*.md")):
+            frontmatter = source.read_text(encoding="utf-8").split("---", 2)[1]
+            self.assertNotIn("cost_tracking", frontmatter, source)
 
     def test_freeze_requires_consecutive_calendar_days(self) -> None:
         module = load(FREEZE, "phase_h_freeze")
