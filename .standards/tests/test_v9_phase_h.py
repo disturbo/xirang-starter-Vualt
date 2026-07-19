@@ -18,6 +18,7 @@ REFLEX = ROOT / "02-项目管理/脚本/v9-reflex-check.py"
 FREEZE = ROOT / "02-项目管理/脚本/v9-freeze-observation.py"
 ENTROPY = ROOT / "02-项目管理/脚本/v9-entropy-governance.py"
 PRE_START = ROOT / ".standards/pre-start-check.py"
+PROJECT_OPS = ROOT / "02-项目管理/脚本/project-ops-check.py"
 COST_HOOK = ROOT / ".standards/hooks/cost-event.sh"
 COST_FUSE = ROOT / ".standards/cost-fuse.py"
 SPAWN_BUDGET = ROOT / ".standards/spawn-budget-check.py"
@@ -66,6 +67,10 @@ class PhaseHTests(unittest.TestCase):
             result = module.check_task_card("T-NO-COST")
             self.assertEqual("pass", result["status"], result)
             self.assertNotIn("budget", result["checks"])
+
+    def test_project_ops_no_longer_requires_retired_cost_budget(self) -> None:
+        module = load(PROJECT_OPS, "phase_h_project_ops")
+        self.assertNotIn("budget", module.REQUIRED_KEYS)
 
     def test_freeze_requires_consecutive_calendar_days(self) -> None:
         module = load(FREEZE, "phase_h_freeze")

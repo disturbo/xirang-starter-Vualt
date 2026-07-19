@@ -49,7 +49,6 @@ REQUIRED_KEYS = [
     "updated_at",
     "completed_at",
     "sla",
-    "budget",
     "paths",
     "deliverables",
     "gates",
