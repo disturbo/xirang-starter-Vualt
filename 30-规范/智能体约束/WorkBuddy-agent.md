@@ -46,7 +46,7 @@ agent_id: workbuddy
 |:--:|------|------|
 | M3 | 改 1 个文件，<20min | 写入声明一行即可 |
 | M4 | 多文件 / 产出交付物 | 完整 pre-flight |
-| M5 | 跨 Agent / L/XL 长任务 | pre-flight + budget + 拆分 |
+| M5 | 跨 Agent / L/XL 长任务 | pre-flight + 范围拆分 + 验收证据 |
 
 ### 不写文件的场景（M0-M2，无合规开销）
 
@@ -79,7 +79,6 @@ M5（跨 Agent / 长任务）：
   V9 已激活：
   - 档位：M5
   - 任务：{任务名}
-  - 预算：{预估 token/时间}
   - 写入范围：{路径}
   - 拆分计划：{子任务数} 个子任务
   - 验收方：{验收链}
@@ -101,9 +100,8 @@ M5（跨 Agent / 长任务）：
 
 ```
 1. 更新状态：status -> idle, current_task -> null
-2. 追加 task_end 事件（tokens/cost 填 0）
+2. 追加 task_end 事件（记录任务、结果与身份）
 3. 看板 Handoff：00-MOC/多智能体协作看板.md（产物路径 + 验证 + next action）
-4. 如有成本估算：python3 .standards/agent-cost-events.py append ...
 ```
 
 ### M3 收工
@@ -220,11 +218,9 @@ M5（跨 Agent / 长任务）：
 
 ---
 
-## 成本治理
+## 已退役能力
 
-- 60% 告警 -> 降级轻量模型
-- 100% 熔断 -> 停止子Agent + 通知负责人
-- 收工时填写实际 token/cost
+- 任务不采集或估算费用，不设费用熔断，不将其作为路由或验收条件。
 
 ---
 

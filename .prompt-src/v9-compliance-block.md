@@ -29,7 +29,7 @@
 |:--:|------|------|
 | M3 | 改 1 个文件，<20min | 写入声明一行即可 |
 | M4 | 多文件 / 产出交付物 | 完整 pre-flight |
-| M5 | 跨 Agent / L/XL 长任务 | pre-flight + budget + 拆分 |
+| M5 | 跨 Agent / L/XL 长任务 | pre-flight + 范围拆分 + 验收证据 |
 
 ### 不写文件的场景（M0-M2，无合规开销）
 

@@ -65,7 +65,7 @@ pre-write-hook.sh v1.1 通过环境变量支持多 Agent 共用同一 hook：
 | 子命令 | 调用时机 | 检查内容 |
 |--------|---------|---------|
 | `pre-start` | M4/M5 handshake | Agent 是否已 busy / 任务是否被阻塞 |
-| `pre-spawn` | 创建子任务 | 无 task_id / 成本熔断 / scope 越权 |
+| `pre-spawn` | 创建子任务 | 无 task_id / scope 越权 / 子任务未授权 |
 | `pre-write` | 文件写入前 | V9 声明缺失 / 路径越权 / 禁止目录 |
 | `pre-end` | 任务关闭 | 重复关闭 / 未收集子任务 / 收工不完整 |
 
@@ -77,19 +77,15 @@ pre-write-hook.sh v1.1 通过环境变量支持多 Agent 共用同一 hook：
 | TASK_BLOCKED | P0 | 任务 blocked_by 非空 |
 | TASK_CANCELLED | P0 | 任务状态为 done/cancelled |
 | NO_TASK_ID | P0 | spawn 时无 task_id |
-| FUSE_BLOWN | P0 | 成本达上限 |
 | SCOPE_VIOLATION | P0 | 子任务 scope 含禁止路径 |
 | SCOPE_EXCEEDED | P0 | 文件路径不在 write_scope 内 |
 | PATH_FORBIDDEN | P0 | 写入禁止目录（未在 scope 声明）|
 | ALREADY_IDLE | P0 | 重复关闭（已 idle）|
-| BUDGET_EXHAUSTED | P0 | 所有模型均超预算 |
 | **WRITE_WITHOUT_V9_PREFIX** | **P1** | **无 task_id 写非豁免路径（V9 新增）** |
-| BUDGET_WARNING | P1 | 预算已用 60%+ |
 | UNCOLLECTED_SUBTASKS | P1 | 关闭时有未收集子任务 |
 | MISSING_DELIVERABLES | P0 | 收工缺产物 |
 | KANBAN_NOT_UPDATED | P0 | 收工未更新看板 |
 | NO_RUN_LOG | P0 | 收工无运行日志 |
-| MODEL_DOWNGRADE | P2 | 建议降级模型 |
 | FRONTMATTER_MISSING | P1 | 产物缺 frontmatter |
 | EMOJI_DETECTED | P2 | 检测到装饰性 emoji |
 | BRAND_COLOR | P3 | 品牌色不合规 |
@@ -168,7 +164,7 @@ M4/M5 操作:
     → 验证 authorized_paths → 调 gate-enforce → 通过/阻断
 ```
 
-## 5. 心跳与成本自动化（V9.2）
+## 5. 心跳自动化与退役说明
 
 ### 5.1 心跳脚本
 
@@ -182,22 +178,9 @@ M4/M5 操作:
 - 30min 无心跳 → `stale`（标记过期）
 - 60min 无心跳 → `dead`（自动回 idle + 追加事件）
 
-### 5.2 成本事件集成
+### 5.2 已退役能力
 
-v8_handshake 自动写入 `cost_start`，v8_end 自动写入 `cost_finalize`。
-中间阶段可手动调用：
-
-```bash
-bash .standards/hooks/cost-event.sh checkpoint <task_id> <agent_id> [tokens] [cost_cny] [description]
-```
-
-口径规则：每次写入的 tokens/cost_cny 是增量(delta)，不是累计。cost-fuse.py 汇总时只加 checkpoint + finalize，忽略 start。
-
-### 5.3 模型降级（cost-fuse v1.1）
-
-当 cost-fuse 检测到预算告警时，读取 `agent-contract.yaml` 中的 `fallback_model` 配置：
-- 60% → 输出降级链信息（advisory）
-- 100% → 输出降级建议；若 `auto_fallback: true` 则标记为强制
+2026-07-19 起，任务不再采集或估算费用，不设费用熔断，不将其作为 Gate、模型路由或验收条件。历史脚本只在隔离期内作回滚证据。`fallback_model` 仅用于模型不可用时的平台降级，与费用无关。
 
 ## 6. 故障排除
 

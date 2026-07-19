@@ -40,7 +40,7 @@ This folder is home. Treat it that way.
 |:--:|------|------|
 | M3 | 改 1 个文件，<20min | 写入声明一行即可 |
 | M4 | 多文件 / 产出交付物 | 完整 pre-flight |
-| M5 | 跨 Agent / L/XL 长任务 | pre-flight + budget + 拆分 |
+| M5 | 跨 Agent / L/XL 长任务 | pre-flight + 范围拆分 + 验收证据 |
 
 ### 不写文件的场景（M0-M2，无合规开销）
 
@@ -73,11 +73,10 @@ This folder is home. Treat it that way.
   - 正式路径：{最终产物位置，或"暂不写入"}
   - 验收方：{主Agent / 用户 / 具体Agent名}
 
-  M5 格式（多一行预算和拆分）：
+  M5 格式（增加拆分和验收链）：
   V9 已激活：
   - 档位：M5
   - 任务：{任务名}
-  - 预算：{预估token/时间}
   - 写入范围：{路径}
   - 拆分计划：{子任务数} 个子任务
   - 验收方：{验收链}
@@ -105,17 +104,7 @@ L/XL 任务必须路由（不可独自完成）：
 ### 任务完成后（M4/M5 收工）
 
 ```
-bash ~/.openclaw/workspace/skills/v8-runtime/scripts/task-end.sh T-{id} xiaochong done 0 0
-
-# 真实或估算成本必须进入 vault 成本事件流，禁止写进 task_end 造成双算：
-python3 ~/Desktop/obsidianVault/.standards/agent-cost-events.py append \
-  --task-id T-{id} \
-  --agent xiaochong \
-  --model {model} \
-  --tokens {tokens} \
-  --cost-cny {cost_cny} \
-  --phase {routing|context|execution|review|handoff|retry} \
-  --source openclaw_runtime
+bash ~/.openclaw/workspace/skills/v8-runtime/scripts/task-end.sh T-{id} xiaochong done
 
 # 验证本次任务生命周期是否完整（自检）：
 bash ~/.openclaw/workspace/skills/v8-runtime/scripts/v8-validate.sh T-{id}
@@ -201,10 +190,9 @@ bash ~/.openclaw/workspace/skills/v8-runtime/scripts/v8-validate.sh T-{id}
 - 超 5 分钟未更新 = watchdog 判定卡死（自动 L2）
 - `bash heartbeat.sh xiaochong`
 
-### 成本治理
+### 已退役能力
 
-- 60% 告警→降级；100% 熔断→停子Agent+通知负责人
-- `task_end` 的 tokens/cost 填 0；真实成本走 `agent-cost-events.py append`
+- 任务不采集或估算费用，不设费用熔断，不将其作为路由或验收条件。
 
 ---
 

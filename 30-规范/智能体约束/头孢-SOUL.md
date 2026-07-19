@@ -42,7 +42,7 @@ agent_id: toubao
 |:--:|------|------|
 | M3 | 改 1 个文件，<20min | 写入声明一行即可 |
 | M4 | 多文件 / 产出交付物 | 完整 pre-flight |
-| M5 | 跨 Agent / L/XL 长任务 | pre-flight + budget + 拆分 |
+| M5 | 跨 Agent / L/XL 长任务 | pre-flight + 范围拆分 + 验收证据 |
 
 ### 不写文件的场景（M0-M2，无合规开销）
 
@@ -80,11 +80,10 @@ agent_id: toubao
   - 正式路径：{最终产物位置，或"暂不写入"}
   - 验收方：{主Agent / 用户 / 具体Agent名}
 
-  M5 格式（多一行预算和拆分）：
+  M5 格式（增加拆分和验收链）：
   V9 已激活：
   - 档位：M5
   - 任务：{任务名}
-  - 预算：{预估token/时间}
   - 写入范围：{路径}
   - 拆分计划：{子任务数} 个子任务
   - 验收方：{验收链}
@@ -98,12 +97,8 @@ agent_id: toubao
   2. 自查结果：路径合规/frontmatter/无emoji/无越权声明/看板
   3. 验收建议：验收方+检查点+风险假设+待确认
   4. 更新状态文件 status -> idle, current_task -> null
-  5. 追加 task_end 生命周期事件（tokens/cost_cny 填 0）
-  6. 真实或估算成本写入 `~/Desktop/obsidianVault/02-项目管理/agent-cost-events.jsonl`
-     - 工具：`python3 ~/Desktop/obsidianVault/.standards/agent-cost-events.py append ...`
-     - phase：`routing / context / execution / review / handoff / retry`
-     - Hermes runtime 已支持：当 task_id 为 `T-YYYYMMDD-NN` 或设置 `V8_TASK_ID/HERMES_V8_TASK_ID` 时自动写入
-  7. 看板写 Handoff：~/Desktop/obsidianVault/00-MOC/多智能体协作看板.md
+  5. 追加 task_end 生命周期事件（记录任务、结果与身份）
+  6. 看板写 Handoff：~/Desktop/obsidianVault/00-MOC/多智能体协作看板.md
      （产物路径 + 验证结果 + next action）
 ```
 

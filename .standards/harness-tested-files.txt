@@ -1,6 +1,7 @@
 # Starter V9 Harness trust set. Must match the distributed runner's tested_hashes.
 .codex/hooks.json
 .standards/gate-enforce.py
+.standards/agent-contract.yaml
 .standards/harness-eval-verify.py
 .standards/harness-tested-files.txt
 .standards/pre-start-check.py
@@ -12,6 +13,8 @@
 .standards/hooks/pre-write-hook.sh
 .standards/v8-handshake.sh
 .standards/v9-accept.py
+.prompt-src/preflight-auto-template.md
+.prompt-src/v9-compliance-block.md
 02-项目管理/脚本/project-ops-check.py
 02-项目管理/脚本/v9-harness-eval-runner.py
 02-项目管理/脚本/v9-handoff-check.py
@@ -24,3 +27,8 @@
 02-项目管理/脚本/v9-starter-leak-check.py
 02-项目管理/脚本/v9-status-summary.py
 02-项目管理/脚本/v9-task-state-check.py
+30-规范/事件规范.md
+50-经验/Agent协作方法论/息壤方法论-V9.md
+50-经验/Agent协作方法论/息壤V9-写入声明与Pre-flight.md
+50-经验/Agent协作方法论/息壤V9-Gate与Hook机制.md
+50-经验/Agent协作方法论/息壤V9-子任务与通信.md

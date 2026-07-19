@@ -939,12 +939,12 @@ def case_phase_h_positive_long_session_stability() -> EvalResult:
         [sys.executable, str(PHASE_H_TEST)],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
     )
-    passed = proc.returncode == 0 and "Ran 7 tests" in proc.stderr and "OK" in proc.stderr
+    passed = proc.returncode == 0 and "Ran 8 tests" in proc.stderr and "OK" in proc.stderr
     return EvalResult(
         "phase_h_positive_long_session_stability", "positive",
         "system-Python Codex hook runtime", passed,
         "Phase H adapter, handshake interpreter, and retirement regressions all pass",
-        "7/7 Phase H long-session tests passed" if passed else "Phase H regression suite failed",
+        "8/8 Phase H long-session tests passed" if passed else "Phase H regression suite failed",
         {"returncode": proc.returncode, "stdout": proc.stdout[-500:], "stderr": proc.stderr[-1000:]},
     )
 

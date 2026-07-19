@@ -22,6 +22,17 @@ PROJECT_OPS = ROOT / "02-项目管理/脚本/project-ops-check.py"
 COST_HOOK = ROOT / ".standards/hooks/cost-event.sh"
 COST_FUSE = ROOT / ".standards/cost-fuse.py"
 SPAWN_BUDGET = ROOT / ".standards/spawn-budget-check.py"
+COMPLIANCE_SOURCE = ROOT / ".prompt-src/v9-compliance-block.md"
+PREFLIGHT_SOURCE = ROOT / ".prompt-src/preflight-auto-template.md"
+AGENT_CONTRACT = ROOT / ".standards/agent-contract.yaml"
+EVENT_SPEC = ROOT / "30-规范/事件规范.md"
+METHOD_MAIN = ROOT / "50-经验/Agent协作方法论/息壤方法论-V9.md"
+CURRENT_GUIDANCE = (
+    METHOD_MAIN,
+    ROOT / "50-经验/Agent协作方法论/息壤V9-写入声明与Pre-flight.md",
+    ROOT / "50-经验/Agent协作方法论/息壤V9-Gate与Hook机制.md",
+    ROOT / "50-经验/Agent协作方法论/息壤V9-子任务与通信.md",
+)
 
 
 def load(path: Path, name: str):
@@ -71,6 +82,30 @@ class PhaseHTests(unittest.TestCase):
     def test_project_ops_no_longer_requires_retired_cost_budget(self) -> None:
         module = load(PROJECT_OPS, "phase_h_project_ops")
         self.assertNotIn("budget", module.REQUIRED_KEYS)
+
+    def test_active_prompt_sources_do_not_require_retired_cost_budget(self) -> None:
+        for source in (COMPLIANCE_SOURCE, PREFLIGHT_SOURCE, AGENT_CONTRACT, EVENT_SPEC):
+            text = source.read_text(encoding="utf-8")
+            self.assertNotIn("budget", text.lower(), source)
+            self.assertNotIn("预算：", text, source)
+            self.assertNotIn("agent-cost-events", text, source)
+            self.assertNotIn("cost_cny", text, source)
+            self.assertNotIn("cost_policy", text, source)
+
+        forbidden_guidance = (
+            "- 预算：",
+            "agent-cost-events.py append",
+            "cost-event.sh checkpoint",
+            "spawn-budget-check.py",
+            "| cost-fuse |",
+            "`budget` / `paths.allowed_write_roots`",
+        )
+        for source in CURRENT_GUIDANCE:
+            text = source.read_text(encoding="utf-8")
+            if source == METHOD_MAIN:
+                text = text.split("## 13 ·", 1)[0]
+            for marker in forbidden_guidance:
+                self.assertNotIn(marker, text, source)
 
     def test_freeze_requires_consecutive_calendar_days(self) -> None:
         module = load(FREEZE, "phase_h_freeze")
