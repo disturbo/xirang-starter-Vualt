@@ -14,15 +14,6 @@ completed_at: null              # ISO 8601，任务完成时填入
 sla:
   target_hours: 2
   hard_deadline: null
-budget:
-  max_total_tokens: 500000
-  max_subagent_tokens: 50000
-  cost_ceiling_cny: 5.0
-  on_exceed: alert_openclaw
-actual_cost:                    # 任务完成时填入实际消耗
-  tokens: 0
-  cost_cny: 0.0
-  model_used: ""
 paths:
   allowed_write_roots: []
   temp_root: _temp/{task-id}/
@@ -39,7 +30,6 @@ retrospective_required: false
 gates:
   pre_start: pending            # pending / passed / failed
   pre_write: pending
-  cost_fuse: pending
   handoff: pending
 ---
 
@@ -62,9 +52,8 @@ gates:
 
 | 门禁 | 检查项 | 结果 | 备注 |
 |------|--------|------|------|
-| pre-start-check | task card / owner / budget / deliverables | pending |  |
+| pre-start-check | task card / owner / deliverables | pending |  |
 | pre-write-check | 路径 / emoji / frontmatter / 品牌色 | pending |  |
-| cost-fuse | 当前累计成本是否超阈值 | pending |  |
 | handoff-check | 产物路径 / 验证记录 / next action | pending |  |
 
 ## 4 · 中间产物
@@ -91,4 +80,3 @@ gates:
 - 是否需要 retrospective：
 - 漂移点：
 - 修订建议：
-

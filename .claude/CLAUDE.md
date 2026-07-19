@@ -60,11 +60,10 @@
   - 正式路径：{最终产物位置，或"暂不写入"}
   - 验收方：{主Agent / 用户 / 具体Agent名}
 
-  M5 格式（多一行预算和拆分）：
+  M5 格式（增加拆分计划）：
   V9 已激活：
   - 档位：M5
   - 任务：{任务名}
-  - 预算：{预估token/时间}
   - 写入范围：{路径}
   - 拆分计划：{子任务数} 个子任务
   - 验收方：{验收链}
@@ -79,8 +78,7 @@
   3. 验收建议：验收方+检查点+风险假设+待确认
   4. 更新状态文件 status -> idle, current_task -> null
   5. 追加 task_end 事件
-  6. 如有真实或估算成本，调用 `.standards/agent-cost-events.py append`
-  7. M4: 有下游写 Handoff；M5: 必写 Handoff
+  6. M4: 有下游写 Handoff；M5: 必写 Handoff
 ```
 
 ### M3 的轻量收工

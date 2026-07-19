@@ -35,7 +35,10 @@ from dataclasses import dataclass, asdict
 
 VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", os.getcwd()))
 STANDARDS_DIR = VAULT_ROOT / ".standards"
-EVENT_FILE = VAULT_ROOT / "02-项目管理" / "智能体状态" / "智能体事件.jsonl"
+EVENT_FILE = Path(os.environ.get(
+    "V9_GATE_EVENT_FILE",
+    str(VAULT_ROOT / "02-项目管理" / "智能体状态" / "智能体事件.jsonl"),
+))
 AGENT_STATUS_DIR = VAULT_ROOT / "02-项目管理" / "智能体状态"
 TASKS_DIR = VAULT_ROOT / "02-项目管理" / "任务卡"
 

@@ -15,6 +15,9 @@ ROOT = Path(__file__).resolve().parents[2]
 ADAPTER = ROOT / ".standards/hooks/codex-hook-adapter.py"
 HANDSHAKE = ROOT / ".standards/v8-handshake.sh"
 REFLEX = ROOT / "02-项目管理/脚本/v9-reflex-check.py"
+FREEZE = ROOT / "02-项目管理/脚本/v9-freeze-observation.py"
+ENTROPY = ROOT / "02-项目管理/脚本/v9-entropy-governance.py"
+PRE_START = ROOT / ".standards/pre-start-check.py"
 COST_HOOK = ROOT / ".standards/hooks/cost-event.sh"
 COST_FUSE = ROOT / ".standards/cost-fuse.py"
 SPAWN_BUDGET = ROOT / ".standards/spawn-budget-check.py"
@@ -45,6 +48,54 @@ class PhaseHTests(unittest.TestCase):
         ]
         self.assertEqual([], executable_bare)
         self.assertNotIn("cost-event.sh", "\n".join(lines))
+        handshake = "\n".join(lines)
+        self.assertIn("CODEX_THREAD_ID", handshake)
+        self.assertIn('_v8_default_agent_id', handshake)
+        self.assertNotIn("cost_ceiling_cny", handshake)
+        self.assertNotIn("cost_fuse: pending", handshake)
+
+    def test_pre_start_no_longer_requires_retired_cost_budget(self) -> None:
+        module = load(PRE_START, "phase_h_pre_start")
+        with tempfile.TemporaryDirectory() as raw:
+            tasks = Path(raw)
+            module.TASKS_DIR = str(tasks)
+            (tasks / "T-NO-COST.md").write_text(
+                "---\nowner: hongmeisu\nstatus: ready\ndeliverables:\n  - path: out.md\n---\n",
+                encoding="utf-8",
+            )
+            result = module.check_task_card("T-NO-COST")
+            self.assertEqual("pass", result["status"], result)
+            self.assertNotIn("budget", result["checks"])
+
+    def test_freeze_requires_consecutive_calendar_days(self) -> None:
+        module = load(FREEZE, "phase_h_freeze")
+        now = module.parse_iso("2026-07-19T12:00:00+08:00")
+        self.assertIsNotNone(now)
+        history = {
+            "2026-07-17": {"daily_status": "pass"},
+            "2026-07-18": {"daily_status": "pass"},
+            "2026-07-19": {"daily_status": "pass"},
+        }
+        self.assertEqual(3, module.consecutive_pass_days(history, now))
+        history["2026-07-18"]["daily_status"] = "fail"
+        self.assertEqual(1, module.consecutive_pass_days(history, now))
+
+    def test_entropy_default_disposition_converges_without_note_edits(self) -> None:
+        module = load(ENTROPY, "phase_h_entropy")
+        detector = {
+            "detector_version": "2.0.0", "mode": "shadow",
+            "findings": [{
+                "category": "broken_link", "confidence": "confirmed", "source": "A.md",
+                "target": "Missing/X", "reason": "missing",
+            }],
+        }
+        queue = module.ingest({}, detector, "2026-07-01T09:00:00+08:00")
+        queue = module.ingest(queue, detector, "2026-07-08T09:00:00+08:00")
+        self.assertEqual("deferred", queue["items"][0]["status"])
+        queue = module.ingest(queue, detector, "2026-07-15T09:00:00+08:00")
+        queue = module.ingest(queue, detector, "2026-07-22T09:00:00+08:00")
+        self.assertEqual("archived", queue["items"][0]["status"])
+        self.assertEqual(0, queue["metrics"]["current_open"])
 
     def test_cost_pipeline_is_explicitly_retired(self) -> None:
         self.assertNotIn("codex_cost_telemetry", REFLEX.read_text(encoding="utf-8"))

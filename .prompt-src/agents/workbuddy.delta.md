@@ -5,8 +5,6 @@ agent_name: WorkBuddy
 platform: Codebuddy (Claudian CLI)
 role: 排障修复 / 配置漂移检查
 cooldown: 按需触发
-budget_level: S
-weekly_budget_cny: 20
 
 ## 触发条件（非主动启动）
 - L2 错误升级触发

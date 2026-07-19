@@ -10,10 +10,23 @@
 #
 # 版本: 1.1.0 | 创建: 2026-05-26 | 修订: 2026-05-31（多平台参数化） | 息壤 V9.2
 
-VAULT_ROOT="${VAULT_ROOT:-$VAULT_ROOT}"
+VAULT_ROOT="${VAULT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 EVENT_FILE="$VAULT_ROOT/02-项目管理/智能体状态/智能体事件.jsonl"
 
 V8_AGENT_ID="${V8_AGENT_ID:-claudian}"
+V8_PLATFORM="${V8_PLATFORM:-claude-code}"
+
+_normalize_agent_id() {
+  case "$1" in
+    claudian)                        echo "claudian" ;;
+    xiaochong|amoxicillin|amox)      echo "xiaochong" ;;
+    toubao|cephalosporin|ceph)       echo "toubao" ;;
+    hongmeisu|erythromycin|eryth)    echo "hongmeisu" ;;
+    workbuddy)                       echo "workbuddy" ;;
+    qingmeisu|penicillin|peni)       echo "qingmeisu" ;;
+    *) echo "$1" ;;
+  esac
+}
 
 # 根据 agent_id 解析状态文件名
 _resolve_status_name() {
@@ -35,21 +48,22 @@ else
 fi
 
 # 从 stdin 读取 tool input
-# Claudian hook stdin 格式: {"tool_name":"Write","tool_input":{"file_path":"...","content":"..."}}
+# Claude 兼容格式带 file_path；Codex apply_patch 把补丁文本放在 tool_input.command。
 INPUT=$(cat)
 FILE_PATH=""
 
 if command -v python3 &>/dev/null; then
   FILE_PATH=$(echo "$INPUT" | python3 -c "
-import sys, json
+import sys, json, re
 try:
     d = json.load(sys.stdin)
-    # 优先从 tool_input 中取（Claudian 实际格式）
     ti = d.get('tool_input', {})
     fp = ti.get('file_path', '') if isinstance(ti, dict) else ''
-    # 兜底：顶层 file_path（仿真测试用）
     if not fp:
         fp = d.get('file_path', '')
+    if not fp and d.get('tool_name') == 'apply_patch' and isinstance(ti, dict):
+        paths = re.findall(r'^\\*\\*\\* (?:Add|Update|Delete) File: (.+?)\\s*$', str(ti.get('command', '')), re.M)
+        fp = paths[0] if len(paths) == 1 else ''
     print(fp)
 except:
     print('')
@@ -88,25 +102,44 @@ done
 
 # 读取当前任务信息
 TASK_ID=""
-AGENT="$V8_AGENT_ID"
+AGENT=$(_normalize_agent_id "$V8_AGENT_ID")
 if [[ -n "$STATUS_FILE" && -f "$STATUS_FILE" ]]; then
   TASK_ID=$(grep '^current_task_id:' "$STATUS_FILE" 2>/dev/null | awk '{print $2}' | tr -d '"')
   AGENT=$(grep '^agent_id:' "$STATUS_FILE" 2>/dev/null | awk '{print $2}' | tr -d '"')
-  AGENT="${AGENT:-$V8_AGENT_ID}"
+  AGENT=$(_normalize_agent_id "${AGENT:-$V8_AGENT_ID}")
 fi
 
-# 追加 file_write 事件
+# 追加单行、可解析的 file_write 事件。
 TS=$(date '+%Y-%m-%dT%H:%M:%S+08:00')
-
-# JSON escape file path
-ESCAPED_PATH=$(python3 -c "
+EVENT=$(_V8_EVENT_INPUT="$INPUT" _V8_EVENT_TS="$TS" _V8_EVENT_AGENT="$AGENT" \
+  _V8_EVENT_PLATFORM="$V8_PLATFORM" _V8_EVENT_TASK_ID="$TASK_ID" \
+  _V8_EVENT_FILE="$REL_PATH" python3 - <<'PY'
 import json
-print(json.dumps('$REL_PATH')[1:-1])
-" 2>/dev/null || echo "$REL_PATH")
+import os
 
-EVENT="{\"ts\":\"$TS\",\"event\":\"file_write\",\"agent\":\"$AGENT\",\"task_id\":\"${TASK_ID:-none}\",\"file\":\"$ESCAPED_PATH\"}"
+try:
+    source = json.loads(os.environ.get("_V8_EVENT_INPUT", "{}"))
+except json.JSONDecodeError:
+    source = {}
+tool_input = source.get("tool_input") if isinstance(source.get("tool_input"), dict) else {}
+event = {
+    "ts": os.environ["_V8_EVENT_TS"],
+    "event": "file_write",
+    "agent": os.environ["_V8_EVENT_AGENT"],
+    "platform": os.environ.get("_V8_EVENT_PLATFORM"),
+    "task_id": os.environ.get("_V8_EVENT_TASK_ID") or None,
+    "file": os.environ["_V8_EVENT_FILE"],
+    "operation": tool_input.get("codex_operation") or "write",
+    "tool_name": source.get("tool_name"),
+    "tool_use_id": source.get("tool_use_id"),
+    "session_id": source.get("session_id"),
+    "turn_id": source.get("turn_id"),
+}
+print(json.dumps(event, ensure_ascii=False, separators=(",", ":")))
+PY
+)
 
 # 非阻塞写入（如果事件文件不存在或权限错误，不影响主流程）
-echo "$EVENT" >> "$EVENT_FILE" 2>/dev/null || true
+printf '%s\n' "$EVENT" >> "$EVENT_FILE" 2>/dev/null || true
 
 exit 0

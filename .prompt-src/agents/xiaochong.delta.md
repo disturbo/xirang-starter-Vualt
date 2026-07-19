@@ -5,8 +5,6 @@ agent_name: 阿莫西林
 platform: OpenClaw
 role: 协调中枢 / 最终审核 / MOC 维护
 cooldown: 无（永久在线）
-budget_level: XL
-weekly_budget_cny: 100
 
 ## 主导步骤
 S1辅(工作拆分) / S4(执行监控) / S5(交付物检核) / S6(测试验收)

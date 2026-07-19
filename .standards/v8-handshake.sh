@@ -10,7 +10,7 @@
 # 职责边界：本工具做"握手声明 + 状态文件更新 + 事件流打点 + 任务卡创建"。
 # 看板更新由 Agent 在握手之后手动执行。
 #
-# 版本: 1.4.1 | 创建: 2026-05-23 | 修订: 2026-05-31（cost事件集成+文档头订正） | 息壤 V9.2
+# 版本: 1.4.3 | 创建: 2026-05-23 | 修订: 2026-07-19（Codex 身份推断+审计式取消） | 息壤 V9.2
 
 VAULT_ROOT="${VAULT_ROOT:-$(pwd)}"
 EVENT_FILE="$VAULT_ROOT/02-项目管理/智能体状态/智能体事件.jsonl"
@@ -29,10 +29,19 @@ _v8_safe_update_yaml() {
 
   # 用 ENVIRON 传 value 避免 awk -v 对反斜杠的二次转义
   _V8_FIELD="$field" _V8_VALUE="$value" awk '
-    BEGIN { field=ENVIRON["_V8_FIELD"]; value=ENVIRON["_V8_VALUE"]; found=0 }
-    /^---$/ && NR==1 { print; next }
-    /^---$/ && NR>1 && !found { print field ": " value; print; found=1; next }
-    $0 ~ "^" field ":" { print field ": " value; found=1; next }
+    BEGIN { field=ENVIRON["_V8_FIELD"]; value=ENVIRON["_V8_VALUE"]; found=0; in_fm=0 }
+    NR==1 && /^---$/ { in_fm=1; print; next }
+    in_fm && /^---$/ {
+      if (!found) print field ": " value
+      print
+      in_fm=0
+      next
+    }
+    in_fm && $0 ~ "^" field ":" && !found {
+      print field ": " value
+      found=1
+      next
+    }
     { print }
   ' "$file" > "$tmpfile"
 
@@ -44,6 +53,321 @@ _v8_safe_update_yaml() {
     echo "[ERROR] 状态文件更新失败: $file / $field" >&2
     return 1
   fi
+}
+
+_v8_frontmatter_value() {
+  local file="$1"
+  local field="$2"
+  awk -v field="$field" '
+    NR == 1 && $0 == "---" { in_fm=1; next }
+    in_fm && $0 == "---" { exit }
+    in_fm && index($0, field ":") == 1 {
+      sub("^[^:]+:[[:space:]]*", "")
+      gsub(/^"|"$/, "")
+      print
+      exit
+    }
+  ' "$file" 2>/dev/null
+}
+
+_v8_formal_task_card_path() {
+  local task_id="$1"
+  local compact_date="${task_id#T-}"
+  compact_date="${compact_date%%-*}"
+  if [[ ! "$compact_date" =~ ^[0-9]{8}$ ]]; then
+    return 1
+  fi
+  echo "$VAULT_ROOT/02-项目管理/任务卡/${compact_date:0:4}-${compact_date:4:2}/${task_id}.md"
+}
+
+_v8_create_formal_task_card() {
+  local task_id="$1" agent="$2" gear="$3" task="$4" scope="$5" reviewer="$6" ts="$7"
+  local card
+  card=$(_v8_formal_task_card_path "$task_id") || return 1
+  _V8_FORMAL_CARD="$card" _V8_TASK_ID="$task_id" _V8_AGENT="$agent" _V8_GEAR="$gear" \
+    _V8_TASK="$task" _V8_SCOPE="$scope" _V8_REVIEWER="$reviewer" _V8_TS="$ts" "$V8_PYTHON" - <<'PY'
+import json
+import os
+import tempfile
+from pathlib import Path
+
+path = Path(os.environ["_V8_FORMAL_CARD"])
+if path.exists():
+    raise SystemExit(f"formal task card already exists: {path}")
+path.parent.mkdir(parents=True, exist_ok=True)
+task_id = os.environ["_V8_TASK_ID"]
+agent = os.environ["_V8_AGENT"]
+gear = os.environ["_V8_GEAR"]
+task = os.environ["_V8_TASK"]
+reviewer = os.environ["_V8_REVIEWER"]
+ts = os.environ["_V8_TS"]
+scope = [item.strip() for item in os.environ["_V8_SCOPE"].split(",") if item.strip()]
+allowed = "\n".join(f"    - {json.dumps(item, ensure_ascii=False)}" for item in scope) or "    []"
+text = f'''---
+task_id: {task_id}
+title: {json.dumps(task, ensure_ascii=False)}
+module: "息壤 V9 runtime"
+min_level: {gear}
+task_size: {"L" if gear == "M5" else "M"}
+owner: {json.dumps(agent, ensure_ascii=False)}
+author: {json.dumps(agent, ensure_ascii=False)}
+participants: []
+status: in_progress
+review_status: draft
+reviewer: {json.dumps(reviewer, ensure_ascii=False)}
+submitted_at: null
+accepted_by: null
+accepted_at: null
+acceptance_result: null
+acceptance_note: ""
+priority: P1
+sla:
+  target_hours: 2
+  hard_deadline: null
+deliverables:
+  - path: _temp/{task_id}/task-card.yaml
+    type: runtime-authorization
+    state: verified
+created_at: {json.dumps(ts, ensure_ascii=False)}
+updated_at: {json.dumps(ts, ensure_ascii=False)}
+completed_at: null
+paths:
+  allowed_write_roots:
+{allowed}
+  temp_root: _temp/{task_id}/
+gates:
+  pre_start: passed
+  pre_write: pending
+  handoff: pending
+---
+
+# {task}
+
+## 运行授权
+
+- agent: `{agent}`
+- gear: `{gear}`
+- source: `_temp/{task_id}/task-card.yaml`
+- reviewer: `{reviewer}`
+
+## Handoff
+
+- status: in_progress
+- artifacts: 以看板产物列、事件流 file_write 与本卡声明范围为准
+- verification: pending
+- next action: execute declared scope and submit for review
+'''
+fd, tmp_name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=path.parent)
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(text)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(tmp_name, path)
+finally:
+    if os.path.exists(tmp_name):
+        os.unlink(tmp_name)
+PY
+}
+
+_v8_finalize_formal_task_card() {
+  local task_id="$1" result="$2" ts="$3"
+  local card
+  card=$(_v8_formal_task_card_path "$task_id") || return 1
+  [[ -f "$card" ]] || { echo "[ERROR] 正式任务卡不存在: $card" >&2; return 1; }
+  _V8_FORMAL_CARD="$card" _V8_RESULT="$result" _V8_TS="$ts" "$V8_PYTHON" - <<'PY'
+import os
+import tempfile
+
+path = os.environ["_V8_FORMAL_CARD"]
+result = os.environ["_V8_RESULT"]
+ts = os.environ["_V8_TS"]
+normalized = result.strip().lower()
+if normalized in {"done", "success", "completed"} or not normalized.startswith(("abort", "cancel", "block", "fail", "error")):
+    status = "done"
+elif normalized.startswith(("abort", "cancel")):
+    status = "cancelled"
+else:
+    status = "blocked"
+review = "submitted" if status == "done" else "draft"
+updates = {
+    "status": status,
+    "review_status": review,
+    "submitted_at": f'"{ts}"' if review == "submitted" else "null",
+    "updated_at": f'"{ts}"',
+    "completed_at": f'"{ts}"',
+}
+lines = open(path, encoding="utf-8").readlines()
+closing = next(i for i in range(1, len(lines)) if lines[i].strip() == "---")
+seen = set()
+for i in range(1, closing):
+    if ":" not in lines[i]:
+        continue
+    key = lines[i].split(":", 1)[0]
+    if key in updates:
+        lines[i] = f"{key}: {updates[key]}\n"
+        seen.add(key)
+for key, value in updates.items():
+    if key not in seen:
+        lines.insert(closing, f"{key}: {value}\n")
+        closing += 1
+text = "".join(lines).replace("- status: in_progress\n", f"- status: {status}\n", 1).replace(
+    "- verification: pending\n", "- verification: submitted for user review\n", 1
+).replace(
+    "- next action: execute declared scope and submit for review\n",
+    "- next action: user review; accepted must be recorded through v9_accept\n",
+    1,
+)
+fd, tmp_name = tempfile.mkstemp(prefix=os.path.basename(path) + ".", suffix=".tmp", dir=os.path.dirname(path))
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(text)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(tmp_name, path)
+finally:
+    if os.path.exists(tmp_name):
+        os.unlink(tmp_name)
+PY
+}
+
+# ============================================================
+# _v8_task_id_in_history / _v8_generate_task_id / _v8_reserve_task_id
+#
+# 任务 ID 仍保持 T-YYYYMMDD-NN 兼容格式，但不得覆盖历史任务卡：
+# - 事件流查重覆盖“旧 _temp 已清理”的历史任务；
+# - mkdir 原子预留覆盖多个 Agent 同时握手的竞争窗口；
+# - 99 个槽位耗尽时明确失败，不降级为复用已有 ID。
+# ============================================================
+_v8_task_id_in_history() {
+  local candidate="$1"
+  [[ -f "$EVENT_FILE" ]] && LC_ALL=C grep -Fq "$candidate" "$EVENT_FILE"
+}
+
+_v8_generate_task_id() {
+  local prefix="T-$(date '+%Y%m%d')"
+  local candidate attempt n
+
+  attempt=0
+  while (( attempt < 128 )); do
+    n=$((RANDOM % 99 + 1))
+    candidate="$prefix-$(printf '%02d' "$n")"
+    if [[ ! -e "$VAULT_ROOT/_temp/$candidate" ]] && ! _v8_task_id_in_history "$candidate"; then
+      echo "$candidate"
+      return 0
+    fi
+    attempt=$((attempt + 1))
+  done
+
+  n=1
+  while (( n <= 99 )); do
+    candidate="$prefix-$(printf '%02d' "$n")"
+    if [[ ! -e "$VAULT_ROOT/_temp/$candidate" ]] && ! _v8_task_id_in_history "$candidate"; then
+      echo "$candidate"
+      return 0
+    fi
+    n=$((n + 1))
+  done
+
+  echo "[ERROR] 当日任务 ID T-$(date '+%Y%m%d')-01..99 已耗尽，拒绝复用历史 ID。" >&2
+  return 1
+}
+
+_v8_reserve_task_id() {
+  local prefix="T-$(date '+%Y%m%d')"
+  local candidate attempt n
+
+  mkdir -p "$VAULT_ROOT/_temp" || return 1
+
+  attempt=0
+  while (( attempt < 128 )); do
+    n=$((RANDOM % 99 + 1))
+    candidate="$prefix-$(printf '%02d' "$n")"
+    if ! _v8_task_id_in_history "$candidate" && mkdir "$VAULT_ROOT/_temp/$candidate" 2>/dev/null; then
+      echo "$candidate"
+      return 0
+    fi
+    attempt=$((attempt + 1))
+  done
+
+  n=1
+  while (( n <= 99 )); do
+    candidate="$prefix-$(printf '%02d' "$n")"
+    if ! _v8_task_id_in_history "$candidate" && mkdir "$VAULT_ROOT/_temp/$candidate" 2>/dev/null; then
+      echo "$candidate"
+      return 0
+    fi
+    n=$((n + 1))
+  done
+
+  echo "[ERROR] 当日任务 ID T-$(date '+%Y%m%d')-01..99 已耗尽，拒绝覆盖历史任务卡。" >&2
+  return 1
+}
+
+# ============================================================
+# _v8_close_status_atomic - 原子完成任务状态清理
+# 仅修改首块 YAML frontmatter，避免命中文档正文中嵌入的约束副本。
+# ============================================================
+_v8_close_status_atomic() {
+  local file="$1"
+  local ts="$2"
+
+  _V8_STATUS_FILE="$file" _V8_STATUS_TS="$ts" "$V8_PYTHON" - <<'PY'
+import os
+import stat
+import tempfile
+
+path = os.environ["_V8_STATUS_FILE"]
+ts = os.environ["_V8_STATUS_TS"]
+updates = {
+    "status": "idle",
+    "current_task": "null",
+    "current_task_id": "null",
+    "last_heartbeat": f'"{ts}"',
+    "heartbeat_pid": "null",
+    "heartbeat_session": "null",
+    "heartbeat_source": "null",
+    "active_subtasks": "[]",
+    "spawn_count": "0",
+    "write_scope": "null",
+    "scope_source": "null",
+}
+
+with open(path, "r", encoding="utf-8") as handle:
+    lines = handle.readlines()
+
+if not lines or lines[0].strip() != "---":
+    raise SystemExit("status file has no leading frontmatter")
+
+closing = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
+if closing is None:
+    raise SystemExit("status file frontmatter is not closed")
+
+seen = set()
+for i in range(1, closing):
+    key = lines[i].split(":", 1)[0].strip() if ":" in lines[i] else ""
+    if key in updates:
+        lines[i] = f"{key}: {updates[key]}\n"
+        seen.add(key)
+
+missing = [f"{key}: {value}\n" for key, value in updates.items() if key not in seen]
+if missing:
+    lines[closing:closing] = missing
+
+mode = stat.S_IMODE(os.stat(path).st_mode)
+directory = os.path.dirname(path) or "."
+fd, tmp_path = tempfile.mkstemp(prefix=".v8-status-", dir=directory, text=True)
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.writelines(lines)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.chmod(tmp_path, mode)
+    os.replace(tmp_path, path)
+finally:
+    if os.path.exists(tmp_path):
+        os.unlink(tmp_path)
+PY
 }
 
 # ============================================================
@@ -101,7 +425,7 @@ _v8_resolve_status_file() {
   local agent="$1"
   local base="$VAULT_ROOT/02-项目管理/智能体状态"
   case "$agent" in
-    claudian|legacy_agent)               echo "$base/Claudian.md" ;;
+    claudian)                        echo "$base/Claudian.md" ;;
     workbuddy)                       echo "$base/WorkBuddy.md" ;;
     xiaochong|amoxicillin|amox)      echo "$base/阿莫西林.md" ;;
     toubao|cephalosporin|ceph)       echo "$base/头孢.md" ;;
@@ -117,7 +441,7 @@ _v8_resolve_status_file() {
 _v8_normalize_agent_id() {
   local agent="$1"
   case "$agent" in
-    claudian|legacy_agent)               echo "claudian" ;;
+    claudian)                        echo "claudian" ;;
     workbuddy)                       echo "workbuddy" ;;
     xiaochong|amoxicillin|amox)      echo "xiaochong" ;;
     toubao|cephalosporin|ceph)       echo "toubao" ;;
@@ -125,6 +449,16 @@ _v8_normalize_agent_id() {
     hongmeisu|erythromycin|eryth)    echo "hongmeisu" ;;
     *) echo "$agent" ;;
   esac
+}
+
+_v8_default_agent_id() {
+  # Codex Desktop exposes CODEX_THREAD_ID. Prefer the live platform identity
+  # instead of silently attributing an omitted fifth argument to Claudian.
+  if [[ -n "${CODEX_THREAD_ID:-}" || -n "${CODEX_CI:-}" ]]; then
+    echo "hongmeisu"
+  else
+    echo "claudian"
+  fi
 }
 
 # ============================================================
@@ -157,14 +491,14 @@ _v8_gate_check() {
 # ============================================================
 # v8_handshake - 输出握手声明 + 自动打点
 #
-# 注意：本函数不建卡。Agent 需在调用后自行创建 task card / 更新看板。
+# M4/M5 同时创建运行授权卡（_temp）与正式审计卡；看板仍由 Agent 更新。
 # ============================================================
 v8_handshake() {
   local gear="$1"        # M3 / M4 / M5
   local task="$2"        # 任务名（支持任意字符：/ & " 等）
   local scope="$3"       # 写入范围
   local reviewer="${4:-用户}"  # 验收方，默认"用户"
-  local agent="${5:-claudian}" # agent_id，默认 Claudian
+  local agent="${5:-$(_v8_default_agent_id)}" # agent_id，Codex 环境默认红霉素
 
   if [[ -z "$gear" || -z "$task" || -z "$scope" ]]; then
     echo "[ERROR] 用法: v8_handshake <档位> <任务名> <写入范围> [验收方] [agent_id]"
@@ -174,9 +508,8 @@ v8_handshake() {
   # M4/M5 收工必须登记看板；默认补入 00-MOC/，避免收工阶段被自己的 scope 门禁拦住。
   scope=$(_v8_scope_with_moc_for_m4plus "$gear" "$scope")
 
-  local ts
+  local ts task_id
   ts=$(date '+%Y-%m-%dT%H:%M:%S+08:00')
-  local task_id="T-$(date '+%Y%m%d')-$(printf '%02d' $((RANDOM % 99 + 1)))"
 
   # === Phase 4 Gate: M4/M5 only ===
   if [[ "$gear" == "M4" || "$gear" == "M5" ]]; then
@@ -189,10 +522,49 @@ v8_handshake() {
 
   # --- M3: 一行极简握手 ---
   if [[ "$gear" == "M3" ]]; then
+    if [[ "$scope" == *,* || "$scope" == */ ]]; then
+      echo "[ERROR] M3 仅允许声明一个精确文件；多文件或目录范围请升级为 M4。" >&2
+      return 1
+    fi
+    local normalized_agent
+    normalized_agent=$(_v8_normalize_agent_id "$agent")
+    task_id=$(_v8_generate_task_id) || return 1
+    local m3_context="/tmp/.v8-m3-context-${normalized_agent}.json"
+    _V8_M3_PATH="$m3_context" _V8_M3_TASK="$task" _V8_M3_SCOPE="$scope" \
+      _V8_M3_AGENT="$normalized_agent" "$V8_PYTHON" - <<'PY'
+import json
+import os
+import tempfile
+import time
+
+path = os.environ["_V8_M3_PATH"]
+payload = {
+    "agent": os.environ["_V8_M3_AGENT"],
+    "task": os.environ["_V8_M3_TASK"],
+    "scope": os.environ["_V8_M3_SCOPE"].lstrip("./"),
+    "created_at_epoch": int(time.time()),
+    "max_writes": 1,
+}
+fd, tmp_path = tempfile.mkstemp(prefix=".v8-m3-", dir="/tmp", text=True)
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False)
+        handle.write("\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(tmp_path, path)
+finally:
+    if os.path.exists(tmp_path):
+        os.unlink(tmp_path)
+PY
     echo "V8 已激活：M3 | $task | 写入：$scope"
+    echo "            轻量授权: $m3_context（20 分钟内单次有效）"
     echo "$task_id"
     return 0
   fi
+
+  # M4/M5：通过 gate 后再原子预留任务目录，消除并发 TOCTOU 与历史 ID 复用。
+  task_id=$(_v8_reserve_task_id) || return 1
 
   # --- M4/M5: 标准/完整握手 ---
   echo "V8 已激活："
@@ -229,7 +601,7 @@ v8_handshake() {
     fi
 
     # 写入验证：检查 status 确实变成了 busy
-    if ! grep -q '^status: busy' "$status_file"; then
+    if [[ "$(_v8_frontmatter_value "$status_file" status)" != "busy" ]]; then
       echo "[ERROR] 状态文件验证失败：status 未变为 busy" >&2
     fi
   else
@@ -239,6 +611,7 @@ v8_handshake() {
   # V8.5 Phase 2: 创建任务卡（外部授权源）
   local card_dir="$VAULT_ROOT/_temp/$task_id"
   local card_file="$card_dir/task-card.yaml"
+  # card_dir 已由 _v8_reserve_task_id 原子创建；保留 mkdir -p 兼容旧调用。
   mkdir -p "$card_dir"
 
   # 将 scope 拆成 YAML 列表（兼容 bash/zsh）
@@ -260,10 +633,16 @@ for p in parts:
   printf "task_id: \"%s\"\nagent: \"%s\"\ngear: \"%s\"\ntask: \"%s\"\nauthorized_paths:\n%sscope_source: handshake\ncreated_at: \"%s\"\nreviewer: \"%s\"\n" \
     "$task_id" "$agent" "$gear" "$task_yaml_safe" "$scope_yaml_list" "$ts" "$reviewer" > "$card_file"
 
+  if ! _v8_create_formal_task_card "$task_id" "$agent" "$gear" "$task" "$scope" "$reviewer" "$ts"; then
+    echo "[ERROR] 正式任务卡创建失败，拒绝激活仅有 _temp 的任务: $task_id" >&2
+    return 1
+  fi
+
   # 更新状态文件: scope_source = task_card
   _v8_safe_update_yaml "$status_file" "scope_source" ""task_card""
 
   echo "            任务卡: $card_file"
+  echo "            正式卡: $(_v8_formal_task_card_path "$task_id")"
 
   # 追加 task_start 事件（JSON 安全转义）
   local task_escaped
@@ -284,7 +663,7 @@ for p in parts:
 # ============================================================
 v8_end() {
   local task_id="$1"     # 任务ID
-  local agent="${2:-claudian}"
+  local agent="${2:-$(_v8_default_agent_id)}"
   local result="${3:-done}"
   local gear="${4:-M4}"   # 档位（影响 closeout 检查严格度）
 
@@ -315,9 +694,22 @@ v8_end() {
   fi
 
   # === Phase 4 Gate ===
-  _v8_gate_check pre-end --task-id "$task_id" --agent "$agent" --gear "$gear"
-  if [[ $? -eq 1 ]]; then
-    echo "[GATE-BLOCK] 门禁不通过，任务未关闭" >&2
+  # 取消/中止不是成功交付，不得为了通过 closeout 伪造产物或看板记录。
+  # 其他结果仍必须完整通过 pre-end。
+  local normalized_result
+  normalized_result=$(printf '%s' "$result" | tr '[:upper:]' '[:lower:]')
+  if [[ "$normalized_result" != abort* && "$normalized_result" != cancel* ]]; then
+    _v8_gate_check pre-end --task-id "$task_id" --agent "$agent" --gear "$gear"
+    if [[ $? -eq 1 ]]; then
+      echo "[GATE-BLOCK] 门禁不通过，任务未关闭" >&2
+      return 1
+    fi
+  else
+    echo "[v8_end] $task_id 走审计式取消；跳过成功交付门禁，不生成假产物。" >&2
+  fi
+
+  if ! _v8_finalize_formal_task_card "$task_id" "$result" "$ts"; then
+    echo "[ERROR] 正式任务卡未能完成状态转移，任务保持 busy: $task_id" >&2
     return 1
   fi
 
@@ -326,23 +718,48 @@ v8_end() {
   status_file=$(_v8_resolve_status_file "$agent")
 
   if [[ -n "$status_file" && -f "$status_file" ]]; then
-    _v8_safe_update_yaml "$status_file" "status" "idle"
-    _v8_safe_update_yaml "$status_file" "current_task" "null"
-    _v8_safe_update_yaml "$status_file" "current_task_id" "null"
-    _v8_safe_update_yaml "$status_file" "last_heartbeat" "\"$ts\""
-    _v8_safe_update_yaml "$status_file" "active_subtasks" "[]"
-    _v8_safe_update_yaml "$status_file" "spawn_count" "0"
-    _v8_safe_update_yaml "$status_file" "write_scope" "null"
+    local active_task_id
+    active_task_id=$(_v8_frontmatter_value "$status_file" current_task_id)
+    if [[ "$active_task_id" != "$task_id" ]]; then
+      echo "[ERROR] 状态文件活动任务为 ${active_task_id:-null}，拒绝由 $task_id 清理。" >&2
+      return 1
+    fi
+    if ! _v8_close_status_atomic "$status_file" "$ts"; then
+      echo "[ERROR] 收工状态原子清理失败: $status_file" >&2
+      return 1
+    fi
 
     # 验证
-    if ! grep -q '^status: idle' "$status_file"; then
+    if ! "$V8_PYTHON" - "$status_file" <<'PY'
+import sys
+
+lines = open(sys.argv[1], encoding="utf-8").readlines()
+closing = next(i for i in range(1, len(lines)) if lines[i].strip() == "---")
+frontmatter = dict(
+    line.rstrip("\n").split(":", 1)
+    for line in lines[1:closing]
+    if ":" in line
+)
+expected = {
+    "status": " idle",
+    "current_task": " null",
+    "current_task_id": " null",
+    "write_scope": " null",
+    "scope_source": " null",
+    "heartbeat_pid": " null",
+    "heartbeat_session": " null",
+    "heartbeat_source": " null",
+}
+raise SystemExit(0 if all(frontmatter.get(k) == v for k, v in expected.items()) else 1)
+PY
+    then
       echo "[ERROR] 收工验证失败：status 未变为 idle" >&2
       return 1
     fi
   fi
 
   # 追加 task_end 事件
-  local event="{\"ts\":\"$ts\",\"event\":\"task_end\",\"agent\":\"$agent\",\"task_id\":\"$task_id\",\"result\":\"$result\",\"tokens\":0,\"cost_cny\":0}"
+  local event="{\"ts\":\"$ts\",\"event\":\"task_end\",\"agent\":\"$agent\",\"task_id\":\"$task_id\",\"result\":\"$result\"}"
   echo "$event" >> "$EVENT_FILE"
 
   echo "[v8_end] $task_id -> $result, 状态已回idle"
@@ -397,14 +814,14 @@ v8_spawn() {
   if [[ -n "$status_file" && -f "$status_file" ]]; then
     # 更新 spawn_count
     local current_count
-    current_count=$(grep '^spawn_count:' "$status_file" | awk '{print $2}')
+    current_count=$(_v8_frontmatter_value "$status_file" spawn_count)
     current_count=${current_count:-0}
     local new_count=$((current_count + 1))
     _v8_safe_update_yaml "$status_file" "spawn_count" "$new_count"
 
     # 追加 active_subtasks（读取现有值，追加新 sub_id）
     local current_subs
-    current_subs=$(grep '^active_subtasks:' "$status_file" | sed 's/^active_subtasks: *//')
+    current_subs=$(_v8_frontmatter_value "$status_file" active_subtasks)
     if [[ "$current_subs" == "[]" || -z "$current_subs" ]]; then
       _v8_safe_update_yaml "$status_file" "active_subtasks" "[\"$sub_id\"]"
     else
@@ -458,14 +875,14 @@ v8_collect() {
   if [[ -n "$status_file" && -f "$status_file" ]]; then
     # spawn_count - 1
     local current_count
-    current_count=$(grep '^spawn_count:' "$status_file" | awk '{print $2}')
+    current_count=$(_v8_frontmatter_value "$status_file" spawn_count)
     current_count=${current_count:-0}
     local new_count=$((current_count > 0 ? current_count - 1 : 0))
     _v8_safe_update_yaml "$status_file" "spawn_count" "$new_count"
 
     # active_subtasks 移除 sub_id
     local current_subs
-    current_subs=$(grep '^active_subtasks:' "$status_file" | sed 's/^active_subtasks: *//')
+    current_subs=$(_v8_frontmatter_value "$status_file" active_subtasks)
     if [[ -n "$current_subs" && "$current_subs" != "[]" ]]; then
       # 用 python 安全移除数组元素
       local new_subs

@@ -19,7 +19,7 @@
 set -uo pipefail
 # 注意：不用 set -e，因为需要手动处理各步退出码
 
-VAULT_ROOT="${VAULT_ROOT:-$(pwd)}"
+VAULT_ROOT="${VAULT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 STATUS_DIR="$VAULT_ROOT/02-项目管理/智能体状态"
 EVENT_FILE="$STATUS_DIR/智能体事件.jsonl"
 
@@ -32,7 +32,7 @@ V8_PLATFORM="${V8_PLATFORM:-claude-code}"
 # 根据 agent_id 解析状态文件名
 _resolve_status_name() {
   case "$1" in
-    claudian|legacy_agent)               echo "Claudian" ;;
+    claudian)                        echo "Claudian" ;;
     xiaochong|amoxicillin|amox)      echo "阿莫西林" ;;
     toubao|cephalosporin|ceph)       echo "头孢" ;;
     hongmeisu|erythromycin|eryth)    echo "红霉素" ;;
@@ -49,22 +49,28 @@ INPUT=$(cat)
 FILE_PATH=""
 
 # 尝试用 python3 提取 file_path（最可靠）
-# Claudian hook stdin 格式: {"tool_name":"Write","tool_input":{"file_path":"...","content":"..."}}
+# Claude 兼容格式带 file_path；Codex apply_patch 把补丁文本放在 tool_input.command。
 if command -v python3 &>/dev/null; then
   FILE_PATH=$(echo "$INPUT" | python3 -c "
-import sys, json
+import sys, json, re
 try:
     d = json.load(sys.stdin)
-    # 优先从 tool_input 中取（Claudian 实际格式）
     ti = d.get('tool_input', {})
     fp = ti.get('file_path', '') if isinstance(ti, dict) else ''
-    # 兜底：顶层 file_path（仿真测试用）
     if not fp:
         fp = d.get('file_path', '')
+    if not fp and d.get('tool_name') == 'apply_patch' and isinstance(ti, dict):
+        paths = re.findall(r'^\\*\\*\\* (?:Add|Update|Delete) File: (.+?)\\s*$', str(ti.get('command', '')), re.M)
+        fp = paths[0] if len(paths) == 1 else '__V9_APPLY_PATCH_MULTI__' if paths else '__V9_APPLY_PATCH_UNPARSED__'
     print(fp)
 except:
     print('')
 " 2>/dev/null)
+fi
+
+if [[ "$FILE_PATH" == __V9_APPLY_PATCH_* ]]; then
+  echo "[V9-HOOK-BLOCK] 当前入口无法安全展开此 apply_patch；请使用 Codex 多文件适配器。" >&2
+  exit 2
 fi
 
 # 如果拿不到 file_path，放行（不误杀）
@@ -135,6 +141,10 @@ try:
     ti = ti if isinstance(ti, dict) else {}
     vault = os.environ["V9_VAULT"]
     target = os.path.join(vault, os.environ["V9_REL"])
+    patch = ti.get("codex_patch") or ti.get("command") or ""
+    if re.search(r"^\+review_status:\s*accepted\b", patch, re.MULTILINE):
+        sys.stdout.write("DIRECT_ACCEPTED_WRITE")
+        sys.exit(2)
     content = ti.get("content")
     if content is None:  # Edit：用 old->new 在当前文件上重建候选全文
         old = ti.get("old_string", "") or ""
@@ -148,7 +158,8 @@ try:
         sys.exit(0)  # 不涉及 accepted 转移 → 放行
     gate = os.path.join(vault, ".standards", "gate-enforce.py")
     if not os.path.exists(gate):
-        sys.exit(0)  # gate 缺失 → 降级放行（与 hook 既有策略一致）
+        sys.stdout.write("ACCEPT_GATE_MISSING")
+        sys.exit(2)
     tf = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8")
     tf.write(content); tf.close()
     try:
@@ -164,7 +175,8 @@ try:
 except SystemExit:
     raise
 except Exception:
-    sys.exit(0)  # fail-open：绝不因本检查误伤写入
+    sys.stdout.write("ACCEPT_CHECK_FAILED")
+    sys.exit(2)
 PYEOF
 )
   if [[ "$?" == "2" ]]; then

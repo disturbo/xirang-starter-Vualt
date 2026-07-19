@@ -3,6 +3,8 @@
 .standards/gate-enforce.py
 .standards/harness-eval-verify.py
 .standards/harness-tested-files.txt
+.standards/pre-start-check.py
+.standards/tests/test_v9_codex_hooks.py
 .standards/tests/test_v9_phase_g.py
 .standards/tests/test_v9_phase_h.py
 .standards/hooks/codex-hook-adapter.py
@@ -14,6 +16,7 @@
 02-项目管理/脚本/v9-harness-eval-runner.py
 02-项目管理/脚本/v9-handoff-check.py
 02-项目管理/脚本/v9-entropy-governance.py
+02-项目管理/脚本/v9-freeze-observation.py
 02-项目管理/脚本/v9-iteration-ops-check.py
 02-项目管理/脚本/v9-reflex-check.py
 02-项目管理/脚本/v9-scope-tamper-check.py

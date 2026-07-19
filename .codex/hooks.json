@@ -15,6 +15,17 @@
     ],
     "PreToolUse": [
       {
+        "matcher": "exec_command|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 .standards/hooks/codex-hook-adapter.py pre-exec",
+            "timeout": 30,
+            "statusMessage": "Blocking unaudited shell file writes"
+          }
+        ]
+      },
+      {
         "matcher": "apply_patch|Write|Edit",
         "hooks": [
           {
@@ -26,7 +37,7 @@
         ]
       },
       {
-        "matcher": "Bash|apply_patch|Write|Edit",
+        "matcher": "exec_command|Bash|apply_patch|Write|Edit",
         "hooks": [
           {
             "type": "command",
@@ -37,6 +48,17 @@
       }
     ],
     "PostToolUse": [
+      {
+        "matcher": "exec_command|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 .standards/hooks/codex-hook-adapter.py post-exec",
+            "timeout": 30,
+            "statusMessage": "Recording Codex shell event"
+          }
+        ]
+      },
       {
         "matcher": "apply_patch|Write|Edit",
         "hooks": [

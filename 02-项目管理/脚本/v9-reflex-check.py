@@ -882,10 +882,10 @@ def collect_runtime_liveness(
     queue_metrics = (entropy_queue or {}).get("metrics", {})
     if not entropy_queue:
         queue_issues.append("queue_missing")
-    elif entropy_queue.get("policy") != "human_confirmation_required; source_notes_never_auto_modified":
+    elif entropy_queue.get("policy") != "human_confirmation_with_default_defer; source_notes_never_auto_modified":
         queue_issues.append("unsafe_policy")
     required_metrics = {
-        "pending_confirmation", "confirmed_for_action", "rejected", "resolved",
+        "pending_confirmation", "confirmed_for_action", "deferred", "archived", "rejected", "resolved",
         "previous_open", "current_open", "new_since_previous",
         "resolved_since_previous", "net_backlog_delta",
     }
@@ -898,7 +898,7 @@ def collect_runtime_liveness(
         queue_issues.append(f"stale_hours={round((now - queue_updated).total_seconds() / 3600, 1)}")
     detected_confirmed = int(((entropy_queue or {}).get("source_summary") or {}).get("confirmed", -1))
     represented = sum(int(queue_metrics.get(key, 0)) for key in (
-        "pending_confirmation", "confirmed_for_action", "rejected",
+        "pending_confirmation", "confirmed_for_action", "deferred", "archived", "rejected",
     )) if isinstance(queue_metrics, dict) else -1
     if detected_confirmed < 0 or represented != detected_confirmed:
         queue_issues.append(f"consumer_mismatch={represented}/{detected_confirmed}")
@@ -966,6 +966,33 @@ def collect_runtime_liveness(
         checks.append(_runtime_check(
             "skill_shadow", "ok",
             f"skills={skill_summary.get('skills_scanned', 0)} explicit_variants={skill_summary.get('explicit_variant_groups', 0)}",
+        ))
+
+    freeze_checker = Path(os.environ.get(
+        "XIRANG_FREEZE_OBSERVATION_CHECKER",
+        str(SCRIPT_DIR / "v9-freeze-observation.py"),
+    ))
+    try:
+        freeze_proc = subprocess.run(
+            [sys.executable, str(freeze_checker), "--json"],
+            capture_output=True, text=True, timeout=120,
+        )
+        freeze_data = json.loads(freeze_proc.stdout) if freeze_proc.stdout else {}
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError) as exc:
+        freeze_proc = None
+        freeze_data = {"status": "blocked", "error": str(exc)}
+    freeze_status = freeze_data.get("status")
+    if freeze_proc is None or freeze_proc.returncode != 0 or freeze_status == "blocked":
+        findings.append(make_finding(
+            "p1", "FREEZE_OBSERVATION_BLOCKED", str(freeze_checker),
+            "V9 冻结期观测指标未全部通过，不得解冻或进入 V9.6。", "runtime-liveness",
+            detail=freeze_data.get("today", freeze_data),
+        ))
+        checks.append(_runtime_check("freeze_observation", "failed", str(freeze_status or "error")))
+    else:
+        checks.append(_runtime_check(
+            "freeze_observation", "ok",
+            f"status={freeze_status} streak={freeze_data.get('consecutive_pass_days', 0)}/{freeze_data.get('required_consecutive_days', 14)}",
         ))
 
     return findings, checks

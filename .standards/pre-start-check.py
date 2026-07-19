@@ -14,16 +14,17 @@ v1.0 · 2026-05-18 | 息壤 V8.5.0
 检查项（全部 pass 才能启动）：
   1. task card 文件存在
   2. owner 非空
-  3. budget.cost_ceiling_cny > 0
-  4. deliverables 至少 1 项
-  5. status 为 ready（不是 done/cancelled/blocked）
-  6. blocked_by 为空
+  3. deliverables 至少 1 项
+  4. status 为 ready（不是 done/cancelled/blocked）
+  5. blocked_by 为空
 
 返回：
   0 = 全部通过，可启动
   1 = 有不通过项
   2 = task card 不存在
 """
+
+from __future__ import annotations
 
 import sys
 import os
@@ -64,7 +65,7 @@ def extract_yaml_value(content: str, key: str) -> str | None:
     m = re.search(rf"^{key}\s*:\s*(.+)$", content, re.MULTILINE)
     if m:
         return m.group(1).strip().strip('"').strip("'")
-    # 再尝试缩进（嵌套字段如 budget.cost_ceiling_cny）
+    # 再尝试缩进字段
     m = re.search(rf"^\s+{key}\s*:\s*(.+)$", content, re.MULTILINE)
     if m:
         return m.group(1).strip().strip('"').strip("'")
@@ -131,25 +132,7 @@ def check_task_card(task_id: str) -> dict:
         result["status"] = "fail"
         result["blockers"].append(f"owner 为空（当前: {owner!r}）")
 
-    # Check 3: budget.cost_ceiling_cny > 0
-    ceiling = extract_yaml_value(fm, "cost_ceiling_cny")
-    if ceiling:
-        try:
-            val = float(ceiling)
-            result["checks"]["budget"] = val > 0
-            if val <= 0:
-                result["status"] = "fail"
-                result["blockers"].append(f"cost_ceiling_cny <= 0（当前: {val}）")
-        except ValueError:
-            result["checks"]["budget"] = False
-            result["status"] = "fail"
-            result["blockers"].append(f"cost_ceiling_cny 格式错误（当前: {ceiling!r}）")
-    else:
-        result["checks"]["budget"] = False
-        result["status"] = "fail"
-        result["blockers"].append("缺少 cost_ceiling_cny 字段")
-
-    # Check 4: deliverables 至少 1 项
+    # Check 3: deliverables 至少 1 项
     deliverables = extract_list_field(fm, "deliverables")
     # 也检查 deliverables 下的 - path: 模式
     if not deliverables:
@@ -161,7 +144,7 @@ def check_task_card(task_id: str) -> dict:
         result["status"] = "fail"
         result["blockers"].append("deliverables 为空")
 
-    # Check 5: status 为 ready
+    # Check 4: status 为 ready
     status = extract_yaml_value(fm, "status")
     valid_start_statuses = {"ready", "in_progress"}  # in_progress 也允许（续接）
     if status and status in valid_start_statuses:
@@ -178,7 +161,7 @@ def check_task_card(task_id: str) -> dict:
             # submitted / reviewing 等状态也可以继续
             result["checks"]["status_ready"] = True
 
-    # Check 6: blocked_by 为空
+    # Check 5: blocked_by 为空
     blocked_by = extract_list_field(fm, "blocked_by")
     result["checks"]["not_blocked"] = len(blocked_by) == 0
     if blocked_by:

@@ -5,8 +5,6 @@ agent_name: 头孢
 platform: Hermes CLI
 role: 资料采集 / 竞品整理 / 品牌审核
 cooldown: 无（按需触发）
-budget_level: S~M
-weekly_budget_cny: 40
 
 ## 主导步骤
 S5(品牌/质量审计) / S6辅(测试验收)

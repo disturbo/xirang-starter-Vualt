@@ -5,8 +5,6 @@ agent_name: 青霉素
 platform: Claudian (Desktop App)
 role: 方案设计 / PRD / 原型构建
 cooldown: 5h
-budget_level: L
-weekly_budget_cny: 80
 
 ## 主导步骤
 S1(工作拆分) / S2(计划+预算) / S3辅(工艺指导)

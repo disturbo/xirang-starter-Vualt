@@ -61,6 +61,9 @@ class PhaseGTests(unittest.TestCase):
         self.assertIn("Path(__file__).resolve().parents[2]", adapter)
         self.assertIn('"matcher": "apply_patch|Write|Edit"', hooks)
         self.assertIn("codex-hook-adapter.py pre-write", hooks)
+        self.assertIn("codex-hook-adapter.py pre-exec", hooks)
+        self.assertIn("codex-hook-adapter.py post-exec", hooks)
+        self.assertIn("exec_command|Bash", hooks)
 
 
 if __name__ == "__main__":

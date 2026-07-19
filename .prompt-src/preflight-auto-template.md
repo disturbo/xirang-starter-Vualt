@@ -21,7 +21,6 @@ M5（跨 Agent / 长任务）：
   V9 已激活：
   - 档位：M5
   - 任务：{任务名}
-  - 预算：{预估 token/时间}
   - 写入范围：{路径}
   - 拆分计划：{子任务数} 个子任务
   - 验收方：{验收链}
@@ -43,9 +42,8 @@ M5（跨 Agent / 长任务）：
 
 ```
 1. 更新状态：status -> idle, current_task -> null
-2. 追加 task_end 事件（tokens/cost 填 0）
+2. 追加 task_end 事件（记录任务、结果与身份）
 3. 看板 Handoff：{{KANBAN_PATH}}（产物路径 + 验证 + next action）
-4. 如有成本估算：python3 .standards/agent-cost-events.py append ...
 ```
 
 ### M3 收工

@@ -5,8 +5,6 @@ agent_name: 红霉素
 platform: Codex
 role: 代码实现 / 规范修复 / 评审
 cooldown: 5h
-budget_level: M
-weekly_budget_cny: 60
 
 ## 主导步骤
 S3(编码主力) / S5(代码评审)

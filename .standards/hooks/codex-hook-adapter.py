@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 from datetime import datetime
@@ -16,6 +18,16 @@ from pathlib import Path
 DEFAULT_VAULT = Path(__file__).resolve().parents[2]
 AGENT_ID = "hongmeisu"
 PLATFORM = "codex"
+
+DIRECT_FILE_MUTATORS = {
+    "apply_patch", "chmod", "chown", "cp", "dd", "install", "ln", "mkdir",
+    "mv", "patch", "rm", "rmdir", "tee", "touch", "truncate", "xattr",
+}
+INLINE_WRITE_MARKERS = (
+    ".write_text(", ".write_bytes(", ".unlink(", ".rename(",
+    "shutil.copy", "shutil.move", "shutil.rmtree", "os.remove(", "os.rename(",
+    "os.replace(", "os.unlink(",
+)
 
 
 def read_event() -> dict:
@@ -39,6 +51,68 @@ def patch_targets(event: dict) -> list[tuple[str, str]]:
         if item not in targets:
             targets.append(item)
     return targets
+
+
+def shell_command(event: dict) -> str:
+    tool_input = event.get("tool_input")
+    if not isinstance(tool_input, dict):
+        return ""
+    for key in ("cmd", "command"):
+        value = tool_input.get(key)
+        if isinstance(value, str):
+            return value
+    return ""
+
+
+def shell_tokens(command: str) -> list[str]:
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|<>")
+        lexer.whitespace_split = True
+        lexer.commenters = ""
+        return list(lexer)
+    except ValueError:
+        return []
+
+
+def classify_shell_command(command: str, *, nested: bool = False) -> dict:
+    """Fail closed for direct filesystem mutation while allowing audited workflows.
+
+    Commands that call a repository workflow may have intentional side effects; those
+    remain visible through the shell audit event. Direct shell file mutation is denied
+    because it bypasses path-level pre/post-write hooks and must use apply_patch.
+    """
+    tokens = shell_tokens(command)
+    reasons: list[str] = []
+    for index, token in enumerate(tokens):
+        executable = Path(token).name
+        if executable in DIRECT_FILE_MUTATORS:
+            reasons.append(f"direct_mutator:{executable}")
+        if executable in {"sed", "perl"} and any(
+            value == "-i" or value.startswith("-i") for value in tokens[index + 1:index + 5]
+        ):
+            reasons.append(f"in_place_editor:{executable}")
+        if token in {">", ">>"}:
+            target = tokens[index + 1] if index + 1 < len(tokens) else ""
+            if target not in {"/dev/null", "/dev/stdout", "/dev/stderr"} and not target.startswith("/dev/fd/"):
+                reasons.append("output_redirection")
+        if executable in {"python", "python3", "bash", "sh", "zsh"} and "-c" in tokens[index + 1:index + 4]:
+            try:
+                inline = tokens[tokens.index("-c", index + 1) + 1]
+            except (ValueError, IndexError):
+                inline = ""
+            if inline and any(marker in inline for marker in INLINE_WRITE_MARKERS):
+                reasons.append(f"inline_writer:{executable}")
+            if inline and not nested:
+                nested_result = classify_shell_command(inline, nested=True)
+                reasons.extend(f"nested:{reason}" for reason in nested_result["reasons"])
+    unique = sorted(set(reasons))
+    first = next((Path(token).name for token in tokens if token not in {";", "&&", "||", "|"}), "")
+    return {
+        "blocked": bool(unique),
+        "classification": "direct_file_mutation" if unique else "read_or_workflow",
+        "executable": first,
+        "reasons": unique,
+    }
 
 
 def legacy_event(event: dict, path: str, operation: str) -> dict:
@@ -116,6 +190,54 @@ def run_session_guard(event: dict, vault: Path) -> int:
     return 0
 
 
+def active_task_id(vault: Path) -> str:
+    status_file = vault / "02-项目管理/智能体状态/红霉素.md"
+    try:
+        text = status_file.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    match = re.search(r'^current_task_id:\s*["\']?([^"\'\n]+)', text, re.MULTILINE)
+    return "" if not match or match.group(1).strip() in {"null", "None"} else match.group(1).strip()
+
+
+def append_shell_audit(event: dict, vault: Path, result: dict, lifecycle: str) -> None:
+    command = shell_command(event)
+    event_file = vault / "02-项目管理/智能体状态/智能体事件.jsonl"
+    event_file.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "ts": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "event": lifecycle,
+        "agent": AGENT_ID,
+        "platform": PLATFORM,
+        "task_id": active_task_id(vault),
+        "tool": event.get("tool_name"),
+        "command_sha256": hashlib.sha256(command.encode()).hexdigest(),
+        "command_bytes": len(command.encode()),
+        "classification": result["classification"],
+        "executable": result["executable"],
+        "reasons": result["reasons"],
+    }
+    with event_file.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n")
+
+
+def run_shell_hook(event: dict, vault: Path, mode: str) -> int:
+    command = shell_command(event)
+    result = classify_shell_command(command)
+    if mode == "pre-exec":
+        if not command:
+            append_shell_audit(event, vault, {
+                "classification": "unparseable", "executable": "", "reasons": ["command_missing"],
+            }, "shell_command_denied")
+            deny("Codex exec_command 未提供可审计 cmd/command，已 fail-closed。")
+        elif result["blocked"]:
+            append_shell_audit(event, vault, result, "shell_command_denied")
+            deny("exec_command 检测到直接文件变更，必须改用 apply_patch：" + ", ".join(result["reasons"]))
+        return 0
+    append_shell_audit(event, vault, result, "shell_command")
+    return 0
+
+
 def append_lifecycle(event: dict, vault: Path, lifecycle: str) -> int:
     event_file = vault / "02-项目管理/智能体状态/智能体事件.jsonl"
     event_file.parent.mkdir(parents=True, exist_ok=True)
@@ -141,7 +263,10 @@ def append_lifecycle(event: dict, vault: Path, lifecycle: str) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=("pre-write", "post-write", "session-guard", "session-start", "session-stop"))
+    parser.add_argument("mode", choices=(
+        "pre-write", "post-write", "pre-exec", "post-exec",
+        "session-guard", "session-start", "session-stop",
+    ))
     args = parser.parse_args()
     event = read_event()
     vault = Path(os.environ.get("VAULT_ROOT", str(DEFAULT_VAULT))).expanduser().resolve()
@@ -149,6 +274,8 @@ def main() -> int:
         return run_path_hook(event, vault, args.mode)
     if args.mode == "post-write":
         return run_path_hook(event, vault, args.mode)
+    if args.mode in {"pre-exec", "post-exec"}:
+        return run_shell_hook(event, vault, args.mode)
     if args.mode == "session-guard":
         return run_session_guard(event, vault)
     return append_lifecycle(event, vault, args.mode.replace("-", "_"))

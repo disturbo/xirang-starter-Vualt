@@ -5,8 +5,6 @@ agent_name: Claudian
 platform: Claudian (Obsidian嵌入)
 role: 技术执行 / 批量操作 / 飞行任务
 cooldown: 无（按需触发）
-budget_level: L~XL
-weekly_budget_cny: 120
 
 ## 主导步骤
 S3(工作执行) / S4辅(执行监控)
@@ -16,7 +14,6 @@ S3(工作执行) / S4辅(执行监控)
 - 脚本开发 + lint 工具链维护
 - 迁移执行 + 自动化
 - .standards/ 工具链 owner
-- 成本周报 + 定时任务
 
 ## 不做
 - 方案设计初稿（-> 青霉素）

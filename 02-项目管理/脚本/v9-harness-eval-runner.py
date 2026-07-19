@@ -50,31 +50,20 @@ HANDOFF_CHECK = SCRIPT_DIR / "v9-handoff-check.py"
 REFLEX = SCRIPT_DIR / "v9-reflex-check.py"
 PHASE_G_TEST = REPO_ROOT / ".standards" / "tests" / "test_v9_phase_g.py"
 PHASE_H_TEST = REPO_ROOT / ".standards" / "tests" / "test_v9_phase_h.py"
+CODEX_HOOK_TEST = REPO_ROOT / ".standards" / "tests" / "test_v9_codex_hooks.py"
 LATEST_REPORT = REPO_ROOT / "02-项目管理" / "巡检" / "harness-eval-latest.json"
-TESTED_FILES = [
-    Path(".codex/hooks.json"),
-    Path(".standards/gate-enforce.py"),
-    Path(".standards/harness-eval-verify.py"),
-    Path(".standards/harness-tested-files.txt"),
-    Path(".standards/tests/test_v9_phase_g.py"),
-    Path(".standards/tests/test_v9_phase_h.py"),
-    Path(".standards/hooks/codex-hook-adapter.py"),
-    Path(".standards/hooks/pre-commit-harness-eval.sh"),
-    Path(".standards/hooks/pre-write-hook.sh"),
-    Path(".standards/v8-handshake.sh"),
-    Path(".standards/v9-accept.py"),
-    Path("02-项目管理/脚本/project-ops-check.py"),
-    Path("02-项目管理/脚本/v9-harness-eval-runner.py"),
-    Path("02-项目管理/脚本/v9-handoff-check.py"),
-    Path("02-项目管理/脚本/v9-entropy-governance.py"),
-    Path("02-项目管理/脚本/v9-iteration-ops-check.py"),
-    Path("02-项目管理/脚本/v9-reflex-check.py"),
-    Path("02-项目管理/脚本/v9-scope-tamper-check.py"),
-    Path("02-项目管理/脚本/v9-skill-shadow-check.py"),
-    Path("02-项目管理/脚本/v9-starter-leak-check.py"),
-    Path("02-项目管理/脚本/v9-status-summary.py"),
-    Path("02-项目管理/脚本/v9-task-state-check.py"),
-]
+HARNESS_MANIFEST = REPO_ROOT / ".standards/harness-tested-files.txt"
+
+
+def load_tested_files() -> list[Path]:
+    lines = HARNESS_MANIFEST.read_text(encoding="utf-8").splitlines()
+    files = [Path(line.strip()) for line in lines if line.strip() and not line.lstrip().startswith("#")]
+    if not files or len(files) != len(set(files)):
+        raise RuntimeError("Harness trust manifest is empty or contains duplicate paths")
+    return files
+
+
+TESTED_FILES = load_tested_files()
 
 
 @dataclass
@@ -117,13 +106,20 @@ def write_text(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def run_json(script: Path, args: list[str], cwd: Path, timeout: int = 60) -> tuple[int, dict | None, str, str]:
+def run_json(
+    script: Path,
+    args: list[str],
+    cwd: Path,
+    timeout: int = 60,
+    env: dict[str, str] | None = None,
+) -> tuple[int, dict | None, str, str]:
     proc = subprocess.run(
         [sys.executable, str(script), *args],
         cwd=str(cwd),
         capture_output=True,
         text=True,
         timeout=timeout,
+        env={**os.environ, **(env or {})},
     )
     data = None
     if proc.stdout.strip():
@@ -687,6 +683,10 @@ GATE_ENFORCE = REPO_ROOT / ".standards" / "gate-enforce.py"
 SCOPE_TAMPER = SCRIPT_DIR / "v9-scope-tamper-check.py"
 
 
+def gate_test_env() -> dict[str, str]:
+    return {"V9_GATE_EVENT_FILE": os.devnull}
+
+
 def _accept_candidate_card(owner: str, author: str, accepted_by: str) -> str:
     # 结构完整的合法任务卡：除"自验收"外不应触发任何其它门禁，
     # 确保 hook 若放行=候选 accept 校验未实现（真 RED），而非缺字段误拦（假绿）。
@@ -711,10 +711,9 @@ def _accept_candidate_card(owner: str, author: str, accepted_by: str) -> str:
         "updated_at: 2026-06-26T09:00:00+08:00",
         'completed_at: "2026-06-26T09:00:00+08:00"',
         "sla: {target_hours: 1, hard_deadline: null}",
-        "budget: {max_total_tokens: 1000, max_subagent_tokens: 0, cost_ceiling_cny: 1.0, on_exceed: alert_openclaw}",
         'paths: {allowed_write_roots: ["02-项目管理/"], temp_root: _temp/T-EVAL-ACCEPT/}',
         "deliverables: []",
-        "gates: {pre_start: passed, pre_write: passed, cost_fuse: passed, handoff: passed}",
+        "gates: {pre_start: passed, pre_write: passed, handoff: passed}",
         "---",
         "# eval accept candidate",
         "",
@@ -728,7 +727,8 @@ def case_accept_gate_negative_edit_bare_accept() -> EvalResult:
         cand = Path(tmp) / "candidate.md"
         write_text(cand, _accept_candidate_card("claudian", "claudian", "claudian"))
         code, report, _out, stderr = run_json(
-            GATE_ENFORCE, ["pre-accept", "--candidate", str(cand), "--source", "edit", "--json"], cwd=REPO_ROOT
+            GATE_ENFORCE, ["pre-accept", "--candidate", str(cand), "--source", "edit", "--json"],
+            cwd=REPO_ROOT, env=gate_test_env(),
         )
         passed = gate_blocked(report, "ACCEPTED_BY_SELF")
         observed = "edit self-accept blocked" if passed else "pre-accept 未实现/未拦（预期 RED，待实施）"
@@ -742,7 +742,8 @@ def case_accept_gate_negative_write_full_accept() -> EvalResult:
         cand = Path(tmp) / "candidate.md"
         write_text(cand, _accept_candidate_card("claudian", "claudian", "claudian"))
         code, report, _out, stderr = run_json(
-            GATE_ENFORCE, ["pre-accept", "--candidate", str(cand), "--source", "write", "--json"], cwd=REPO_ROOT
+            GATE_ENFORCE, ["pre-accept", "--candidate", str(cand), "--source", "write", "--json"],
+            cwd=REPO_ROOT, env=gate_test_env(),
         )
         passed = gate_blocked(report, "ACCEPTED_BY_SELF")
         observed = "write self-accept blocked" if passed else "pre-accept 未实现/未拦（预期 RED，待实施）"
@@ -784,7 +785,7 @@ def case_eval_freshness_negative_stale_report() -> EvalResult:
         code, report, _out, stderr = run_json(
             GATE_ENFORCE,
             ["pre-accept", "--task-id", "T-EVAL", "--require-fresh-eval", "--eval-report", str(stale), "--json"],
-            cwd=REPO_ROOT,
+            cwd=REPO_ROOT, env=gate_test_env(),
         )
         passed = gate_blocked(report, "STALE_EVAL")
         observed = "stale eval blocked" if passed else "新鲜度校验未实现（预期 RED，待实施）"
@@ -912,7 +913,7 @@ def case_eval_freshness_negative_stale_hash() -> EvalResult:
         code, report, _out, err = run_json(
             GATE_ENFORCE,
             ["pre-accept", "--task-id", "T-EVAL", "--require-fresh-eval", "--eval-report", str(stale), "--json"],
-            cwd=REPO_ROOT)
+            cwd=REPO_ROOT, env=gate_test_env())
         passed = gate_blocked(report, "STALE_EVAL")
         observed = "stale-hash eval blocked" if passed else "hash 新鲜度校验未实现(预期 RED)"
         return EvalResult(cid, kind, target, passed, exp, observed, {"returncode": code, "stderr_head": err[:160]})
@@ -938,16 +939,39 @@ def case_phase_h_positive_long_session_stability() -> EvalResult:
         [sys.executable, str(PHASE_H_TEST)],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
     )
-    passed = proc.returncode == 0 and "Ran 3 tests" in proc.stderr and "OK" in proc.stderr
+    passed = proc.returncode == 0 and "Ran 6 tests" in proc.stderr and "OK" in proc.stderr
     return EvalResult(
         "phase_h_positive_long_session_stability", "positive",
         "system-Python Codex hook runtime", passed,
         "Phase H adapter, handshake interpreter, and retirement regressions all pass",
-        "3/3 Phase H long-session tests passed" if passed else "Phase H regression suite failed",
+        "6/6 Phase H long-session tests passed" if passed else "Phase H regression suite failed",
         {"returncode": proc.returncode, "stdout": proc.stdout[-500:], "stderr": proc.stderr[-1000:]},
     )
+
+
+def case_codex_hook_adapter_positive_tool_contract() -> EvalResult:
+    proc = subprocess.run(
+        [sys.executable, str(CODEX_HOOK_TEST)],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
+    )
+    passed = proc.returncode == 0 and "Ran 6 tests" in proc.stderr and "OK" in proc.stderr
+    return EvalResult(
+        "codex_hook_adapter_positive_tool_contract", "positive",
+        "Codex apply_patch + exec_command adapter", passed,
+        "Codex write, deny, identity, shell-audit, and direct-write refusal contracts all pass",
+        "6/6 Codex hook adapter tests passed" if passed else "Codex hook adapter regression suite failed",
+        {"returncode": proc.returncode, "stdout": proc.stdout[-500:], "stderr": proc.stderr[-1000:]},
+    )
+
+
 def cases() -> list[EvalCase]:
     return [
+        EvalCase(
+            "codex_hook_adapter_positive_tool_contract", "positive",
+            "Codex apply_patch + exec_command adapter",
+            "Codex Desktop tool adapter regression suite passes.",
+            case_codex_hook_adapter_positive_tool_contract,
+        ),
         EvalCase(
             "phase_h_positive_long_session_stability", "positive",
             "system-Python Codex hook runtime",
