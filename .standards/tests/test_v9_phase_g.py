@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -71,14 +72,18 @@ class PhaseGTests(unittest.TestCase):
     def test_distributed_codex_tools_derive_vault_root(self) -> None:
         adapter = CODEX_ADAPTER.read_text(encoding="utf-8")
         hooks = CODEX_HOOKS.read_text(encoding="utf-8")
+        hook_data = json.loads(hooks)["hooks"]
+        pre_matchers = [item.get("matcher", "") for item in hook_data["PreToolUse"]]
+        post_matchers = [item.get("matcher", "") for item in hook_data["PostToolUse"]]
         personal_path = "/Users/" + bytes.fromhex("7975646f6e67626f").decode() + "/Desktop/obsidianVault"
         self.assertNotIn(personal_path, adapter)
         self.assertIn("Path(__file__).resolve().parents[2]", adapter)
-        self.assertIn('"matcher": "apply_patch|Write|Edit"', hooks)
+        self.assertTrue(any("functions\\.exec" in value and "apply_patch" in value for value in pre_matchers))
+        self.assertTrue(any("functions\\.exec" in value and "apply_patch" in value for value in post_matchers))
         self.assertIn("codex-hook-adapter.py pre-write", hooks)
         self.assertIn("codex-hook-adapter.py pre-exec", hooks)
         self.assertIn("codex-hook-adapter.py post-exec", hooks)
-        self.assertIn("exec_command|Bash", hooks)
+        self.assertTrue(any("functions\\.exec" in value and "exec_command" in value for value in pre_matchers))
 
 
 if __name__ == "__main__":
