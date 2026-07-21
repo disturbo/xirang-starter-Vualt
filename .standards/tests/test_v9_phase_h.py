@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import subprocess
 import tempfile
@@ -167,6 +168,33 @@ class PhaseHTests(unittest.TestCase):
             "platform": "codex", "agent": "hongmeisu",
         })
         self.assertEqual("pass", module.check_hook_evidence(events, hooks, manifest)["status"])
+
+    def test_freeze_consumption_respects_source_cadence(self) -> None:
+        module = load(FREEZE, "phase_h_freeze_consumption_cadence")
+        now = module.parse_iso("2026-07-21T12:00:00+08:00")
+        self.assertIsNotNone(now)
+        with tempfile.TemporaryDirectory() as raw:
+            runtime = Path(raw)
+            inspect = runtime / "巡检"
+            governance = runtime / "治理"
+            inspect.mkdir()
+            governance.mkdir()
+
+            def write(path: Path, payload: dict) -> None:
+                path.write_text(json.dumps(payload), encoding="utf-8")
+
+            write(governance / "entropy-governance-queue.json", {"updated_at": "2026-07-20T09:00:00+08:00"})
+            write(inspect / "health-latest.json", {"generated_at": "2026-07-21T11:50:00+08:00"})
+            write(inspect / "harness-eval-latest.json", {"generated_at": "2026-07-21T11:40:00+08:00"})
+            write(inspect / "status-latest.json", {
+                "generated_at": "2026-07-21T11:55:00+08:00",
+                "parts": {"harness_eval": {"verification": {"valid": True}}},
+            })
+            result = module.check_consumption(runtime, now)
+            self.assertEqual("pass", result["status"], result)
+            self.assertTrue(result["detail"]["freshness"]["entropy_queue"]["fresh"])
+            write(governance / "entropy-governance-queue.json", {"updated_at": "2026-07-12T09:00:00+08:00"})
+            self.assertEqual("fail", module.check_consumption(runtime, now)["status"])
 
     def test_entropy_default_disposition_converges_without_note_edits(self) -> None:
         module = load(ENTROPY, "phase_h_entropy")

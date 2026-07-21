@@ -155,12 +155,29 @@ def check_consumption(runtime: Path, now: datetime) -> dict:
     missing = [key for key, value in timestamps.items() if value is None]
     ordered = not missing and timestamps["entropy_queue"] <= timestamps["health"] <= timestamps["status"]
     harness_consumed = not missing and timestamps["harness"] <= timestamps["status"]
-    fresh = not missing and all(now - value <= timedelta(hours=24) for value in timestamps.values())
+    max_ages = {
+        "entropy_queue": timedelta(days=8),
+        "health": timedelta(hours=24),
+        "status": timedelta(hours=24),
+        "harness": timedelta(hours=24),
+    }
+    freshness = {}
+    for key, value in timestamps.items():
+        if value is None:
+            freshness[key] = {"fresh": False, "age_seconds": None, "max_age_seconds": int(max_ages[key].total_seconds())}
+            continue
+        age = now - value
+        freshness[key] = {
+            "fresh": -timedelta(minutes=5) <= age <= max_ages[key],
+            "age_seconds": int(age.total_seconds()),
+            "max_age_seconds": int(max_ages[key].total_seconds()),
+        }
+    fresh = not missing and all(item["fresh"] for item in freshness.values())
     verification = ((status.get("parts") or {}).get("harness_eval") or {}).get("verification") or {}
     verified = verification.get("valid") is True
     return metric(bool(ordered and harness_consumed and fresh and verified), {
         "missing": missing, "ordered": bool(ordered), "harness_consumed": bool(harness_consumed),
-        "fresh": bool(fresh), "harness_verified": verified,
+        "fresh": bool(fresh), "freshness": freshness, "harness_verified": verified,
     })
 
 
