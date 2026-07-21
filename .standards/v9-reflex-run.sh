@@ -16,6 +16,9 @@ HARNESS_SCRIPT="${XIRANG_V9_HARNESS_SCRIPT:-$VAULT/02-项目管理/脚本/v9-har
 HARNESS_VERIFY_SCRIPT="${XIRANG_V9_HARNESS_VERIFY_SCRIPT:-$VAULT/.standards/harness-eval-verify.py}"
 HARNESS_REPORT="${XIRANG_V9_HARNESS_REPORT:-$RUNTIME/巡检/harness-eval-latest.json}"
 HARNESS_MAX_AGE_HOURS="${XIRANG_V9_HARNESS_MAX_AGE_HOURS:-20}"
+GBRAIN_CONTRACT_SOURCE="${XIRANG_GBRAIN_CONTRACT_SOURCE:-$VAULT/50-经验/Agent协作方法论/息壤V9-运行时契约卡.md}"
+GBRAIN_CONTRACT_MIRROR="${XIRANG_GBRAIN_CONTRACT_MIRROR:-${HOME}/.gbrain/runtime-contract-current.md}"
+GBRAIN_MAINTENANCE="${XIRANG_GBRAIN_MAINTENANCE:-${HOME}/.gbrain/maintenance-run.sh}"
 STATE="$RUNTIME/巡检/reflex-scheduler-health.json"
 
 write_state() {
@@ -67,6 +70,19 @@ refresh_harness_if_needed() {
     --max-age-hours "$HARNESS_MAX_AGE_HOURS" --json >/dev/null 2>&1
 }
 
+refresh_gbrain_contract_if_needed() {
+  [[ -f "$GBRAIN_CONTRACT_SOURCE" && -f "$GBRAIN_CONTRACT_MIRROR" && -x "$GBRAIN_MAINTENANCE" ]] || return 0
+  /usr/bin/cmp -s "$GBRAIN_CONTRACT_SOURCE" "$GBRAIN_CONTRACT_MIRROR" && return 0
+  local mirror_dir temp_path
+  mirror_dir="$(/usr/bin/dirname "$GBRAIN_CONTRACT_MIRROR")"
+  temp_path="$(/usr/bin/mktemp "$mirror_dir/.runtime-contract-current.XXXXXX")" || return 73
+  if ! /bin/cp "$GBRAIN_CONTRACT_SOURCE" "$temp_path" || ! /bin/chmod 600 "$temp_path" || ! /bin/mv "$temp_path" "$GBRAIN_CONTRACT_MIRROR"; then
+    /bin/rm -f "$temp_path"
+    return 73
+  fi
+  "$GBRAIN_MAINTENANCE" sync >/dev/null 2>&1
+}
+
 if [[ -z "$VAULT" ]]; then
   write_state "failed" 78 "vault_root_not_configured"
   exit 78
@@ -82,6 +98,8 @@ fi
 
 write_state "running" 0 "started"
 cd "$VAULT" || { write_state "failed" 72 "vault_unavailable"; exit 72; }
+refresh_gbrain_contract_if_needed
+gbrain_rc=$?
 refresh_harness_if_needed
 harness_rc=$?
 run_started_epoch="$(date +%s)"
@@ -148,6 +166,14 @@ fi
 if [[ $reflex_rc -ne 0 && "$status_value" != "red" ]]; then
   write_state "failed" "$reflex_rc" "reflex_exit_without_red_status"
   exit "$reflex_rc"
+fi
+if [[ $gbrain_rc -ne 0 && "$status_value" != "red" ]]; then
+  write_state "failed" "$gbrain_rc" "gbrain_refresh_failed_without_red_status"
+  exit "$gbrain_rc"
+fi
+if [[ $gbrain_rc -ne 0 ]]; then
+  write_state "success" 0 "completed_status_red_gbrain_refresh_failed"
+  exit 0
 fi
 if [[ $harness_rc -ne 0 ]]; then
   write_state "success" 0 "completed_status_red_harness_refresh_failed"
