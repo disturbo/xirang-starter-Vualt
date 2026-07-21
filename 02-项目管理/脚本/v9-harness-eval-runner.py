@@ -924,12 +924,12 @@ def case_phase_g_positive_distribution_truth() -> EvalResult:
         [sys.executable, str(PHASE_G_TEST)],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
     )
-    passed = proc.returncode == 0 and "Ran 3 tests" in proc.stderr and "OK" in proc.stderr
+    passed = proc.returncode == 0 and "Ran 5 tests" in proc.stderr and "OK" in proc.stderr
     return EvalResult(
         "phase_g_positive_distribution_truth", "positive",
         "skill resolution + portable Codex adapters", passed,
         "Phase G shadow rejection, explicit variants, and portable paths all pass",
-        "3/3 Phase G distribution tests passed" if passed else "Phase G regression suite failed",
+        "5/5 Phase G distribution tests passed" if passed else "Phase G regression suite failed",
         {"returncode": proc.returncode, "stdout": proc.stdout[-500:], "stderr": proc.stderr[-1000:]},
     )
 
@@ -939,12 +939,12 @@ def case_phase_h_positive_long_session_stability() -> EvalResult:
         [sys.executable, str(PHASE_H_TEST)],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
     )
-    passed = proc.returncode == 0 and "Ran 8 tests" in proc.stderr and "OK" in proc.stderr
+    passed = proc.returncode == 0 and "Ran 9 tests" in proc.stderr and "OK" in proc.stderr
     return EvalResult(
         "phase_h_positive_long_session_stability", "positive",
         "system-Python Codex hook runtime", passed,
         "Phase H adapter, handshake interpreter, and retirement regressions all pass",
-        "8/8 Phase H long-session tests passed" if passed else "Phase H regression suite failed",
+        "9/9 Phase H long-session tests passed" if passed else "Phase H regression suite failed",
         {"returncode": proc.returncode, "stdout": proc.stdout[-500:], "stderr": proc.stderr[-1000:]},
     )
 

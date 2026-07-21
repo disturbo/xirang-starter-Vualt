@@ -139,6 +139,35 @@ class PhaseHTests(unittest.TestCase):
         history["2026-07-18"]["daily_status"] = "fail"
         self.assertEqual(1, module.consecutive_pass_days(history, now))
 
+    def test_freeze_hook_evidence_cannot_precede_freeze_start(self) -> None:
+        module = load(FREEZE, "phase_h_freeze_hook_window")
+        hooks = {"matchers": ["apply_patch", "exec_command", "pre-exec", "post-exec"]}
+        manifest = {
+            "freeze_started_at": "2026-07-19T16:29:00+08:00",
+            "hook_evidence": {
+                "file_write_after": "2026-07-18T21:55:00+08:00",
+                "shell_denied_after": "2026-07-19T16:32:00+08:00",
+            },
+        }
+        events = [
+            {
+                "ts": "2026-07-18T22:00:00+08:00", "event": "file_write",
+                "platform": "codex", "agent": "hongmeisu",
+            },
+            {
+                "ts": "2026-07-19T16:33:00+08:00", "event": "shell_command_denied",
+                "platform": "codex", "agent": "hongmeisu",
+            },
+        ]
+        result = module.check_hook_evidence(events, hooks, manifest)
+        self.assertEqual("fail", result["status"])
+        self.assertEqual(manifest["freeze_started_at"], result["detail"]["file_write_after"])
+        events.append({
+            "ts": "2026-07-19T16:34:00+08:00", "event": "file_write",
+            "platform": "codex", "agent": "hongmeisu",
+        })
+        self.assertEqual("pass", module.check_hook_evidence(events, hooks, manifest)["status"])
+
     def test_entropy_default_disposition_converges_without_note_edits(self) -> None:
         module = load(ENTROPY, "phase_h_entropy")
         detector = {

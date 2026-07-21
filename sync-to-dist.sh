@@ -26,8 +26,6 @@ DIRS=(
   ".skills"
   "00-MOC"
   "02-项目管理/脚本"
-  "02-项目管理/巡检"
-  "02-项目管理/evals"
   "30-规范"
   "50-经验/Agent协作方法论"
   "90-模板"
@@ -35,8 +33,9 @@ DIRS=(
 
 # --- 需要同步的根文件 ---
 FILES=(
-  "README.md"
   "setup.sh"
+  "02-项目管理/巡检/README.md"
+  "02-项目管理/evals/README.md"
 )
 
 RSYNC_EXCLUDES=(
@@ -51,6 +50,8 @@ RSYNC_EXCLUDES=(
   --exclude="statsig/"
   --exclude=".claudian/"
   --exclude=".claudian/**"
+  --exclude="/_build/"
+  --exclude="/diagram-governance/candidates/"
   --exclude=".obsidian/plugins/**/data*.json"
   --exclude="智能体约束/*MEMORY.md"
   --exclude="health-latest.json"
@@ -76,6 +77,7 @@ done
 for file in "${FILES[@]}"; do
   if [[ -f "$VAULT/$file" ]]; then
     echo "[sync] $file"
+    mkdir -p "$(dirname "$DIST/$file")"
     cp "$VAULT/$file" "$DIST/$file"
   fi
 done
@@ -84,6 +86,14 @@ done
 echo ""
 echo "[clean] 移除看板..."
 rm -f "$DIST/00-MOC/多智能体协作看板.md"
+
+# README.md 与 GOVERNANCE.md 是 starter 专用入口，不从生产 Vault 覆盖。
+# 巡检和 eval 只分发说明文件；生产快照、审计报告和本地 fixture 不属于 starter。
+for clean_dir in "$DIST/02-项目管理/巡检" "$DIST/02-项目管理/evals"; do
+  if [[ -d "$clean_dir" ]]; then
+    find "$clean_dir" -mindepth 1 ! -name "README.md" -delete
+  fi
+done
 
 # --- 移除本地运行时和会话记录（如果有）---
 rm -f "$DIST/.claude/settings.local.json"

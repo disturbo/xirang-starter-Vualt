@@ -114,8 +114,15 @@ def check_hook_evidence(events: list[dict], hooks: dict, manifest: dict) -> dict
     config_text = json.dumps(hooks, ensure_ascii=False)
     configured = all(value in config_text for value in ("apply_patch", "exec_command", "pre-exec", "post-exec"))
     evidence = manifest.get("hook_evidence") if isinstance(manifest.get("hook_evidence"), dict) else {}
-    file_after = parse_iso(evidence.get("file_write_after"))
-    deny_after = parse_iso(evidence.get("shell_denied_after"))
+    freeze_start = parse_iso(manifest.get("freeze_started_at"))
+
+    def evidence_floor(value: object) -> datetime | None:
+        explicit = parse_iso(value)
+        candidates = [item for item in (explicit, freeze_start) if item is not None]
+        return max(candidates) if candidates else None
+
+    file_after = evidence_floor(evidence.get("file_write_after"))
+    deny_after = evidence_floor(evidence.get("shell_denied_after"))
 
     def has_event(name: str, after: datetime | None) -> bool:
         return any(
@@ -128,6 +135,8 @@ def check_hook_evidence(events: list[dict], hooks: dict, manifest: dict) -> dict
     denied = has_event("shell_command_denied", deny_after)
     return metric(configured and file_write and denied, {
         "configured": configured, "file_write_observed": file_write, "deny_observed": denied,
+        "file_write_after": file_after.isoformat() if file_after else None,
+        "shell_denied_after": deny_after.isoformat() if deny_after else None,
     })
 
 

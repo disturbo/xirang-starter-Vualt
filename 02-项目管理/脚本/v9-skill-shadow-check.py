@@ -18,6 +18,7 @@ DEFAULT_ROOTS = [
     Path.home() / ".codex/skills",
     Path.home() / ".hermes/skills",
     Path.home() / ".openclaw/skills",
+    Path.home() / ".openclaw/workspace/skills",
     Path.home() / ".workbuddy/skills",
     Path.home() / ".claude/skills",
     Path.home() / ".agents/skills",

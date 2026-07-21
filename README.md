@@ -1,7 +1,7 @@
 # 息壤 V9 · Starter Vault
 
 > 多智能体协作方法论的最小可运行 Obsidian Vault 骨架。
-> V9.4.3 · 2026-07-18 runtime recovery · Clone 即用，3 分钟从零到可运行。
+> V9.4.3 · 2026-07-19 runtime-truth baseline · Clone 即用，3 分钟从零到可运行。
 
 ---
 
@@ -16,6 +16,8 @@
 - 渐进收敛 — L0→L3 四阶段，按需升级，不强制完全体
 
 详细文档：[息壤 V9 在线文档](https://disturbo.github.io/xirang/)
+
+当前版本把“可运行”与“已治理完成”分开：新部署首先进入 `observing`，只有调度、输入、输出、消费者、行为效果、新鲜度与责任出口均有证据，并连续观察通过后，才允许标记为 `green`。完整规则见 [GOVERNANCE.md](GOVERNANCE.md)。
 
 ---
 
@@ -109,7 +111,7 @@ bash setup.sh
 3. **创建项目 MOC** — 复制 `00-MOC/T-项目MOC.md` 到 `00-MOC/`，重命名并填入具体内容
 4. **生成项目规范** — 根据需要在 `30-规范/` 下创建项目专属规范
 
-## V9.4.3 新增
+## 当前运行真实性基线
 
 | 能力 | 文件 |
 |---|---|
@@ -136,6 +138,8 @@ python3 02-项目管理/脚本/v9-reflex-check.py
 ```
 
 健康口径：`summary.active=0`、`sources_failed=[]` 且 `runtime_checks` 无 `failed/stale` 才是真静默。GBrain、LLM Wiki、熵治理等部署依赖未配置时会保持红色，不以脚本退出成功冒充生效；成本治理已退役，不参与健康度。
+
+Skills 扫描默认覆盖共享、Codex、Claude、Hermes、OpenClaw 及 OpenClaw workspace 等实际入口。同名副本版本或内容不一致时必须保持红色，不能以漏扫根目录换取绿色。
 
 回归测试：
 
