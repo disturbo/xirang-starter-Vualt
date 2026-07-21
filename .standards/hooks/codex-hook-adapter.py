@@ -28,6 +28,8 @@ INLINE_WRITE_MARKERS = (
     "shutil.copy", "shutil.move", "shutil.rmtree", "os.remove(", "os.rename(",
     "os.replace(", "os.unlink(",
 )
+CODE_MODE_TOOL_NAMES = {"functions.exec", "exec"}
+JS_LITERAL_RE = r'("(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`)'
 
 
 def read_event() -> dict:
@@ -38,30 +40,97 @@ def read_event() -> dict:
     return value if isinstance(value, dict) else {}
 
 
-def patch_targets(event: dict) -> list[tuple[str, str]]:
+def code_mode_source(event: dict) -> str:
+    if event.get("tool_name") not in CODE_MODE_TOOL_NAMES:
+        return ""
     tool_input = event.get("tool_input")
-    if not isinstance(tool_input, dict):
+    if isinstance(tool_input, str):
+        return tool_input
+    if isinstance(tool_input, dict):
+        for key in ("source", "code", "input", "command"):
+            value = tool_input.get(key)
+            if isinstance(value, str):
+                return value
+    return ""
+
+
+def decode_js_literal(value: str) -> str | None:
+    if value.startswith('"'):
+        try:
+            decoded = json.loads(value)
+        except json.JSONDecodeError:
+            return None
+        return decoded if isinstance(decoded, str) else None
+    if not value.startswith("`") or not value.endswith("`") or "${" in value:
+        return None
+    body = value[1:-1]
+    return (body.replace(r"\`", "`").replace(r"\n", "\n").replace(r"\r", "\r")
+            .replace(r"\t", "\t").replace(r"\\", "\\"))
+
+
+def code_mode_literals(source: str) -> dict[str, str]:
+    values: dict[str, str] = {}
+    pattern = re.compile(rf"(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*({JS_LITERAL_RE})", re.DOTALL)
+    for match in pattern.finditer(source):
+        decoded = decode_js_literal(match.group(2))
+        if decoded is not None:
+            values[match.group(1)] = decoded
+    return values
+
+
+def patch_commands(event: dict) -> list[str]:
+    tool_input = event.get("tool_input")
+    if event.get("tool_name") == "apply_patch" and isinstance(tool_input, dict):
+        command = tool_input.get("command")
+        return [command] if isinstance(command, str) else []
+    source = code_mode_source(event)
+    if not source or "tools.apply_patch" not in source:
         return []
-    command = tool_input.get("command")
-    if not isinstance(command, str):
-        return []
+    literals = code_mode_literals(source)
+    commands: list[str] = []
+    for match in re.finditer(rf"tools\.apply_patch\s*\(\s*([A-Za-z_$][\w$]*|{JS_LITERAL_RE})", source, re.DOTALL):
+        value = match.group(1)
+        decoded = literals.get(value) if not value.startswith(('"', '`')) else decode_js_literal(value)
+        if decoded is not None:
+            commands.append(decoded)
+    return commands
+
+
+def patch_targets(event: dict) -> list[tuple[str, str]]:
     targets: list[tuple[str, str]] = []
-    for match in re.finditer(r"^\*\*\* (Add|Update|Delete) File: (.+?)\s*$", command, re.MULTILINE):
-        item = (match.group(2), match.group(1).lower())
-        if item not in targets:
-            targets.append(item)
+    for command in patch_commands(event):
+        for match in re.finditer(r"^\*\*\* (Add|Update|Delete) File: (.+?)\s*$", command, re.MULTILINE):
+            item = (match.group(2), match.group(1).lower())
+            if item not in targets:
+                targets.append(item)
     return targets
 
 
-def shell_command(event: dict) -> str:
+def shell_commands(event: dict) -> list[str]:
     tool_input = event.get("tool_input")
-    if not isinstance(tool_input, dict):
-        return ""
-    for key in ("cmd", "command"):
-        value = tool_input.get(key)
-        if isinstance(value, str):
-            return value
-    return ""
+    if event.get("tool_name") in {"exec_command", "Bash"} and isinstance(tool_input, dict):
+        for key in ("cmd", "command"):
+            value = tool_input.get(key)
+            if isinstance(value, str):
+                return [value]
+        return []
+    source = code_mode_source(event)
+    if not source or "tools.exec_command" not in source:
+        return []
+    commands: list[str] = []
+    for marker in re.finditer(r"tools\.exec_command\s*\(", source):
+        tail = source[marker.end():]
+        match = re.search(rf"\bcmd\s*:\s*({JS_LITERAL_RE})", tail, re.DOTALL)
+        if not match:
+            continue
+        decoded = decode_js_literal(match.group(1))
+        if decoded is not None:
+            commands.append(decoded)
+    return commands
+
+
+def shell_command(event: dict) -> str:
+    return "\n\n".join(shell_commands(event))
 
 
 def shell_tokens(command: str) -> list[str]:
@@ -150,7 +219,8 @@ def deny(reason: str) -> None:
 
 def run_path_hook(event: dict, vault: Path, mode: str) -> int:
     targets = patch_targets(event)
-    if event.get("tool_name") == "apply_patch" and not targets:
+    patch_requested = event.get("tool_name") == "apply_patch" or "tools.apply_patch" in code_mode_source(event)
+    if patch_requested and not targets:
         if mode == "pre-write":
             deny("Codex apply_patch 未解析到可审计目标路径，已 fail-closed。")
         return 0
@@ -223,6 +293,9 @@ def append_shell_audit(event: dict, vault: Path, result: dict, lifecycle: str) -
 
 def run_shell_hook(event: dict, vault: Path, mode: str) -> int:
     command = shell_command(event)
+    shell_requested = event.get("tool_name") in {"exec_command", "Bash"} or "tools.exec_command" in code_mode_source(event)
+    if not shell_requested:
+        return 0
     result = classify_shell_command(command)
     if mode == "pre-exec":
         if not command:

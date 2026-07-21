@@ -52,6 +52,17 @@ def exec_event(command: str) -> dict:
     }
 
 
+def code_event(source: str) -> dict:
+    return {
+        "session_id": "codex-code-mode-session",
+        "turn_id": "codex-code-mode-turn",
+        "hook_event_name": "PreToolUse",
+        "tool_name": "functions.exec",
+        "tool_use_id": "codex-code-mode-tool",
+        "tool_input": {"source": source},
+    }
+
+
 class CodexHookAdapterTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmpdir = tempfile.TemporaryDirectory(prefix="v9-codex-hooks-")
@@ -154,6 +165,40 @@ class CodexHookAdapterTests(unittest.TestCase):
         observed = json.loads(rows[-1])
         self.assertEqual("shell_command_denied", observed["event"])
         self.assertEqual("direct_file_mutation", observed["classification"])
+
+    def test_code_mode_apply_patch_is_parsed_and_audited(self) -> None:
+        patch = "*** Begin Patch\n*** Add File: .codex/code-mode-canary.txt\n+ok\n*** End Patch"
+        source = f"const patch = {json.dumps(patch)};\nconst result = await tools.apply_patch(patch);"
+        payload = code_event(source)
+        pre = self.run_adapter("pre-write", payload)
+        self.assertEqual(0, pre.returncode, pre.stderr)
+        self.assertEqual("", pre.stdout)
+        post = self.run_adapter("post-write", payload)
+        self.assertEqual(0, post.returncode, post.stderr)
+        row = json.loads((self.root / "02-项目管理/智能体状态/智能体事件.jsonl").read_text().splitlines()[-1])
+        self.assertEqual("file_write", row["event"])
+        self.assertEqual(".codex/code-mode-canary.txt", row["file"])
+        self.assertEqual("functions.exec", row["tool_name"])
+
+    def test_code_mode_exec_command_is_classified_without_false_shell_events(self) -> None:
+        read_source = 'const result = await tools.exec_command({cmd: "rg -n needle README.md"});'
+        pre = self.run_adapter("pre-exec", code_event(read_source))
+        self.assertEqual(0, pre.returncode, pre.stderr)
+        self.assertEqual("", pre.stdout)
+        post = self.run_adapter("post-exec", code_event(read_source))
+        self.assertEqual(0, post.returncode, post.stderr)
+        row = json.loads((self.root / "02-项目管理/智能体状态/智能体事件.jsonl").read_text().splitlines()[-1])
+        self.assertEqual("shell_command", row["event"])
+        self.assertEqual("read_or_workflow", row["classification"])
+
+        denied_source = 'const result = await tools.exec_command({cmd: "printf x > denied.txt"});'
+        denied = self.run_adapter("pre-exec", code_event(denied_source))
+        self.assertEqual("deny", json.loads(denied.stdout)["hookSpecificOutput"]["permissionDecision"])
+
+        before = (self.root / "02-项目管理/智能体状态/智能体事件.jsonl").read_text()
+        unrelated = self.run_adapter("post-exec", code_event("const value = 1 + 1;"))
+        self.assertEqual(0, unrelated.returncode, unrelated.stderr)
+        self.assertEqual(before, (self.root / "02-项目管理/智能体状态/智能体事件.jsonl").read_text())
 
 
 if __name__ == "__main__":

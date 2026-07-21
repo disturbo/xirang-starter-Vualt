@@ -954,12 +954,12 @@ def case_codex_hook_adapter_positive_tool_contract() -> EvalResult:
         [sys.executable, str(CODEX_HOOK_TEST)],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
     )
-    passed = proc.returncode == 0 and "Ran 6 tests" in proc.stderr and "OK" in proc.stderr
+    passed = proc.returncode == 0 and "Ran 8 tests" in proc.stderr and "OK" in proc.stderr
     return EvalResult(
         "codex_hook_adapter_positive_tool_contract", "positive",
         "Codex apply_patch + exec_command adapter", passed,
         "Codex write, deny, identity, shell-audit, and direct-write refusal contracts all pass",
-        "6/6 Codex hook adapter tests passed" if passed else "Codex hook adapter regression suite failed",
+        "8/8 Codex hook adapter tests passed" if passed else "Codex hook adapter regression suite failed",
         {"returncode": proc.returncode, "stdout": proc.stdout[-500:], "stderr": proc.stderr[-1000:]},
     )
 

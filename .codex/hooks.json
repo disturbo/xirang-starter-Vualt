@@ -15,7 +15,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "exec_command|Bash",
+        "matcher": "functions\\.exec|exec|exec_command|Bash",
         "hooks": [
           {
             "type": "command",
@@ -26,7 +26,7 @@
         ]
       },
       {
-        "matcher": "apply_patch|Write|Edit",
+        "matcher": "functions\\.exec|exec|apply_patch|Write|Edit",
         "hooks": [
           {
             "type": "command",
@@ -37,7 +37,7 @@
         ]
       },
       {
-        "matcher": "exec_command|Bash|apply_patch|Write|Edit",
+        "matcher": "functions\\.exec|exec|exec_command|Bash|apply_patch|Write|Edit",
         "hooks": [
           {
             "type": "command",
@@ -49,7 +49,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "exec_command|Bash",
+        "matcher": "functions\\.exec|exec|exec_command|Bash",
         "hooks": [
           {
             "type": "command",
@@ -60,7 +60,7 @@
         ]
       },
       {
-        "matcher": "apply_patch|Write|Edit",
+        "matcher": "functions\\.exec|exec|apply_patch|Write|Edit",
         "hooks": [
           {
             "type": "command",
