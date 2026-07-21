@@ -16,10 +16,9 @@ from pathlib import Path
 
 
 DEFAULT_QUEUE = Path.home() / ".xirang/v9-runtime/治理/entropy-governance-queue.json"
-OPEN = {"pending_confirmation", "confirmed_for_action"}
+UNRESOLVED = {"pending_confirmation", "confirmed_for_action", "deferred"}
 AUTO_DEFER_CYCLE = 2
-AUTO_ARCHIVE_CYCLE = 4
-POLICY = "human_confirmation_with_default_defer; source_notes_never_auto_modified"
+POLICY = "human_confirmation_with_default_defer; unresolved_findings_remain_backlog; source_notes_never_auto_modified"
 
 
 def now_iso() -> str:
@@ -75,7 +74,9 @@ def metrics(items: list[dict], *, previous_open: int, new: int, resolved: int) -
     counts = {status: sum(item.get("status") == status for item in items) for status in (
         "pending_confirmation", "confirmed_for_action", "deferred", "archived", "rejected", "resolved",
     )}
-    current_open = counts["pending_confirmation"] + counts["confirmed_for_action"]
+    # Deferred means "not claimed yet", not "resolved".  Keep it in the
+    # visible backlog until the detector stops observing it or a human rejects it.
+    current_open = counts["pending_confirmation"] + counts["confirmed_for_action"] + counts["deferred"]
     return {
         **counts,
         "previous_open": previous_open,
@@ -93,7 +94,7 @@ def ingest(queue: dict, detector: dict, timestamp: str) -> dict:
         for item in queue.get("items", [])
         if isinstance(item, dict) and item.get("id")
     }
-    previous_open_ids = {key for key, item in old_items.items() if item.get("status") in OPEN}
+    previous_open_ids = {key for key, item in old_items.items() if item.get("status") in UNRESOLVED}
     current: dict[str, dict] = {}
     for raw in detector.get("findings", []):
         if not isinstance(raw, dict) or raw.get("confidence") != "confirmed":
@@ -113,8 +114,6 @@ def ingest(queue: dict, detector: dict, timestamp: str) -> dict:
             status = "confirmed_for_action"
         elif decision and decision.get("action") == "reject":
             status = "rejected"
-        elif cycle >= AUTO_ARCHIVE_CYCLE:
-            status = "archived"
         elif cycle >= AUTO_DEFER_CYCLE:
             status = "deferred"
         else:
@@ -149,7 +148,7 @@ def ingest(queue: dict, detector: dict, timestamp: str) -> dict:
             resolved_ids.add(key)
         current[key] = item
 
-    active_ids = {key for key, item in current.items() if item.get("status") in OPEN}
+    active_ids = {key for key, item in current.items() if item.get("status") in UNRESOLVED}
     new_ids = active_ids - previous_open_ids
     ordered = sorted(current.values(), key=lambda item: (item.get("status", ""), item.get("source", ""), item["id"]))
     return {
@@ -162,7 +161,7 @@ def ingest(queue: dict, detector: dict, timestamp: str) -> dict:
         "policy": POLICY,
         "default_disposition": {
             "defer_after_unchanged_cycles": AUTO_DEFER_CYCLE,
-            "archive_after_unchanged_cycles": AUTO_ARCHIVE_CYCLE,
+            "archive_automatically": False,
             "reopen_when_evidence_changes": True,
         },
         "metrics": metrics(

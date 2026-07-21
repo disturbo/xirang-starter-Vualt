@@ -69,6 +69,27 @@ class PhaseGTests(unittest.TestCase):
             self.assertEqual(0, report["summary"]["p1"])
             self.assertEqual(1, report["summary"]["explicit_variant_groups"])
 
+    def test_independently_versioned_platform_variants_are_unambiguous(self) -> None:
+        module = load(CHECKER, "skill_shadow_independent_variants")
+        with tempfile.TemporaryDirectory() as raw:
+            base = Path(raw)
+            common = "x-v9-shadow-group: demo-platform\n"
+            skill(base / "openclaw", "demo", "OpenClaw entry", "version: 1.0.0\n" + common + "x-v9-variant: openclaw\n")
+            skill(base / "workbuddy", "demo", "WorkBuddy entry", "version: 1.7.0\n" + common + "x-v9-variant: workbuddy\n")
+            report = module.scan([base / "openclaw", base / "workbuddy"])
+            self.assertEqual(0, report["summary"]["p1"])
+            self.assertEqual(1, report["summary"]["explicit_variant_groups"])
+
+    def test_platform_variant_without_version_is_still_p1(self) -> None:
+        module = load(CHECKER, "skill_shadow_variant_missing_version")
+        with tempfile.TemporaryDirectory() as raw:
+            base = Path(raw)
+            common = "x-v9-shadow-group: demo-platform\n"
+            skill(base / "a", "demo", "alpha", common + "x-v9-variant: a\n")
+            skill(base / "b", "demo", "beta", "version: 1.0.0\n" + common + "x-v9-variant: b\n")
+            report = module.scan([base / "a", base / "b"])
+            self.assertEqual(1, report["summary"]["p1"])
+
     def test_distributed_codex_tools_derive_vault_root(self) -> None:
         adapter = CODEX_ADAPTER.read_text(encoding="utf-8")
         hooks = CODEX_HOOKS.read_text(encoding="utf-8")

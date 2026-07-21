@@ -94,10 +94,14 @@ def scan(roots: list[Path]) -> dict:
         versions = {version for item in entries for version in item["declared_versions"]}
         groups = {item["shadow_group"] for item in entries}
         variants = [item["variant"] for item in entries]
+        # Platform variants are deliberately different implementations of the
+        # same capability.  They may evolve at different versions, but every
+        # entry must declare exactly one version, share one ownership group,
+        # and use a unique variant label.  Undeclared divergence remains P1.
         explicitly_partitioned = (
             len(groups) == 1
             and "" not in groups
-            and len(versions) == 1
+            and all(len(item["declared_versions"]) == 1 for item in entries)
             and "" not in variants
             and len(set(variants)) == len(entries)
         )
@@ -132,7 +136,7 @@ def scan(roots: list[Path]) -> dict:
                 if len({item["realpath"] for item in entries}) > 1
                 and len({item["shadow_group"] for item in entries}) == 1
                 and "" not in {item["shadow_group"] for item in entries}
-                and len({version for item in entries for version in item["declared_versions"]}) == 1
+                and all(len(item["declared_versions"]) == 1 for item in entries)
                 and all(item["variant"] for item in entries)
                 and len({item["variant"] for item in entries}) == len(entries)
             ),

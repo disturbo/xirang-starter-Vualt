@@ -213,8 +213,8 @@ class PhaseHTests(unittest.TestCase):
         self.assertEqual("deferred", queue["items"][0]["status"])
         queue = module.ingest(queue, detector, "2026-07-15T09:00:00+08:00")
         queue = module.ingest(queue, detector, "2026-07-22T09:00:00+08:00")
-        self.assertEqual("archived", queue["items"][0]["status"])
-        self.assertEqual(0, queue["metrics"]["current_open"])
+        self.assertEqual("deferred", queue["items"][0]["status"])
+        self.assertEqual(1, queue["metrics"]["current_open"])
 
     def test_reflex_wrapper_refreshes_untrusted_harness_before_health(self) -> None:
         script = REFLEX_WRAPPER.read_text(encoding="utf-8")

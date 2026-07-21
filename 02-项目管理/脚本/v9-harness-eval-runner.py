@@ -48,6 +48,7 @@ STARTER_LEAK = SCRIPT_DIR / "v9-starter-leak-check.py"
 TASK_STATE = SCRIPT_DIR / "v9-task-state-check.py"
 HANDOFF_CHECK = SCRIPT_DIR / "v9-handoff-check.py"
 REFLEX = SCRIPT_DIR / "v9-reflex-check.py"
+PHASE_F_TEST = REPO_ROOT / ".standards" / "tests" / "test_v9_phase_f.py"
 PHASE_G_TEST = REPO_ROOT / ".standards" / "tests" / "test_v9_phase_g.py"
 PHASE_H_TEST = REPO_ROOT / ".standards" / "tests" / "test_v9_phase_h.py"
 CODEX_HOOK_TEST = REPO_ROOT / ".standards" / "tests" / "test_v9_codex_hooks.py"
@@ -931,17 +932,32 @@ def case_eval_freshness_negative_stale_hash() -> EvalResult:
         return EvalResult(cid, kind, target, passed, exp, observed, {"returncode": code, "stderr_head": err[:160]})
 
 
+def case_phase_f_positive_capability_truth() -> EvalResult:
+    proc = subprocess.run(
+        [sys.executable, str(PHASE_F_TEST)],
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
+    )
+    passed = proc.returncode == 0 and "Ran 2 tests" in proc.stderr and "OK" in proc.stderr
+    return EvalResult(
+        "phase_f_positive_capability_truth", "positive",
+        "Phoenix capability state", passed,
+        "Phase F truthful design-state regression passes",
+        "2/2 Phase F capability-state tests passed" if passed else "Phase F regression suite failed",
+        {"returncode": proc.returncode, "stdout": proc.stdout[-500:], "stderr": proc.stderr[-1000:]},
+    )
+
+
 def case_phase_g_positive_distribution_truth() -> EvalResult:
     proc = subprocess.run(
         [sys.executable, str(PHASE_G_TEST)],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
     )
-    passed = proc.returncode == 0 and "Ran 5 tests" in proc.stderr and "OK" in proc.stderr
+    passed = proc.returncode == 0 and "Ran 7 tests" in proc.stderr and "OK" in proc.stderr
     return EvalResult(
         "phase_g_positive_distribution_truth", "positive",
         "skill resolution + portable Codex adapters", passed,
         "Phase G shadow rejection, explicit variants, and portable paths all pass",
-        "5/5 Phase G distribution tests passed" if passed else "Phase G regression suite failed",
+        "7/7 Phase G distribution tests passed" if passed else "Phase G regression suite failed",
         {"returncode": proc.returncode, "stdout": proc.stdout[-500:], "stderr": proc.stderr[-1000:]},
     )
 
@@ -995,6 +1011,12 @@ def cases() -> list[EvalCase]:
             "skill resolution + portable Codex adapters",
             "Phase G distribution and resolution regression suite passes.",
             case_phase_g_positive_distribution_truth,
+        ),
+        EvalCase(
+            "phase_f_positive_capability_truth", "positive",
+            "Phoenix capability state",
+            "Phase F truthful capability-state regression suite passes.",
+            case_phase_f_positive_capability_truth,
         ),
         EvalCase(
             "project_ops_positive_clean",

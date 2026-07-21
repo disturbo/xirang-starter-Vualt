@@ -43,7 +43,7 @@ owner: Claudian
 
 ## 巡检脚本
 
-`02-项目管理/脚本/v9-reflex-check.py` — 聚合器，汇集八源：
+`02-项目管理/脚本/v9-reflex-check.py` — 聚合器，汇集十源：
 
 1. `project-ops-check.py --json`（任务卡 + 运行日志）
 2. `agent-state-lint.py --json`（Agent 状态 schema）
@@ -53,6 +53,10 @@ owner: Claudian
 6. `v9-task-state-check.py --json`（任务验收状态扫描）
 7. `v9-scope-tamper-check.py --json`（write_scope Bash 旁路扩权扫描）
 8. `v9-handoff-check.py --json`（Handoff 可接手性扫描）
+9. `v9-iteration-ops-check.py --json`（迭代结构与证据链扫描）
+10. `.standards/frontmatter-lint.py --all --json`（全库结构债务聚合）
+
+独立 runtime checks 还验证 GBrain/LLM Wiki、SessionStart/任务握手的 `semantic_recall` 消费证据、熵 backlog、Skills 解析唯一性、Harness 当前哈希与冻结观察。`deferred` 熵项仍计入未解决积压。
 
 severity 统一为 `p0 / p1 / advisory`。冷却默认 24h，心跳阈值默认 24h。
 

@@ -289,7 +289,31 @@ def check_card(path: Path, strict_missing_review: bool) -> list[dict]:
     return findings
 
 
-def summarize(findings: list[dict], cards_scanned: int) -> dict:
+def review_debt(paths: list[Path]) -> dict:
+    counts = {key: 0 for key in sorted(ALLOWED_REVIEW_STATUS)}
+    counts["missing"] = 0
+    done_missing = 0
+    for path in paths:
+        fm = frontmatter(read_text(path))
+        if not fm:
+            continue
+        review_status = fm_value(fm, "review_status")
+        status = fm_value(fm, "status")
+        if review_status in counts:
+            counts[review_status] += 1
+        else:
+            counts["missing"] += 1
+            if status == "done":
+                done_missing += 1
+    return {
+        "review_status_counts": counts,
+        "done_missing_review_status": done_missing,
+        "awaiting_review": sum(counts[key] for key in ("submitted", "reviewing", "changes_requested")),
+        "accepted": counts["accepted"],
+    }
+
+
+def summarize(findings: list[dict], cards_scanned: int, debt: dict | None = None) -> dict:
     def count(sev: str) -> int:
         return sum(1 for f in findings if f["severity"] == sev)
 
@@ -301,6 +325,7 @@ def summarize(findings: list[dict], cards_scanned: int) -> dict:
         "advisory": count("advisory"),
         "worst": worst,
         "cards_scanned": cards_scanned,
+        **(debt or {}),
     }
 
 
@@ -311,7 +336,7 @@ def build_report(paths: list[Path], strict_missing_review: bool) -> dict:
     return {
         "check": CHECK_NAME,
         "generated_at": now_iso(),
-        "summary": summarize(findings, len(paths)),
+        "summary": summarize(findings, len(paths), review_debt(paths)),
         "findings": findings,
     }
 

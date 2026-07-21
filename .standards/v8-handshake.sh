@@ -10,7 +10,7 @@
 # 职责边界：本工具做"握手声明 + 状态文件更新 + 事件流打点 + 任务卡创建"。
 # 看板更新由 Agent 在握手之后手动执行。
 #
-# 版本: 1.4.3 | 创建: 2026-05-23 | 修订: 2026-07-19（Codex 身份推断+审计式取消） | 息壤 V9.2
+# 版本: 1.4.4 | 创建: 2026-05-23 | 修订: 2026-07-21（任务开始自动语义召回） | 息壤 V9.2
 
 VAULT_ROOT="${VAULT_ROOT:-$(pwd)}"
 EVENT_FILE="$VAULT_ROOT/02-项目管理/智能体状态/智能体事件.jsonl"
@@ -461,6 +461,33 @@ _v8_default_agent_id() {
   fi
 }
 
+_v8_platform_id() {
+  local agent="$1"
+  case "$agent" in
+    hongmeisu) echo "codex" ;;
+    claudian) echo "claude" ;;
+    workbuddy) echo "workbuddy" ;;
+    *) echo "$agent" ;;
+  esac
+}
+
+_v8_semantic_recall() {
+  local task_id="$1" task="$2" agent="$3"
+  local script="$VAULT_ROOT/.standards/semantic-recall.py"
+  [[ -f "$script" ]] || { echo "[semantic-recall] 召回器缺失，已跳过。" >&2; return 0; }
+  local query="息壤V9-运行时契约卡 当前任务：$task"
+  "$V8_PYTHON" "$script" --query "$query" --source task_start \
+    --task-id "$task_id" --agent "$agent" --platform "$(_v8_platform_id "$agent")" \
+    --vault "$VAULT_ROOT" --timeout 15 --quiet
+  local recall_exit=$?
+  if [[ $recall_exit -ne 0 ]]; then
+    echo "[semantic-recall] GBrain 召回失败（任务继续，事件已记录）。" >&2
+  else
+    echo "[semantic-recall] 已消费 GBrain 并记录 semantic_recall 事件。"
+  fi
+  return 0
+}
+
 # ============================================================
 # _v8_gate_check - 统一门禁检查入口（graceful degradation）
 # 用法: _v8_gate_check <subcommand> <args...>
@@ -649,6 +676,7 @@ for p in parts:
   task_escaped=$(_v8_json_escape "$task")
   local event="{\"ts\":\"$ts\",\"event\":\"task_start\",\"agent\":\"$agent\",\"task_id\":\"$task_id\",\"task\":\"$task_escaped\",\"gear\":\"$gear\"}"
   echo "$event" >> "$EVENT_FILE"
+  _v8_semantic_recall "$task_id" "$task" "$agent"
 
   echo ""
   echo "[handshake] task_id=$task_id"

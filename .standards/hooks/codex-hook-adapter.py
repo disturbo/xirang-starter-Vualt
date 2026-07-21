@@ -334,6 +334,33 @@ def append_lifecycle(event: dict, vault: Path, lifecycle: str) -> int:
     return 0
 
 
+def run_session_recall(event: dict, vault: Path) -> int:
+    script = vault / ".standards/semantic-recall.py"
+    if not script.is_file():
+        print(json.dumps({"systemMessage": "V9 语义召回器缺失；SessionStart 未消费 GBrain。"}, ensure_ascii=False))
+        return 0
+    query = "息壤V9-运行时契约卡 铁律 10 运行时不能假绿 Codex 当前任务运行约束"
+    proc = subprocess.run(
+        [
+            "/usr/bin/python3", str(script), "--query", query, "--source", "session_start",
+            "--session-id", str(event.get("session_id") or ""), "--agent", AGENT_ID,
+            "--platform", PLATFORM, "--vault", str(vault), "--timeout", "15",
+        ],
+        capture_output=True, text=True, env=hook_env(vault), timeout=20, check=False,
+    )
+    try:
+        report = json.loads(proc.stdout)
+    except (json.JSONDecodeError, TypeError):
+        report = {"status": "failed", "context": ""}
+    if report.get("status") == "success":
+        message = report.get("context") or "V9 已消费 GBrain 语义记忆。"
+    else:
+        reason = ((report.get("event") or {}).get("reason") or proc.stderr or "unknown failure")[-700:]
+        message = f"V9 GBrain 自动召回失败（fail-open，已留审计事件）：{reason}"
+    print(json.dumps({"systemMessage": message[:4000]}, ensure_ascii=False))
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=(
@@ -351,7 +378,11 @@ def main() -> int:
         return run_shell_hook(event, vault, args.mode)
     if args.mode == "session-guard":
         return run_session_guard(event, vault)
-    return append_lifecycle(event, vault, args.mode.replace("-", "_"))
+    lifecycle = args.mode.replace("-", "_")
+    result = append_lifecycle(event, vault, lifecycle)
+    if args.mode == "session-start":
+        return run_session_recall(event, vault)
+    return result
 
 
 if __name__ == "__main__":

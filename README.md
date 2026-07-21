@@ -115,7 +115,7 @@ bash setup.sh
 
 | 能力 | 文件 |
 |---|---|
-| 九源第一反射器聚合器 + 运行时消费链自检 | `02-项目管理/脚本/v9-reflex-check.py` |
+| 十源第一反射器聚合器 + 治理债/运行时消费链自检 | `02-项目管理/脚本/v9-reflex-check.py` |
 | 任务卡/运行日志 JSON 巡检 | `02-项目管理/脚本/project-ops-check.py` |
 | 规范冲突扫描 | `02-项目管理/脚本/v9-policy-conflict-check.py` |
 | starter 泄漏扫描 | `02-项目管理/脚本/v9-starter-leak-check.py` |
@@ -125,6 +125,7 @@ bash setup.sh
 | 安全验收正门 | `.standards/v9-accept.py` |
 | 成本治理（已退役） | 历史脚本只读保留至 2026-08-02，不计入运行能力 |
 | Codex Desktop 门禁/生命周期适配 | `.standards/hooks/codex-hook-adapter.py` |
+| SessionStart/任务握手 GBrain 自动召回 | `.standards/semantic-recall.py` + `semantic_recall` 事件 |
 | Harness trust/hash 新鲜度校验 | `.standards/harness-eval-verify.py` / `.standards/harness-tested-files.txt` |
 | skill 版本遮蔽校验 | `02-项目管理/脚本/v9-skill-shadow-check.py` |
 | 巡检输出目录 | `02-项目管理/巡检/` |
@@ -137,7 +138,7 @@ bash setup.sh
 python3 02-项目管理/脚本/v9-reflex-check.py
 ```
 
-健康口径：`summary.active=0`、`sources_failed=[]` 且 `runtime_checks` 无 `failed/stale` 才是真静默。GBrain、LLM Wiki、熵治理等部署依赖未配置时会保持红色，不以脚本退出成功冒充生效；成本治理已退役，不参与健康度。
+健康口径：`summary.active=0`、`sources_failed=[]` 且 `runtime_checks` 无 `failed/stale` 才是真静默。任务评审债、Frontmatter lint 债和 deferred 熵 backlog 会保持 advisory/yellow；GBrain、LLM Wiki 等部署依赖未配置时保持红色，不以脚本退出成功冒充生效。成本治理已退役，不参与健康度。
 
 Skills 扫描默认覆盖共享、Codex、Claude、Hermes、OpenClaw 及 OpenClaw workspace 等实际入口。同名副本版本或内容不一致时必须保持红色，不能以漏扫根目录换取绿色。
 

@@ -48,8 +48,8 @@
 
 - Phoenix 仅为 design/reference，不包含 executor 或 scheduler；
 - 成本治理已退役，不得接回任务完成条件或健康状态；
-- 熵候选先分类为 actionable、manual review 或 retire/noise，再做小批次处置；
-- GBrain 自动召回不是任务启动的强依赖，接入前必须有超时、降级和无结果继续策略；
+- 熵候选先分类并小批次处置；`deferred` 仍是未解决 backlog，不得自动归档成已收敛；
+- GBrain 自动召回已接入 SessionStart 与 M4/M5 握手；它不是任务启动的强依赖，超时/无结果时 fail-open，但必须留下失败事件并使健康状态转红；
 - Skills 检查必须覆盖真实平台入口，包括 `~/.openclaw/workspace/skills`；
 - starter 不分发运行期快照、个人 Agent 状态、生产任务卡、审计报告、prompt 构建缓存或业务候选产物。
 

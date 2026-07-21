@@ -72,13 +72,23 @@ class CodexHookAdapterTests(unittest.TestCase):
         hooks.mkdir(parents=True)
         for name in ("pre-write-hook.sh", "post-write-hook.sh", "session-guard.sh", "heartbeat-update.sh"):
             (hooks / name).symlink_to(VAULT / ".standards/hooks" / name)
+        (self.root / ".standards/semantic-recall.py").symlink_to(VAULT / ".standards/semantic-recall.py")
         write(self.root / "02-项目管理/智能体状态/红霉素.md", status_text())
+        self.gbrain = self.root / "gbrain"
+        write(
+            self.gbrain,
+            "#!/bin/sh\nprintf '%s\\n' '[0.9910] 50-经验/agent协作方法论/息壤v9-运行时契约卡 -- current contract'\n",
+        )
+        self.gbrain.chmod(0o755)
 
     def run_adapter(self, mode: str, payload: dict) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [os.sys.executable, str(ADAPTER), mode],
             input=json.dumps(payload, ensure_ascii=False), text=True, capture_output=True,
-            env={**os.environ, "VAULT_ROOT": str(self.root)}, check=False,
+            env={
+                **os.environ, "VAULT_ROOT": str(self.root),
+                "XIRANG_GBRAIN_CLI": str(self.gbrain),
+            }, check=False,
         )
 
     def test_apply_patch_allowed_path_reaches_post_write_as_codex(self) -> None:
@@ -127,10 +137,19 @@ class CodexHookAdapterTests(unittest.TestCase):
         payload = {"session_id": "s1", "turn_id": "t1", "source": "startup"}
         result = self.run_adapter("session-start", payload)
         self.assertEqual(0, result.returncode, result.stderr)
-        row = json.loads((self.root / "02-项目管理/智能体状态/智能体事件.jsonl").read_text().splitlines()[-1])
-        self.assertEqual("session_start", row["event"])
-        self.assertEqual("hongmeisu", row["agent"])
-        self.assertEqual("codex", row["platform"])
+        rows = [
+            json.loads(line)
+            for line in (self.root / "02-项目管理/智能体状态/智能体事件.jsonl").read_text().splitlines()
+        ]
+        self.assertEqual("session_start", rows[-2]["event"])
+        self.assertEqual("semantic_recall", rows[-1]["event"])
+        self.assertEqual("hongmeisu", rows[-1]["agent"])
+        self.assertEqual("codex", rows[-1]["platform"])
+        self.assertEqual("success", rows[-1]["status"])
+        self.assertTrue(rows[-1]["contract_hit"])
+        self.assertNotIn("query", rows[-1])
+        message = json.loads(result.stdout)["systemMessage"]
+        self.assertIn("运行时契约卡", message)
 
     def test_exec_command_read_is_allowed_and_audited_without_command_body(self) -> None:
         payload = exec_event("rg -n 'needle -> value' README.md")

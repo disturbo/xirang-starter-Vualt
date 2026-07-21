@@ -18,6 +18,7 @@ v9-reflex-check.py — V9 第一反射器 MVP 聚合器（子任务 2/3/4）
   7. v9-scope-tamper-check.py       write_scope Bash 旁路扩权扫描（V9.4.1）
   8. v9-handoff-check.py            Handoff 可接手性扫描（V9.4.2）
   9. v9-iteration-ops-check.py      月度迭代 Ops 结构扫描（V9.5）
+ 10. frontmatter-lint.py            全库结构债务聚合（不把历史债伪装成绿色）
 
 运行时自检（不计入九个治理信号源）：
   - 第一反射器与 GBrain launchd 是否实际加载
@@ -326,7 +327,41 @@ def collect_task_state() -> list[dict]:
                 detail=item.get("detail"),
             )
         )
+    summary = data.get("summary") if isinstance(data.get("summary"), dict) else {}
+    missing = int(summary.get("done_missing_review_status", 0) or 0)
+    awaiting = int(summary.get("awaiting_review", 0) or 0)
+    if missing or awaiting:
+        findings.append(make_finding(
+            "advisory", "TASK_REVIEW_DEBT", "formal-task-cards",
+            f"正式任务卡仍有验收治理债：done 缺 review_status={missing}，待用户评审={awaiting}。",
+            "task-state", detail=summary,
+        ))
     return findings
+
+
+def collect_frontmatter_lint() -> list[dict]:
+    script = ROOT / ".standards/frontmatter-lint.py"
+    if not script.exists():
+        return [make_finding("advisory", "SOURCE_MISSING", str(script), f"巡检源缺失：{script}", "frontmatter-lint")]
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(script), "--all", "--json"],
+            capture_output=True, text=True, timeout=120,
+        )
+        data = json.loads(proc.stdout)
+    except (subprocess.SubprocessError, json.JSONDecodeError, OSError) as exc:
+        return [make_finding("p1", "SOURCE_FAILED", str(script), f"Frontmatter lint 执行失败：{exc}", "frontmatter-lint")]
+    summary = data.get("summary") if isinstance(data.get("summary"), dict) else {}
+    errors = int(summary.get("errors", 0) or 0)
+    warnings = int(summary.get("warnings", 0) or 0)
+    info = int(summary.get("info", 0) or 0)
+    if not (errors or warnings or info):
+        return []
+    return [make_finding(
+        "advisory", "FRONTMATTER_LINT_DEBT", "vault-markdown",
+        f"全库 Frontmatter 治理债未清零：errors={errors} warnings={warnings} info={info}。",
+        "frontmatter-lint", detail=summary,
+    )]
 
 
 # ---------- 源 7：write_scope Bash 旁路扩权扫描（V9.4.1）----------
@@ -656,6 +691,38 @@ def collect_runtime_liveness(
     else:
         checks.append(_runtime_check("semantic_model", "ok", "ollama:bge-m3"))
 
+    event_file = STATUS_DIR / "智能体事件.jsonl"
+    last_recall: dict | None = None
+    try:
+        for line in event_file.read_text(encoding="utf-8").splitlines():
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if (
+                row.get("event") == "semantic_recall"
+                and row.get("source") in {"session_start", "task_start"}
+                and row.get("status") == "success"
+                and row.get("contract_hit") is True
+            ):
+                last_recall = row
+    except OSError:
+        last_recall = None
+    recall_at = parse_iso(str((last_recall or {}).get("ts", "")))
+    if recall_at is None or now - recall_at > timedelta(days=7):
+        detail = "no_successful_session_or_task_recall" if recall_at is None else f"stale_at={recall_at.isoformat()}"
+        findings.append(make_finding(
+            "p1", "SEMANTIC_RECALL_NOT_CONSUMED", str(event_file),
+            "最近 7 天没有 SessionStart/任务开始成功消费当前 GBrain 契约的证据。",
+            "runtime-liveness", detail={"reason": detail},
+        ))
+        checks.append(_runtime_check("semantic_recall_consumption", "failed", detail))
+    else:
+        checks.append(_runtime_check(
+            "semantic_recall_consumption", "ok",
+            f"last={recall_at.isoformat()} source={last_recall.get('source')} task={last_recall.get('task_id', '')}",
+        ))
+
     loaded, state, error = _launchd_info("com.xirang.v9reflex")
     if not loaded:
         findings.append(make_finding(
@@ -762,16 +829,33 @@ def collect_runtime_liveness(
 
     phoenix_method = ROOT / "50-经验/Agent协作方法论/息壤方法论-V9.md"
     phoenix_eval = ROOT / "50-经验/Agent进化/不死鸟Phoenix-借鉴评估报告.md"
+    phoenix_readme = ROOT / "README.md"
+    phoenix_governance = ROOT / "GOVERNANCE.md"
     try:
         method_text = phoenix_method.read_text(encoding="utf-8")
+    except OSError:
+        method_text = ""
+    try:
         eval_text = phoenix_eval.read_text(encoding="utf-8")
     except OSError:
-        method_text = eval_text = ""
-    phoenix_truthful = (
-        "Phoenix 当前仅为设计参考" in method_text
-        and "runtime_status: design_only" in eval_text
+        eval_text = ""
+    try:
+        readme_text = phoenix_readme.read_text(encoding="utf-8")
+        governance_text = phoenix_governance.read_text(encoding="utf-8")
+    except OSError:
+        readme_text = governance_text = ""
+    production_evidence = (
+        "runtime_status: design_only" in eval_text
         and "executor: none" in eval_text
         and "scheduler: none" in eval_text
+    )
+    starter_evidence = (
+        "未部署 scheduler 或 executor" in readme_text
+        and "不包含 executor 或 scheduler" in governance_text
+    )
+    phoenix_truthful = (
+        "Phoenix 当前仅为设计参考" in method_text
+        and (production_evidence or starter_evidence)
     )
     if not phoenix_truthful:
         findings.append(make_finding(
@@ -882,7 +966,7 @@ def collect_runtime_liveness(
     queue_metrics = (entropy_queue or {}).get("metrics", {})
     if not entropy_queue:
         queue_issues.append("queue_missing")
-    elif entropy_queue.get("policy") != "human_confirmation_with_default_defer; source_notes_never_auto_modified":
+    elif entropy_queue.get("policy") != "human_confirmation_with_default_defer; unresolved_findings_remain_backlog; source_notes_never_auto_modified":
         queue_issues.append("unsafe_policy")
     required_metrics = {
         "pending_confirmation", "confirmed_for_action", "deferred", "archived", "rejected", "resolved",
@@ -912,8 +996,15 @@ def collect_runtime_liveness(
     else:
         checks.append(_runtime_check(
             "entropy_governance_queue", "ok",
-            f"open={queue_metrics.get('current_open')} net_delta={queue_metrics.get('net_backlog_delta')}",
+            f"backlog={queue_metrics.get('current_open')} deferred={queue_metrics.get('deferred')} net_delta={queue_metrics.get('net_backlog_delta')}",
         ))
+        backlog = int(queue_metrics.get("current_open", 0) or 0)
+        if backlog:
+            findings.append(make_finding(
+                "advisory", "ENTROPY_GOVERNANCE_BACKLOG", str(entropy_queue_path),
+                f"熵治理队列仍有 {backlog} 条未解决项（deferred 仍计入积压）。",
+                "runtime-liveness", detail={"metrics": queue_metrics},
+            ))
 
     entropy_dir = Path(os.environ.get(
         "XIRANG_ENTROPY_SHADOW_DIR", str(ROOT / "50-经验/Agent进化/熵报告-影子"),
@@ -1118,6 +1209,7 @@ def main() -> int:
         ("scope-tamper", collect_scope_tamper),
         ("handoff", collect_handoff),
         ("iteration-ops", collect_iteration_ops),
+        ("frontmatter-lint", collect_frontmatter_lint),
     ]
     findings: list[dict] = []
     sources_run: list[dict] = []

@@ -7,8 +7,10 @@ sync-to-dist.sh
 .standards/harness-eval-verify.py
 .standards/harness-tested-files.txt
 .standards/pre-start-check.py
+.standards/semantic-recall.py
 .standards/schemas/agent-state.schema.json
 .standards/tests/test_v9_codex_hooks.py
+.standards/tests/test_v9_phase_f.py
 .standards/tests/test_v9_phase_g.py
 .standards/tests/test_v9_phase_h.py
 .standards/hooks/codex-hook-adapter.py
