@@ -1,0 +1,157 @@
+#!/bin/bash
+# Portable scheduler entrypoint for the V9 first reflector. It refreshes and
+# verifies Harness evidence before publishing health and summary state.
+set -u
+
+WRAPPER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VAULT="${XIRANG_V9_VAULT_DIR:-}"
+if [[ -z "$VAULT" && -f "$WRAPPER_DIR/../02-项目管理/脚本/v9-reflex-check.py" ]]; then
+  VAULT="$(cd "$WRAPPER_DIR/.." && pwd)"
+fi
+RUNTIME="${XIRANG_V9_RUNTIME_DIR:-${HOME}/.xirang/v9-runtime}"
+PYTHON="${XIRANG_V9_PYTHON:-/usr/bin/python3}"
+SCRIPT="${XIRANG_V9_REFLEX_SCRIPT:-$VAULT/02-项目管理/脚本/v9-reflex-check.py}"
+SUMMARY_SCRIPT="${XIRANG_V9_STATUS_SCRIPT:-$VAULT/02-项目管理/脚本/v9-status-summary.py}"
+HARNESS_SCRIPT="${XIRANG_V9_HARNESS_SCRIPT:-$VAULT/02-项目管理/脚本/v9-harness-eval-runner.py}"
+HARNESS_VERIFY_SCRIPT="${XIRANG_V9_HARNESS_VERIFY_SCRIPT:-$VAULT/.standards/harness-eval-verify.py}"
+HARNESS_REPORT="${XIRANG_V9_HARNESS_REPORT:-$RUNTIME/巡检/harness-eval-latest.json}"
+HARNESS_MAX_AGE_HOURS="${XIRANG_V9_HARNESS_MAX_AGE_HOURS:-20}"
+STATE="$RUNTIME/巡检/reflex-scheduler-health.json"
+
+write_state() {
+  local status="$1"
+  local exit_code="$2"
+  local reason="$3"
+  REFLEX_STATE_PATH="$STATE" REFLEX_STATE_STATUS="$status" \
+  REFLEX_STATE_EXIT="$exit_code" REFLEX_STATE_REASON="$reason" \
+    /usr/bin/python3 - <<'PY'
+import json
+import os
+import tempfile
+from datetime import datetime
+
+path = os.environ["REFLEX_STATE_PATH"]
+payload = {
+    "status": os.environ["REFLEX_STATE_STATUS"],
+    "exit_code": int(os.environ["REFLEX_STATE_EXIT"]),
+    "reason": os.environ["REFLEX_STATE_REASON"],
+    "updated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+}
+directory = os.path.dirname(path)
+os.makedirs(directory, exist_ok=True)
+fd, tmp = tempfile.mkstemp(prefix=".reflex-scheduler-", dir=directory, text=True)
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
+        handle.write("\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(tmp, path)
+finally:
+    if os.path.exists(tmp):
+        os.unlink(tmp)
+PY
+}
+
+refresh_harness_if_needed() {
+  [[ -f "$HARNESS_SCRIPT" && -f "$HARNESS_VERIFY_SCRIPT" ]] || return 78
+  if "$PYTHON" "$HARNESS_VERIFY_SCRIPT" \
+      --report "$HARNESS_REPORT" --root "$VAULT" \
+      --max-age-hours "$HARNESS_MAX_AGE_HOURS" --json >/dev/null 2>&1; then
+    return 0
+  fi
+  XIRANG_V9_RUNTIME_DIR="$RUNTIME" XIRANG_V9_HARNESS_REPORT="$HARNESS_REPORT" \
+    "$PYTHON" "$HARNESS_SCRIPT" --write-latest --json >/dev/null || return $?
+  "$PYTHON" "$HARNESS_VERIFY_SCRIPT" \
+    --report "$HARNESS_REPORT" --root "$VAULT" \
+    --max-age-hours "$HARNESS_MAX_AGE_HOURS" --json >/dev/null 2>&1
+}
+
+if [[ -z "$VAULT" ]]; then
+  write_state "failed" 78 "vault_root_not_configured"
+  exit 78
+fi
+if [[ ! -f "$SCRIPT" ]]; then
+  write_state "failed" 78 "reflex_script_missing_or_vault_denied"
+  exit 78
+fi
+if [[ ! -f "$SUMMARY_SCRIPT" ]]; then
+  write_state "failed" 78 "status_summary_script_missing_or_vault_denied"
+  exit 78
+fi
+
+write_state "running" 0 "started"
+cd "$VAULT" || { write_state "failed" 72 "vault_unavailable"; exit 72; }
+refresh_harness_if_needed
+harness_rc=$?
+run_started_epoch="$(date +%s)"
+XIRANG_V9_RUNTIME_DIR="$RUNTIME" "$PYTHON" "$SCRIPT" --quiet
+reflex_rc=$?
+XIRANG_V9_RUNTIME_DIR="$RUNTIME" "$PYTHON" "$SUMMARY_SCRIPT" --write-latest --json >/dev/null
+summary_rc=$?
+cd /tmp || true
+
+status_value="$(XIRANG_V9_RUNTIME_DIR="$RUNTIME" XIRANG_RUN_STARTED_EPOCH="$run_started_epoch" /usr/bin/python3 - <<'PY'
+import json
+import os
+import sys
+from datetime import datetime
+from pathlib import Path
+
+inspect = Path(os.environ["XIRANG_V9_RUNTIME_DIR"]).expanduser() / "巡检"
+status_path = inspect / "status-latest.json"
+health_path = inspect / "health-latest.json"
+started = int(os.environ["XIRANG_RUN_STARTED_EPOCH"])
+try:
+    status = json.loads(status_path.read_text(encoding="utf-8"))
+    health = json.loads(health_path.read_text(encoding="utf-8"))
+except (OSError, json.JSONDecodeError) as exc:
+    print(f"runtime_output_invalid:{exc}", file=sys.stderr)
+    raise SystemExit(1)
+
+expected_status = str(status_path.resolve())
+expected_inspect = str(inspect.resolve())
+paths = status.get("paths") or {}
+parts = status.get("parts") or {}
+health_part = parts.get("health") or {}
+level = status.get("status")
+checks = [
+    status.get("schema_version") == "v1",
+    level in {"green", "yellow", "red"},
+    str(Path(paths.get("runtime_dir", "")).expanduser().resolve()) == expected_inspect,
+    str(Path(paths.get("status_latest", "")).expanduser().resolve()) == expected_status,
+    health_part.get("generated_at") == health.get("generated_at"),
+    status_path.stat().st_mtime >= started - 1,
+    health_path.stat().st_mtime >= started - 1,
+]
+try:
+    generated_epoch = datetime.fromisoformat(status["generated_at"].replace("Z", "+00:00")).timestamp()
+except (KeyError, TypeError, ValueError):
+    generated_epoch = 0
+checks.append(generated_epoch >= started - 1)
+
+part_levels = [part.get("status") for part in parts.values() if isinstance(part, dict)]
+expected_level = "red" if "red" in part_levels else "yellow" if "yellow" in part_levels else "green"
+checks.append(bool(part_levels) and level == expected_level)
+if not all(checks):
+    print("runtime_output_incoherent", file=sys.stderr)
+    raise SystemExit(1)
+print(level)
+PY
+)"
+validate_rc=$?
+
+if [[ $summary_rc -gt 1 || $validate_rc -ne 0 ]]; then
+  write_state "failed" 70 "status_summary_output_invalid"
+  exit 70
+fi
+if [[ $reflex_rc -ne 0 && "$status_value" != "red" ]]; then
+  write_state "failed" "$reflex_rc" "reflex_exit_without_red_status"
+  exit "$reflex_rc"
+fi
+if [[ $harness_rc -ne 0 ]]; then
+  write_state "success" 0 "completed_status_red_harness_refresh_failed"
+  exit 0
+fi
+write_state "success" 0 "completed_status_${status_value}"
+exit 0

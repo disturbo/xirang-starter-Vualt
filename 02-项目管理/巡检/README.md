@@ -11,13 +11,12 @@ owner: Claudian
 
 | 项 | 状态 |
 |---|---|
-| launchd 服务 | `com.xirang.v9reflex` **已部署、常驻**（2026-06-25 由人工Reviewer部署并强制触发验证：runs≥3，last exit code=0） |
-| 触发频率 | 每日 09:17（StartCalendarInterval） |
-| 最近快照 | 见 `health-latest.json` 的 `generated_at` |
-| Codex 复核 | 聚合器 + 加固补丁 + scope bugfix 均通过，无阻断 finding |
+| launchd 服务 | Starter 默认不安装；部署后以 `launchctl print gui/$UID/com.xirang.v9reflex` 实测为准 |
+| 触发频率 | 推荐登录即运行 + 每 30 分钟（`RunAtLoad` + `StartInterval=1800`） |
+| 最近快照 | 以 Vault 外 `~/.xirang/v9-runtime/巡检/status-latest.json` 为唯一状态入口 |
+| Harness | wrapper 在每轮反射前验证新鲜度和当前哈希；无效时自动重跑，失败时保持红色原因 |
 
-> 注意：反射器已进入**自动常驻**状态，`health-latest.json` 由 launchd 定时刷新。
-> 会话启动 checklist 直接读最新快照即可，无需手动跑（手动跑用于即时复检）。
+> 注意：本文件是分发模板，不代表当前机器已经部署。只有调度器、运行时快照和消费者三者均有新鲜证据，才能报告常驻生效。
 
 ---
 
@@ -32,7 +31,7 @@ owner: Claudian
 |------|------|:---:|
 | `health-latest.json` | 最近一次巡检快照（统一 severity schema） | 否，脚本覆盖 |
 | `reflex-state.json` | 去重/冷却状态（每个幂等键的 first_seen/last_reported/count） | 否，脚本维护 |
-| `harness-eval-latest.json` | 最近一次 V9.4 harness 机械回归测试结果（手动 `--write-latest` 生成） | 否，脚本覆盖 |
+| `harness-eval-latest.json` | 最近一次 Harness 机械回归结果；由 wrapper 在过期或哈希漂移时自动刷新 | 否，脚本覆盖 |
 
 `health-latest.json` 的自省字段：
 
@@ -75,25 +74,40 @@ severity 统一为 `p0 / p1 / advisory`。冷却默认 24h，心跳阈值默认 
 部署步骤（交人工Reviewer本机执行，**本任务不自动安装**）：
 
 ```bash
-# 1. 创建 plist（示例，路径按实际调整）
-cat > ~/Library/LaunchAgents/com.xirang.v9reflex.plist <<'PLIST'
+# 1. 在 Vault 根目录执行；把 wrapper 放到不受 Desktop TCC 影响的稳定目录
+VAULT_ROOT="$(pwd -P)"
+mkdir -p "$HOME/.xirang/bin" "$HOME/.xirang/v9-runtime/巡检" "$HOME/.xirang/logs"
+cp "$VAULT_ROOT/.standards/v9-reflex-run.sh" "$HOME/.xirang/bin/v9-reflex-run.sh"
+chmod +x "$HOME/.xirang/bin/v9-reflex-run.sh"
+
+# 2. 创建 plist；环境变量明确绑定本机 Vault 和唯一 runtime
+cat > "$HOME/Library/LaunchAgents/com.xirang.v9reflex.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
   <key>Label</key><string>com.xirang.v9reflex</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/usr/bin/python3</string>
-    <string>02-项目管理/脚本/v9-reflex-check.py</string>
-    <string>--quiet</string>
+    <string>/bin/bash</string>
+    <string>$HOME/.xirang/bin/v9-reflex-run.sh</string>
   </array>
-  <key>WorkingDirectory</key><string>$HOME/Desktop/obsidianVault</string>
-  <key>StartCalendarInterval</key><dict><key>Hour</key><integer>9</integer><key>Minute</key><integer>17</integer></dict>
+  <key>EnvironmentVariables</key><dict>
+    <key>XIRANG_V9_VAULT_DIR</key><string>$VAULT_ROOT</string>
+    <key>XIRANG_V9_RUNTIME_DIR</key><string>$HOME/.xirang/v9-runtime</string>
+  </dict>
+  <key>WorkingDirectory</key><string>$HOME</string>
+  <key>RunAtLoad</key><true/>
+  <key>StartInterval</key><integer>1800</integer>
+  <key>StandardOutPath</key><string>$HOME/.xirang/logs/v9-reflex.out.log</string>
+  <key>StandardErrorPath</key><string>$HOME/.xirang/logs/v9-reflex.err.log</string>
 </dict></plist>
 PLIST
 
-# 2. 加载
-launchctl load ~/Library/LaunchAgents/com.xirang.v9reflex.plist
+# 3. 加载并验证；不是 exit 0 就不能声明已部署
+launchctl bootout "gui/$UID/com.xirang.v9reflex" 2>/dev/null || true
+launchctl bootstrap "gui/$UID" "$HOME/Library/LaunchAgents/com.xirang.v9reflex.plist"
+launchctl kickstart -k "gui/$UID/com.xirang.v9reflex"
+launchctl print "gui/$UID/com.xirang.v9reflex"
 ```
 
 ### C 层：会话启动 checklist（解读 + 人工提升）

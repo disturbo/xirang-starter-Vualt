@@ -51,7 +51,19 @@ REFLEX = SCRIPT_DIR / "v9-reflex-check.py"
 PHASE_G_TEST = REPO_ROOT / ".standards" / "tests" / "test_v9_phase_g.py"
 PHASE_H_TEST = REPO_ROOT / ".standards" / "tests" / "test_v9_phase_h.py"
 CODEX_HOOK_TEST = REPO_ROOT / ".standards" / "tests" / "test_v9_codex_hooks.py"
-LATEST_REPORT = REPO_ROOT / "02-项目管理" / "巡检" / "harness-eval-latest.json"
+
+
+def runtime_inspect_dir() -> Path:
+    explicit = os.environ.get("XIRANG_V9_INSPECT_DIR")
+    if explicit:
+        return Path(explicit).expanduser()
+    runtime_root = os.environ.get("XIRANG_V9_RUNTIME_DIR")
+    if runtime_root:
+        return Path(runtime_root).expanduser() / "巡检"
+    return Path.home() / ".xirang" / "v9-runtime" / "巡检"
+
+
+LATEST_REPORT = runtime_inspect_dir() / "harness-eval-latest.json"
 HARNESS_MANIFEST = REPO_ROOT / ".standards/harness-tested-files.txt"
 
 
@@ -939,12 +951,12 @@ def case_phase_h_positive_long_session_stability() -> EvalResult:
         [sys.executable, str(PHASE_H_TEST)],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
     )
-    passed = proc.returncode == 0 and "Ran 10 tests" in proc.stderr and "OK" in proc.stderr
+    passed = proc.returncode == 0 and "Ran 11 tests" in proc.stderr and "OK" in proc.stderr
     return EvalResult(
         "phase_h_positive_long_session_stability", "positive",
         "system-Python Codex hook runtime", passed,
         "Phase H adapter, handshake interpreter, and retirement regressions all pass",
-        "10/10 Phase H long-session tests passed" if passed else "Phase H regression suite failed",
+        "11/11 Phase H long-session tests passed" if passed else "Phase H regression suite failed",
         {"returncode": proc.returncode, "stdout": proc.stdout[-500:], "stderr": proc.stderr[-1000:]},
     )
 

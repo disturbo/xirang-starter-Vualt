@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import tempfile
 import unittest
@@ -18,6 +19,8 @@ HANDSHAKE = ROOT / ".standards/v8-handshake.sh"
 REFLEX = ROOT / "02-项目管理/脚本/v9-reflex-check.py"
 FREEZE = ROOT / "02-项目管理/脚本/v9-freeze-observation.py"
 ENTROPY = ROOT / "02-项目管理/脚本/v9-entropy-governance.py"
+REFLEX_WRAPPER = ROOT / ".standards/v9-reflex-run.sh"
+HARNESS_RUNNER = ROOT / "02-项目管理/脚本/v9-harness-eval-runner.py"
 PRE_START = ROOT / ".standards/pre-start-check.py"
 PROJECT_OPS = ROOT / "02-项目管理/脚本/project-ops-check.py"
 COST_HOOK = ROOT / ".standards/hooks/cost-event.sh"
@@ -212,6 +215,85 @@ class PhaseHTests(unittest.TestCase):
         queue = module.ingest(queue, detector, "2026-07-22T09:00:00+08:00")
         self.assertEqual("archived", queue["items"][0]["status"])
         self.assertEqual(0, queue["metrics"]["current_open"])
+
+    def test_reflex_wrapper_refreshes_untrusted_harness_before_health(self) -> None:
+        script = REFLEX_WRAPPER.read_text(encoding="utf-8")
+        runner_source = HARNESS_RUNNER.read_text(encoding="utf-8")
+        self.assertIn("harness-eval-verify.py", script)
+        self.assertIn("v9-harness-eval-runner.py", script)
+        self.assertIn("--write-latest", script)
+        personal_path = "/Users/" + bytes.fromhex("7975646f6e67626f").decode()
+        self.assertNotIn(personal_path, script)
+        self.assertIn('os.environ.get("XIRANG_V9_RUNTIME_DIR")', runner_source)
+        self.assertIn('XIRANG_V9_RUNTIME_DIR="$RUNTIME"', script)
+        self.assertLess(script.index("refresh_harness_if_needed"), script.index('"$SCRIPT" --quiet'))
+        for index, body in enumerate(re.findall(r"<<'PY'\n(.*?)\nPY", script, re.DOTALL), 1):
+            compile(body, f"v9-reflex-run.sh:heredoc-{index}", "exec")
+        proc = subprocess.run(["/bin/bash", "-n", str(REFLEX_WRAPPER)], capture_output=True, text=True)
+        self.assertEqual(0, proc.returncode, proc.stderr)
+
+        with tempfile.TemporaryDirectory() as raw:
+            base = Path(raw)
+            vault = base / "vault"
+            runtime = base / "runtime"
+            vault.mkdir()
+            verifier = base / "verify.py"
+            runner = base / "runner.py"
+            reflex = base / "reflex.py"
+            summary = base / "summary.py"
+            verifier.write_text(
+                "import pathlib, sys\n"
+                "report = pathlib.Path(sys.argv[sys.argv.index('--report') + 1])\n"
+                "raise SystemExit(0 if report.is_file() else 1)\n",
+                encoding="utf-8",
+            )
+            runner.write_text(
+                "import os, pathlib\n"
+                "report = pathlib.Path(os.environ['XIRANG_V9_HARNESS_REPORT'])\n"
+                "report.parent.mkdir(parents=True, exist_ok=True)\n"
+                "report.write_text('{\"check\": \"fixture\"}\\n', encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+            reflex.write_text(
+                "import json, os, pathlib\n"
+                "from datetime import datetime\n"
+                "path = pathlib.Path(os.environ['XIRANG_V9_RUNTIME_DIR']) / '巡检/health-latest.json'\n"
+                "path.parent.mkdir(parents=True, exist_ok=True)\n"
+                "path.write_text(json.dumps({'generated_at': datetime.now().astimezone().isoformat(timespec='seconds')}) + '\\n', encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+            summary.write_text(
+                "import json, os, pathlib\n"
+                "from datetime import datetime\n"
+                "runtime = pathlib.Path(os.environ['XIRANG_V9_RUNTIME_DIR'])\n"
+                "inspect = runtime / '巡检'\n"
+                "health = json.loads((inspect / 'health-latest.json').read_text(encoding='utf-8'))\n"
+                "status_path = inspect / 'status-latest.json'\n"
+                "payload = {'schema_version': 'v1', 'generated_at': datetime.now().astimezone().isoformat(timespec='seconds'), 'status': 'green', 'paths': {'runtime_dir': str(inspect.resolve()), 'status_latest': str(status_path.resolve())}, 'parts': {'health': {'status': 'green', 'generated_at': health['generated_at']}, 'harness_eval': {'status': 'green'}}}\n"
+                "status_path.write_text(json.dumps(payload) + '\\n', encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+            harness_report = runtime / "巡检/harness-eval-latest.json"
+            env = {
+                **os.environ,
+                "XIRANG_V9_VAULT_DIR": str(vault),
+                "XIRANG_V9_RUNTIME_DIR": str(runtime),
+                "XIRANG_V9_PYTHON": "/usr/bin/python3",
+                "XIRANG_V9_REFLEX_SCRIPT": str(reflex),
+                "XIRANG_V9_STATUS_SCRIPT": str(summary),
+                "XIRANG_V9_HARNESS_SCRIPT": str(runner),
+                "XIRANG_V9_HARNESS_VERIFY_SCRIPT": str(verifier),
+                "XIRANG_V9_HARNESS_REPORT": str(harness_report),
+            }
+            proc = subprocess.run(
+                ["/bin/bash", str(REFLEX_WRAPPER)], capture_output=True, text=True,
+                env=env, timeout=30,
+            )
+            self.assertEqual(0, proc.returncode, proc.stderr)
+            self.assertTrue(harness_report.is_file())
+            state = json.loads((runtime / "巡检/reflex-scheduler-health.json").read_text(encoding="utf-8"))
+            self.assertEqual("success", state["status"])
+            self.assertEqual("completed_status_green", state["reason"])
 
     def test_cost_pipeline_is_explicitly_retired(self) -> None:
         self.assertNotIn("codex_cost_telemetry", REFLEX.read_text(encoding="utf-8"))
