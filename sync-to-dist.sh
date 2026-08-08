@@ -45,6 +45,9 @@ RSYNC_EXCLUDES=(
   --exclude="settings.local.json"
   --exclude="settings.json"
   --exclude="飞书文档采集规范.md"
+  --exclude="agents/dongfeng.md"
+  --exclude="agents/dongfeng.delta.md"
+  --exclude="奕境门店组织架构.png"
   --exclude="projects/"
   --exclude="sessions/"
   --exclude="logs/"
@@ -100,7 +103,7 @@ done
 echo ""
 echo "[clean] 移除看板..."
 rm -f "$DIST/00-MOC/多智能体协作看板.md"
-rm -f "$DIST/00-MOC/示例项目EXAMPLE-MOC.md"
+rm -f "$DIST/00-MOC/奕境DMS-MOC.md"
 rm -f "$DIST/00-MOC/待办汇总.md"
 rm -f "$DIST/00-MOC/项目运营笔记本.md"
 rm -f "$DIST/30-规范/奕境PRD硬约束-v3.3.md"
@@ -110,7 +113,7 @@ rm -f "$DIST/90-模板"/奕境PRD模板-*.md
 
 # 将生产 Vault 中的本机绝对路径机械改写为 starter 的可移植默认路径。
 rg --hidden --no-ignore -l0 '/Users/yudongbo|余东波|波波|奕境|东风|联友|花都|保险经纪|YJDMS|DFIB|DMS|dongfeng|@im\.wechat|openclaw-memory-promotion' "$DIST" \
-  -g '!.git/**' -g '!.standards/tests/**' -g '!02-项目管理/脚本/v9-starter-leak-check.py' -g '!sync-to-dist.sh' \
+  -g '!.git/**' -g '!.standards/tests/**' -g '!02-项目管理/脚本/v9-starter-leak-check.py' -g '!**/sync-to-dist.sh' \
   | xargs -0 perl -pi -e '
     s#/Users/yudongbo/Desktop/obsidianVault#\$HOME/Desktop/obsidianVault#g;
     s#/Users/yudongbo#\$HOME#g;
