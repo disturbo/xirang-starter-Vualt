@@ -1,5 +1,4 @@
-# Starter V9 Harness trust set. Must match the distributed runner's tested_hashes.
-sync-to-dist.sh
+# Canonical V9 Harness trust set. One Vault-relative path per line.
 .codex/hooks.json
 .standards/gate-enforce.py
 .standards/agent-contract.yaml
@@ -8,8 +7,11 @@ sync-to-dist.sh
 .standards/harness-tested-files.txt
 .standards/pre-start-check.py
 .standards/semantic-recall.py
+.standards/v9-reflex-run.sh
 .standards/schemas/agent-state.schema.json
+.standards/scripts/llm_wiki_check.py
 .standards/tests/test_v9_codex_hooks.py
+.standards/tests/test_v9_phase_e.py
 .standards/tests/test_v9_phase_f.py
 .standards/tests/test_v9_phase_g.py
 .standards/tests/test_v9_phase_h.py
@@ -21,8 +23,8 @@ sync-to-dist.sh
 .prompt-src/preflight-auto-template.md
 .prompt-src/v9-compliance-block.md
 02-项目管理/脚本/project-ops-check.py
-02-项目管理/脚本/v9-harness-eval-runner.py
 02-项目管理/脚本/v9-handoff-check.py
+02-项目管理/脚本/v9-harness-eval-runner.py
 02-项目管理/脚本/v9-entropy-governance.py
 02-项目管理/脚本/v9-freeze-observation.py
 02-项目管理/脚本/v9-iteration-ops-check.py
@@ -32,12 +34,7 @@ sync-to-dist.sh
 02-项目管理/脚本/v9-starter-leak-check.py
 02-项目管理/脚本/v9-status-summary.py
 02-项目管理/脚本/v9-task-state-check.py
-02-项目管理/智能体状态/Claudian.md
-02-项目管理/智能体状态/WorkBuddy.md
-02-项目管理/智能体状态/头孢.md
-02-项目管理/智能体状态/红霉素.md
-02-项目管理/智能体状态/阿莫西林.md
-02-项目管理/智能体状态/青霉素.md
+02-项目管理/巡检/v9-release-manifest.json
 30-规范/事件规范.md
 30-规范/智能体约束/Claudian-CLAUDE.md
 30-规范/智能体约束/WorkBuddy-agent.md
@@ -48,3 +45,5 @@ sync-to-dist.sh
 50-经验/Agent协作方法论/息壤V9-写入声明与Pre-flight.md
 50-经验/Agent协作方法论/息壤V9-Gate与Hook机制.md
 50-经验/Agent协作方法论/息壤V9-子任务与通信.md
+50-经验/Agent进化/不死鸟Phoenix-借鉴评估报告.md
+50-经验/Agent进化/不死鸟Phoenix-技术文档.md

@@ -37,7 +37,10 @@ import datetime
 import subprocess
 from pathlib import Path
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", os.getcwd()))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
+CURRENT_ITERATION = os.environ.get("YJ_CURRENT_ITERATION", "260725")
+BASELINE_ROOT_REL = "10-项目/基线"
+ITERATION_ROOT_REL = f"10-项目/迭代/{CURRENT_ITERATION}迭代"
 
 # === 任务类型 × 配置矩阵（对齐 V8 S6.1 超时量化规范） ===
 TASK_TYPES = {
@@ -47,7 +50,7 @@ TASK_TYPES = {
         "budget_level": "M",
         "typical_tokens": 30000,
         "inject_default": ["brand", "emoji", "markdown", "frontmatter", "path"],
-        "write_scope": "10-项目/{项目名}/{module}/prototype/",
+        "write_scope": f"{ITERATION_ROOT_REL}/",
         "description": "HTML 原型页面、交互逻辑、样式文件",
     },
     "code": {
@@ -56,7 +59,7 @@ TASK_TYPES = {
         "budget_level": "L",
         "typical_tokens": 50000,
         "inject_default": ["emoji", "frontmatter", "path"],
-        "write_scope": "10-项目/{项目名}/{module}/",
+        "write_scope": f"{ITERATION_ROOT_REL}/",
         "description": "业务逻辑代码、脚本、配置文件",
     },
     "prd": {
@@ -65,7 +68,7 @@ TASK_TYPES = {
         "budget_level": "L",
         "typical_tokens": 45000,
         "inject_default": ["emoji", "markdown", "frontmatter", "path"],
-        "write_scope": "10-项目/{项目名}/{module}/",
+        "write_scope": f"{ITERATION_ROOT_REL}/",
         "description": "PRD 文档、需求规格、功能说明",
     },
     "research": {
@@ -110,7 +113,7 @@ TASK_TYPES = {
         "budget_level": "M",
         "typical_tokens": 20000,
         "inject_default": ["brand", "path"],
-        "write_scope": "10-项目/{项目名}/{module}/",
+        "write_scope": f"{ITERATION_ROOT_REL}/",
         "description": "drawio 流程图、SVG 架构图",
     },
 }
@@ -118,7 +121,7 @@ TASK_TYPES = {
 # === 约束维度定义（每个维度对应约束包中的一段） ===
 CONSTRAINT_BLOCKS = {
     "brand": """### Brand Compliance
-- Primary: #2563EB (Starter Blue), Accent: #2D9C4F (Green)
+- Primary: #861B2F (Xi Jing Red), Accent: #2D9C4F (Green)
 - Font: PingFang SC / Microsoft YaHei
 - Spacing: 8px base grid
 - Buttons: primary fill, border-radius 6px
@@ -191,14 +194,19 @@ When done, return ONLY a structured summary (<=500 chars):
 ```
 """
 
-# === 可用模块列表（从 vault 结构推断） ===
-KNOWN_MODULES = [
-    "01-PDI管理", "02-保养管理", "03-保险管理", "04-续保管理",
-    "05-延保管理", "06-商务补偿", "07-预约管理", "08-工单管理",
-    "09-配件管理", "10-结算管理", "11-报表中心", "12-系统管理",
-    "20-取送车", "21-代步车服务", "30-延保销售", "31-服务工单管理",
-    "32-服务助手手机端", "33-代步车服务",
-]
+# === 可用模块列表（从当前基线目录推断） ===
+def discover_known_modules() -> list[str]:
+    module_root = VAULT_ROOT / BASELINE_ROOT_REL
+    if not module_root.exists():
+        return []
+    return sorted(
+        path.name
+        for path in module_root.iterdir()
+        if path.is_dir() and path.name[:2].isdigit() and "-" in path.name
+    )
+
+
+KNOWN_MODULES = discover_known_modules()
 
 
 def generate_spawn_prompt(
@@ -406,7 +414,7 @@ Examples:
         return
 
     if "--list-modules" in sys.argv:
-        print("Known modules (10-项目/{项目名}/):")
+        print(f"Known modules ({BASELINE_ROOT_REL}/):")
         for m in KNOWN_MODULES:
             print(f"  {m}")
         return

@@ -12,7 +12,7 @@
 #
 # 版本: 1.4.4 | 创建: 2026-05-23 | 修订: 2026-07-21（任务开始自动语义召回） | 息壤 V9.2
 
-VAULT_ROOT="${VAULT_ROOT:-$(pwd)}"
+VAULT_ROOT="${VAULT_ROOT:-$HOME/Desktop/obsidianVault}"
 EVENT_FILE="$VAULT_ROOT/02-项目管理/智能体状态/智能体事件.jsonl"
 LOG_DIR="$VAULT_ROOT/02-项目管理/运行日志"
 V8_PYTHON="${XIRANG_PYTHON_BIN:-/usr/bin/python3}"
@@ -425,7 +425,7 @@ _v8_resolve_status_file() {
   local agent="$1"
   local base="$VAULT_ROOT/02-项目管理/智能体状态"
   case "$agent" in
-    claudian)                        echo "$base/Claudian.md" ;;
+    claudian|assistant)               echo "$base/Claudian.md" ;;
     workbuddy)                       echo "$base/WorkBuddy.md" ;;
     xiaochong|amoxicillin|amox)      echo "$base/阿莫西林.md" ;;
     toubao|cephalosporin|ceph)       echo "$base/头孢.md" ;;
@@ -441,7 +441,7 @@ _v8_resolve_status_file() {
 _v8_normalize_agent_id() {
   local agent="$1"
   case "$agent" in
-    claudian)                        echo "claudian" ;;
+    claudian|assistant)               echo "claudian" ;;
     workbuddy)                       echo "workbuddy" ;;
     xiaochong|amoxicillin|amox)      echo "xiaochong" ;;
     toubao|cephalosporin|ceph)       echo "toubao" ;;

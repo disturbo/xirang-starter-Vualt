@@ -121,6 +121,8 @@ def check_hook_evidence(events: list[dict], hooks: dict, manifest: dict) -> dict
         candidates = [item for item in (explicit, freeze_start) if item is not None]
         return max(candidates) if candidates else None
 
+    # A canary recorded before the freeze cannot prove the repaired hook chain.
+    # Use the later of the explicit evidence threshold and freeze start.
     file_after = evidence_floor(evidence.get("file_write_after"))
     deny_after = evidence_floor(evidence.get("shell_denied_after"))
 

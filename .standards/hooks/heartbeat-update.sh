@@ -21,7 +21,7 @@
 #
 # 版本: 1.1.0 | 创建: 2026-05-31 | 修订: 2026-05-31（PID假阳性修复） | 息壤 V9.2
 
-VAULT_ROOT="${VAULT_ROOT:-$VAULT_ROOT}"
+VAULT_ROOT="${VAULT_ROOT:-$HOME/Desktop/obsidianVault}"
 STATUS_DIR="$VAULT_ROOT/02-项目管理/智能体状态"
 
 AGENT_ID="${1:-${V8_AGENT_ID:-claudian}}"
@@ -33,10 +33,19 @@ _hb_safe_update_yaml() {
   local file="$1" field="$2" value="$3"
   local tmpfile="${file}.hbtmp"
   _V8_FIELD="$field" _V8_VALUE="$value" awk '
-    BEGIN { field=ENVIRON["_V8_FIELD"]; value=ENVIRON["_V8_VALUE"]; found=0 }
-    /^---$/ && NR==1 { print; next }
-    /^---$/ && NR>1 && !found { print field ": " value; print; found=1; next }
-    $0 ~ "^" field ":" { print field ": " value; found=1; next }
+    BEGIN { field=ENVIRON["_V8_FIELD"]; value=ENVIRON["_V8_VALUE"]; found=0; in_fm=0 }
+    NR==1 && /^---$/ { in_fm=1; print; next }
+    in_fm && /^---$/ {
+      if (!found) print field ": " value
+      print
+      in_fm=0
+      next
+    }
+    in_fm && $0 ~ "^" field ":" && !found {
+      print field ": " value
+      found=1
+      next
+    }
     { print }
   ' "$file" > "$tmpfile"
   if [[ $? -eq 0 && -s "$tmpfile" ]]; then
@@ -46,10 +55,25 @@ _hb_safe_update_yaml() {
   fi
 }
 
+_frontmatter_value() {
+  local file="$1"
+  local field="$2"
+  awk -v field="$field" '
+    NR == 1 && $0 == "---" { in_fm=1; next }
+    in_fm && $0 == "---" { exit }
+    in_fm && index($0, field ":") == 1 {
+      sub("^[^:]+:[[:space:]]*", "")
+      gsub(/^"|"$/, "")
+      print
+      exit
+    }
+  ' "$file" 2>/dev/null
+}
+
 # 解析状态文件路径
 _resolve_status_file() {
   case "$1" in
-    claudian)               echo "$STATUS_DIR/Claudian.md" ;;
+    claudian|assistant)               echo "$STATUS_DIR/Claudian.md" ;;
     xiaochong|amoxicillin|amox)      echo "$STATUS_DIR/阿莫西林.md" ;;
     toubao|cephalosporin|ceph)       echo "$STATUS_DIR/头孢.md" ;;
     hongmeisu|erythromycin|eryth)    echo "$STATUS_DIR/红霉素.md" ;;
@@ -66,7 +90,7 @@ if [[ -z "$STATUS_FILE" || ! -f "$STATUS_FILE" ]]; then
 fi
 
 # 只在 busy 状态时更新心跳（idle 状态不需要心跳）
-CURRENT_STATUS=$(grep '^status:' "$STATUS_FILE" 2>/dev/null | awk '{print $2}' | tr -d '"')
+CURRENT_STATUS=$(_frontmatter_value "$STATUS_FILE" status)
 if [[ "$CURRENT_STATUS" != "busy" ]]; then
   exit 0
 fi

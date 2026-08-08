@@ -1,3 +1,14 @@
+---
+title: "V9 Compliance Block — 独立真理源"
+version: v9.0.0
+status: active
+type: source
+domain: 多智能体协作
+maintainer: 用户
+created: 2026-05-28
+updated: 2026-06-11
+---
+
 # V9 Compliance Block — 独立真理源
 
 > 本文件是所有 Agent 合规块的唯一来源。

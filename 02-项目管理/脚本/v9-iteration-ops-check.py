@@ -16,6 +16,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import re
@@ -904,20 +905,58 @@ def git_changed_paths_under(path: Path) -> list[str]:
     return changed
 
 
-def baseline_write_authorized(release_doc: Path, scope_status: str) -> tuple[bool, dict]:
-    if canonical_scope_status(scope_status) not in {"released", "reviewed"}:
-        return False, {"reason": "scope_status_not_released", "scope_status": scope_status or None}
+def changed_paths_sha256(changed_paths: list[str]) -> str:
+    payload = "".join(f"{path}\n" for path in sorted(changed_paths))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def baseline_write_authorized(
+    release_doc: Path,
+    scope_status: str,
+    changed_paths: list[str],
+) -> tuple[bool, dict]:
     if not release_doc.exists():
         return False, {"reason": "release_doc_missing", "scope_status": scope_status or None}
 
     fm = frontmatter(read_text(release_doc))
     authorized = normalize_status(fm_value(fm, "baseline_write_authorized"))
-    if authorized in {normalize_status(item) for item in BASELINE_WRITE_AUTH_TRUE}:
+    is_authorized = authorized in {normalize_status(item) for item in BASELINE_WRITE_AUTH_TRUE}
+    if canonical_scope_status(scope_status) in {"released", "reviewed"} and is_authorized:
         return True, {"reason": "authorized_by_release_collection", "baseline_write_authorized": authorized}
+
+    mode = normalize_status(fm_value(fm, "baseline_write_mode"))
+    task_id = fm_value(fm, "baseline_write_task")
+    authority = fm_value(fm, "baseline_write_authority")
+    expected_count = fm_value(fm, "baseline_write_path_count")
+    expected_digest = fm_value(fm, "baseline_write_paths_sha256").lower()
+    observed_digest = changed_paths_sha256(changed_paths)
+    maintenance_valid = (
+        is_authorized
+        and mode == "maintenance"
+        and bool(re.fullmatch(r"T-[0-9]{8}-[0-9]{2}", task_id))
+        and bool(authority)
+        and expected_count.isdigit()
+        and int(expected_count) == len(changed_paths)
+        and bool(re.fullmatch(r"[0-9a-f]{64}", expected_digest))
+        and expected_digest == observed_digest
+    )
+    if maintenance_valid:
+        return True, {
+            "reason": "authorized_task_scoped_maintenance",
+            "baseline_write_task": task_id,
+            "baseline_write_path_count": len(changed_paths),
+            "baseline_write_paths_sha256": observed_digest,
+        }
     return False, {
-        "reason": "baseline_write_authorized_missing",
+        "reason": "maintenance_manifest_missing_or_mismatched" if mode == "maintenance" else "scope_status_not_released",
         "scope_status": scope_status or None,
         "baseline_write_authorized": authorized or None,
+        "baseline_write_mode": mode or None,
+        "baseline_write_task": task_id or None,
+        "expected_path_count": expected_count or None,
+        "observed_path_count": len(changed_paths),
+        "expected_paths_sha256": expected_digest or None,
+        "observed_paths_sha256": observed_digest,
     }
 
 
@@ -933,7 +972,7 @@ def check_baseline_write_contract(
         return [], 0
 
     release_doc = management_root / RELEASE_COLLECTION_TEMPLATE.format(iteration=iteration)
-    authorized, auth_detail = baseline_write_authorized(release_doc, scope_status)
+    authorized, auth_detail = baseline_write_authorized(release_doc, scope_status, changed_paths)
     if authorized:
         return [], len(changed_paths)
 

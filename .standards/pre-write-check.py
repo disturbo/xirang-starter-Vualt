@@ -25,7 +25,7 @@ import os
 from pathlib import Path
 
 # === 配置 ===
-BRAND_MAIN = "#2563EB"
+BRAND_MAIN = "#861B2F"
 BRAND_ACCENT = "#2D9C4F"
 BRAND_FONT = "PingFang SC"
 BRAND_FONT_FALLBACK = "Microsoft YaHei"

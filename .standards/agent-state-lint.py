@@ -25,13 +25,14 @@ import re
 from pathlib import Path
 from datetime import datetime
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", os.getcwd()))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
 STATE_DIR = VAULT_ROOT / "02-项目管理" / "智能体状态"
 SCHEMA_PATH = VAULT_ROOT / ".standards" / "schemas" / "agent-state.schema.json"
 
 # Agent 文件名映射
 AGENT_FILES = {
     "claudian": "Claudian.md",
+    "assistant": "Claudian.md",  # legacy alias
     "xiaochong": "阿莫西林.md",
     "toubao": "头孢.md",
     "workbuddy": "WorkBuddy.md",
@@ -57,7 +58,7 @@ REQUIRED_FIELDS_DEFAULTS = {
 
 VALID_STATUS = {"idle", "busy", "cooling", "error", "standby", "retired"}
 VALID_PLATFORMS = {"Codebuddy", "OpenClaw", "Hermes", "Codex", "Claudian"}
-VALID_AGENT_IDS = {"claudian", "xiaochong", "toubao", "workbuddy", "qingmeisu", "hongmeisu"}
+VALID_AGENT_IDS = {"claudian", "assistant", "xiaochong", "toubao", "workbuddy", "qingmeisu", "hongmeisu"}
 
 
 def parse_frontmatter(filepath: Path) -> tuple[dict, str, str]:

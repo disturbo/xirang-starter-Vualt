@@ -32,7 +32,9 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", os.getcwd()))
+from jsonl_reader import read_jsonl
+
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
 TZ = timezone(timedelta(hours=8))
 
 # 需要轮转的事件流文件
@@ -112,6 +114,7 @@ def file_stats(filepath: Path) -> dict:
     except IOError:
         pass
 
+    _, quality = read_jsonl(filepath)
     return {
         "exists": True,
         "path": str(filepath.relative_to(VAULT_ROOT)),
@@ -119,6 +122,9 @@ def file_stats(filepath: Path) -> dict:
         "lines": lines,
         "earliest": earliest.isoformat() if earliest else None,
         "latest": latest.isoformat() if latest else None,
+        "valid_rows": quality.valid_rows,
+        "invalid_rows": quality.invalid_rows,
+        "invalid_line_samples": list(quality.invalid_line_samples),
     }
 
 
@@ -135,6 +141,7 @@ def rotate_file(filepath: Path, retain_days: int, max_size_kb: int,
     retain_lines = []
     archive_lines = []
 
+    _, quality = read_jsonl(filepath)
     try:
         with open(filepath, "r", encoding="utf-8") as f:
             for line in f:
@@ -173,6 +180,7 @@ def rotate_file(filepath: Path, retain_days: int, max_size_kb: int,
             "archive_count": len(archive_lines),
             "retain_count": len(retain_lines),
             "archive_size_kb": round(sum(len(l.encode()) for l in archive_lines) / 1024, 1),
+            "invalid_rows_preserved": quality.invalid_rows,
         }
 
     # 执行轮转

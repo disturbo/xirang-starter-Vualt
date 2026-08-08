@@ -1,0 +1,22 @@
+{
+  "name": "diagram-governance",
+  "version": "0.6.0",
+  "private": true,
+  "type": "module",
+  "description": "Non-destructive multi-format diagram governance for Draw.io, Mermaid and Excalidraw",
+  "scripts": {
+    "test": "node --test test/governance.test.mjs test/multiformat.test.mjs",
+    "test:e2e": "node --test test/e2e.test.mjs test/multiformat-e2e.test.mjs"
+  },
+  "dependencies": {
+    "@excalidraw/excalidraw": "0.18.1",
+    "jsdom": "29.1.1",
+    "lz-string": "1.5.0",
+    "mermaid": "11.16.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1"
+  }
+}

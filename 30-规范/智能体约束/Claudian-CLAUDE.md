@@ -1,7 +1,7 @@
 ---
 title: "Claudian/WorkBuddy CLAUDE.md（运行时快照）"
 source: ".claude/CLAUDE.md"
-snapshot_date: "2026-05-28"
+snapshot_date: "2026-06-11"
 platform: "Claudian（Obsidian嵌入）"
 agent_id: claudian
 ---
@@ -124,7 +124,7 @@ agent_id: claudian
 1. **看板必记** — M4/M5 任务启动/完成必须在 [[多智能体协作看板]] 登记。完成任务写 Handoff。
 2. **文件系统为准** — 看板可能过时，以 `ls`/`grep`/实际文件为准。
 3. **禁止跨 Vault** — 只读写 `obsidianVault/`，禁止扫描 `pmpVault/` 或全桌面。
-4. **原型必推送** — 修改 `沙箱/{项目}项目/{项目名}/prototype/` 后必须 git push 到 `origin/main`（仓库：`your-org/your-prototype-repo`）。格式：`feat|fix|refactor(模块): 描述`。
+4. **原型必推送** — 修改 `沙箱/示例项目项目/示例项目EXAMPLE/prototype/` 后必须 git push 到 `origin/main`（仓库：`disturbo/EXAMPLE`）。格式：`feat|fix|refactor(模块): 描述`。
 
 ## 协作入口
 

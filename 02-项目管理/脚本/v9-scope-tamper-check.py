@@ -2,7 +2,7 @@
 """
 v9-scope-tamper-check.py — V9.4.1 write_scope 越权检测器（事后发现）
 
-动机（吸收人工Reviewer检核 finding P1 #2）：
+动机（吸收用户检核 finding P1 #2）：
   pre-write hook 只能拦 Write/Edit 改 write_scope，拦不住 Bash 直写状态文件。
   本检测器作为反射器事后兜底：**比较"任务卡授权范围"与"状态文件实际 write_scope"**，
   发现实际 scope 超出授权 → SCOPE_ESCALATION(p1)。

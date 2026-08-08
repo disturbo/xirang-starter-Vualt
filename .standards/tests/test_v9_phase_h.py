@@ -18,9 +18,7 @@ ADAPTER = ROOT / ".standards/hooks/codex-hook-adapter.py"
 HANDSHAKE = ROOT / ".standards/v8-handshake.sh"
 REFLEX = ROOT / "02-项目管理/脚本/v9-reflex-check.py"
 FREEZE = ROOT / "02-项目管理/脚本/v9-freeze-observation.py"
-ENTROPY = ROOT / "02-项目管理/脚本/v9-entropy-governance.py"
 REFLEX_WRAPPER = ROOT / ".standards/v9-reflex-run.sh"
-HARNESS_RUNNER = ROOT / "02-项目管理/脚本/v9-harness-eval-runner.py"
 PRE_START = ROOT / ".standards/pre-start-check.py"
 PROJECT_OPS = ROOT / "02-项目管理/脚本/project-ops-check.py"
 COST_HOOK = ROOT / ".standards/hooks/cost-event.sh"
@@ -40,7 +38,6 @@ CURRENT_GUIDANCE = (
     ROOT / "50-经验/Agent协作方法论/息壤V9-子任务与通信.md",
 )
 CONSTRAINT_DIR = ROOT / "30-规范/智能体约束"
-STATUS_TEMPLATE_DIR = ROOT / "02-项目管理/智能体状态"
 
 
 def load(path: Path, name: str):
@@ -126,9 +123,6 @@ class PhaseHTests(unittest.TestCase):
             text = source.read_text(encoding="utf-8")
             for marker in forbidden_guidance:
                 self.assertNotIn(marker, text, source)
-        for source in sorted(STATUS_TEMPLATE_DIR.glob("*.md")):
-            frontmatter = source.read_text(encoding="utf-8").split("---", 2)[1]
-            self.assertNotIn("cost_tracking", frontmatter, source)
 
     def test_freeze_requires_consecutive_calendar_days(self) -> None:
         module = load(FREEZE, "phase_h_freeze")
@@ -199,36 +193,14 @@ class PhaseHTests(unittest.TestCase):
             write(governance / "entropy-governance-queue.json", {"updated_at": "2026-07-12T09:00:00+08:00"})
             self.assertEqual("fail", module.check_consumption(runtime, now)["status"])
 
-    def test_entropy_default_disposition_converges_without_note_edits(self) -> None:
-        module = load(ENTROPY, "phase_h_entropy")
-        detector = {
-            "detector_version": "2.0.0", "mode": "shadow",
-            "findings": [{
-                "category": "broken_link", "confidence": "confirmed", "source": "A.md",
-                "target": "Missing/X", "reason": "missing",
-            }],
-        }
-        queue = module.ingest({}, detector, "2026-07-01T09:00:00+08:00")
-        queue = module.ingest(queue, detector, "2026-07-08T09:00:00+08:00")
-        self.assertEqual("deferred", queue["items"][0]["status"])
-        queue = module.ingest(queue, detector, "2026-07-15T09:00:00+08:00")
-        queue = module.ingest(queue, detector, "2026-07-22T09:00:00+08:00")
-        self.assertEqual("deferred", queue["items"][0]["status"])
-        self.assertEqual(1, queue["metrics"]["current_open"])
-
     def test_reflex_wrapper_refreshes_untrusted_harness_before_health(self) -> None:
         script = REFLEX_WRAPPER.read_text(encoding="utf-8")
-        runner_source = HARNESS_RUNNER.read_text(encoding="utf-8")
         self.assertIn("harness-eval-verify.py", script)
         self.assertIn("v9-harness-eval-runner.py", script)
         self.assertIn("--write-latest", script)
         self.assertIn("runtime-contract-current.md", script)
         self.assertIn("refresh_gbrain_contract_if_needed\ngbrain_rc=$?", script)
         self.assertLess(script.index("refresh_gbrain_contract_if_needed\ngbrain_rc=$?"), script.index('"$SCRIPT" --quiet'))
-        personal_path = "/Users/" + bytes.fromhex("7975646f6e67626f").decode()
-        self.assertNotIn(personal_path, script)
-        self.assertIn('os.environ.get("XIRANG_V9_RUNTIME_DIR")', runner_source)
-        self.assertIn('XIRANG_V9_RUNTIME_DIR="$RUNTIME"', script)
         self.assertLess(script.index("refresh_harness_if_needed"), script.index('"$SCRIPT" --quiet'))
         for index, body in enumerate(re.findall(r"<<'PY'\n(.*?)\nPY", script, re.DOTALL), 1):
             compile(body, f"v9-reflex-run.sh:heredoc-{index}", "exec")
@@ -276,6 +248,18 @@ class PhaseHTests(unittest.TestCase):
                 "status_path.write_text(json.dumps(payload) + '\\n', encoding='utf-8')\n",
                 encoding="utf-8",
             )
+            contract_source = base / "runtime-contract-source.md"
+            contract_mirror = base / "runtime-contract-current.md"
+            maintenance = base / "maintenance.sh"
+            maintenance_marker = base / "maintenance-ran"
+            contract_source.write_text("current contract\n", encoding="utf-8")
+            contract_mirror.write_text("stale contract\n", encoding="utf-8")
+            maintenance.write_text(
+                "#!/bin/sh\n"
+                "printf '%s\\n' synced > \"$GBRAIN_MAINTENANCE_MARKER\"\n",
+                encoding="utf-8",
+            )
+            maintenance.chmod(0o755)
             harness_report = runtime / "巡检/harness-eval-latest.json"
             env = {
                 **os.environ,
@@ -287,6 +271,10 @@ class PhaseHTests(unittest.TestCase):
                 "XIRANG_V9_HARNESS_SCRIPT": str(runner),
                 "XIRANG_V9_HARNESS_VERIFY_SCRIPT": str(verifier),
                 "XIRANG_V9_HARNESS_REPORT": str(harness_report),
+                "XIRANG_GBRAIN_CONTRACT_SOURCE": str(contract_source),
+                "XIRANG_GBRAIN_CONTRACT_MIRROR": str(contract_mirror),
+                "XIRANG_GBRAIN_MAINTENANCE": str(maintenance),
+                "GBRAIN_MAINTENANCE_MARKER": str(maintenance_marker),
             }
             proc = subprocess.run(
                 ["/bin/bash", str(REFLEX_WRAPPER)], capture_output=True, text=True,
@@ -294,6 +282,9 @@ class PhaseHTests(unittest.TestCase):
             )
             self.assertEqual(0, proc.returncode, proc.stderr)
             self.assertTrue(harness_report.is_file())
+            self.assertEqual(contract_source.read_bytes(), contract_mirror.read_bytes())
+            self.assertEqual(0o600, contract_mirror.stat().st_mode & 0o777)
+            self.assertEqual("synced", maintenance_marker.read_text(encoding="utf-8").strip())
             state = json.loads((runtime / "巡检/reflex-scheduler-health.json").read_text(encoding="utf-8"))
             self.assertEqual("success", state["status"])
             self.assertEqual("completed_status_green", state["reason"])

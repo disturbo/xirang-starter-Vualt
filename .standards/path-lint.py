@@ -38,6 +38,7 @@ ALLOWED_TOP_DIRS = {
     "50-经验",      # 经验总结
     "60-归档",      # 归档
     "90-模板",      # 模板库
+    "知识库工程化",  # 知识库治理工程
     "_temp",        # 临时目录
 }
 
@@ -55,8 +56,17 @@ HIDDEN_DIRS = {".obsidian", ".git", ".trash", ".claude", ".standards", "node_mod
 # 最大目录深度
 MAX_DEPTH = 5
 
+# 允许超过默认深度的结构化产物路径
+ALLOWED_DEEP_PATH_PATTERNS = [
+    re.compile(r'(^|/)10-项目/基线/[^/]+/助手端原型/(pages|styles)/'),
+]
+
 # 大文件阈值（字节）
 LARGE_FILE_THRESHOLD = 500 * 1024  # 500KB
+
+# 不同文件类型/资料层的体积阈值。资料源图片和 PDF 是证据资产，阈值更高。
+SOURCE_ASSET_PATTERN = re.compile(r'(^|/)20-资料/(业务文件|来源-原始PDF|参考系统|会议纪要|外部系统接口)/')
+MEDIA_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".tiff", ".bmp", ".pdf"}
 
 # 文件名禁止字符（除了常规中英文数字连字符下划线点号）
 FORBIDDEN_CHARS_PATTERN = re.compile(r'[<>:"|?*\\]')
@@ -114,7 +124,11 @@ def check_depth(filepath: str, base_path: str = ".") -> list[dict]:
     """检查目录嵌套深度"""
     violations = []
     rel_path = os.path.relpath(filepath, base_path)
+    rel_path_posix = Path(rel_path).as_posix()
     depth = len(Path(rel_path).parts)
+
+    if any(pattern.search(rel_path_posix) for pattern in ALLOWED_DEEP_PATH_PATTERNS):
+        return violations
 
     if depth > MAX_DEPTH:
         violations.append({
@@ -134,14 +148,25 @@ def check_large_file(filepath: str) -> list[dict]:
     violations = []
     try:
         size = os.path.getsize(filepath)
-        if size > LARGE_FILE_THRESHOLD:
+        rel_path_posix = Path(filepath).as_posix()
+        ext = Path(filepath).suffix.lower()
+        threshold = LARGE_FILE_THRESHOLD
+
+        if SOURCE_ASSET_PATTERN.search(rel_path_posix) and ext in MEDIA_EXTENSIONS:
+            threshold = 10 * 1024 * 1024
+        elif ext == ".md":
+            threshold = 1024 * 1024
+        elif ext in MEDIA_EXTENSIONS:
+            threshold = 2 * 1024 * 1024
+
+        if size > threshold:
             size_kb = size / 1024
             violations.append({
                 "file": filepath,
                 "line": 0,
                 "type": "large_file",
                 "severity": "info",
-                "message": f"大文件预警: {size_kb:.0f}KB（阈值 {LARGE_FILE_THRESHOLD // 1024}KB）",
+                "message": f"大文件预警: {size_kb:.0f}KB（阈值 {threshold // 1024}KB）",
                 "suggestion": "考虑拆分或压缩，大文件影响 vault 性能和同步"
             })
     except OSError:
@@ -195,6 +220,9 @@ def find_empty_dirs(target_path: str = ".") -> list[dict]:
     for root, dirs, files in os.walk(target_path):
         # 跳过隐藏目录
         dirs[:] = [d for d in dirs if d not in HIDDEN_DIRS and not d.startswith(".")]
+
+        if os.path.normpath(root) == os.path.normpath("./_temp"):
+            continue
 
         if not dirs and not files:
             violations.append({

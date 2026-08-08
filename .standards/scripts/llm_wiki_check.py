@@ -10,18 +10,22 @@ Flags:
 from __future__ import annotations
 
 import argparse
+import os
+import json
 import re
 from pathlib import Path
 
 
-VAULT = Path("$VAULT_ROOT")
-SANDBOX_PAGES = Path("$VAULT_ROOT/../sandbox/prototype/pages")
-MODULE_ROOT = VAULT / "10-项目" / "{项目名}"
+VAULT = Path(os.environ.get("VAULT_ROOT", Path.home() / "Desktop" / "obsidianVault"))
+PROTOTYPE_ROOT = Path(os.environ.get("XIRANG_PROTOTYPE_ROOT", VAULT / "10-项目" / "示例项目" / "prototype"))
+MODULE_ROOT = VAULT / "10-项目" / "基线"
 
 MODULE_PATTERN = re.compile(r"^\d{2}-.+")
 WIKILINK_PATTERN = re.compile(r"(?<!!)\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]")
 ALIAS_PATTERN = re.compile(r"^aliases:\s*\[([^\]]*)\]", re.MULTILINE)
-PROTO_PATTERN = re.compile(r"`([a-z][a-z0-9_-]+/[a-z0-9_.-]+\.html)`")
+# Canonical relative paths may start with an underscore (legacy/H5 trees). The
+# previous lowercase-only prefix silently skipped those stale mappings.
+PROTO_PATTERN = re.compile(r"`((?:[a-z_][a-z0-9_-]+/)+[a-z0-9_.-]+\.html)`")
 
 REQUIRED_SECTIONS = [
     "## 当前状态",
@@ -55,13 +59,21 @@ def discover_modules() -> list[str]:
 
 def build_note_index() -> set[str]:
     index: set[str] = set()
-    for path in VAULT.rglob("*.md"):
+    for path in VAULT.rglob("*"):
         if ".obsidian" in path.parts or ".git" in path.parts:
             continue
+        if not path.is_file():
+            continue
         rel = path.relative_to(VAULT).with_suffix("")
-        index.add(path.stem)
-        index.add(str(rel))
-        index.add(str(rel).replace("\\", "/"))
+        if path.suffix == ".md":
+            index.add(path.stem)
+            index.add(str(rel))
+            index.add(str(rel).replace("\\", "/"))
+        else:
+            raw_rel = path.relative_to(VAULT)
+            index.add(path.name)
+            index.add(str(raw_rel))
+            index.add(str(raw_rel).replace("\\", "/"))
     return index
 
 
@@ -81,6 +93,12 @@ def link_exists(target: str, note_index: set[str]) -> bool:
             or (VAULT / normalized).exists()
         )
     return False
+
+
+def prototype_exists(rel: str) -> bool:
+    # References are relative to the canonical 725 root. Searching several
+    # fallback roots makes stale paths appear valid and hides platform moves.
+    return (PROTOTYPE_ROOT / rel).is_file()
 
 
 def extract_frontmatter_field(text: str, field: str) -> str | None:
@@ -108,7 +126,7 @@ def check_readme(module: str, note_index: set[str]) -> tuple[list[str], list[str
 
     for match in PROTO_PATTERN.finditer(text):
         rel = match.group(1)
-        if not (SANDBOX_PAGES / rel).exists():
+        if not prototype_exists(rel):
             errors.append(f"{module}: prototype path not found: {rel}")
 
     for match in WIKILINK_PATTERN.finditer(text):
@@ -183,8 +201,12 @@ def check_maturity(module: str) -> tuple[list[str], list[str]]:
 
     # --- Level >= 3: 已设计方案 ---
     if level >= 3:
-        has_design = (MODULE_ROOT / module / "设计方案.md").exists()
-        has_prd = (MODULE_ROOT / module / "PRD.md").exists()
+        module_path = MODULE_ROOT / module
+        has_design = (
+            (module_path / "设计方案.md").exists()
+            or any(module_path.glob("设计方案*.md"))
+        )
+        has_prd = (module_path / "PRD.md").exists()
         if not has_design and not has_prd:
             errors.append(
                 f"{module}: maturity='{maturity}' but neither "
@@ -215,6 +237,7 @@ def main() -> int:
         help="Validate maturity vs actual content depth "
              "(e.g. 非骨架摘要 must have 流程/字段/状态).",
     )
+    parser.add_argument("--json", action="store_true", help="Emit a machine-readable result.")
     args = parser.parse_args()
 
     modules = discover_modules()
@@ -232,13 +255,24 @@ def main() -> int:
             errors.extend(mat_errors)
             warnings.extend(mat_warnings)
 
+    failed = bool(errors or (args.strict and warnings))
+    if args.json:
+        print(json.dumps({
+            "status": "failed" if failed else "success",
+            "prototype_root": str(PROTOTYPE_ROOT),
+            "modules": len(modules),
+            "errors": errors,
+            "warnings": warnings,
+        }, ensure_ascii=False, indent=2))
+        return 1 if failed else 0
+
     if warnings:
         print("LLM Wiki check warnings:")
         for warning in warnings:
             print(f"  ⚠ {warning}")
         print()
 
-    if errors or (args.strict and warnings):
+    if failed:
         print("LLM Wiki check FAILED:")
         for error in errors:
             print(f"  ✗ {error}")

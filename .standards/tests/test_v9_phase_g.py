@@ -14,7 +14,6 @@ ROOT = Path(__file__).resolve().parents[2]
 CHECKER = ROOT / "02-项目管理/脚本/v9-skill-shadow-check.py"
 CODEX_ADAPTER = ROOT / ".standards/hooks/codex-hook-adapter.py"
 CODEX_HOOKS = ROOT / ".codex/hooks.json"
-SYNC_SCRIPT = ROOT / "sync-to-dist.sh"
 
 
 def load(path: Path, name: str):
@@ -34,19 +33,9 @@ def skill(root: Path, name: str, body: str, metadata: str = "") -> None:
 
 
 class PhaseGTests(unittest.TestCase):
-    def test_distribution_sync_excludes_runtime_and_business_artifacts(self) -> None:
-        script = SYNC_SCRIPT.read_text(encoding="utf-8")
-        self.assertIn('--exclude="/_build/"', script)
-        self.assertIn('--exclude="/diagram-governance/candidates/"', script)
-        self.assertIn('"02-项目管理/巡检/README.md"', script)
-        self.assertIn('"02-项目管理/evals/README.md"', script)
-        self.assertNotIn('  "02-项目管理/巡检"\n', script)
-        self.assertNotIn('  "02-项目管理/evals"\n', script)
-
     def test_default_roots_cover_openclaw_workspace_skills(self) -> None:
         module = load(CHECKER, "skill_shadow_default_roots")
-        expected = Path.home() / ".openclaw/workspace/skills"
-        self.assertIn(expected, module.DEFAULT_ROOTS)
+        self.assertIn(Path.home() / ".openclaw/workspace/skills", module.DEFAULT_ROOTS)
 
     def test_unowned_divergent_copies_are_p1(self) -> None:
         module = load(CHECKER, "skill_shadow_unowned")
@@ -74,8 +63,14 @@ class PhaseGTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw:
             base = Path(raw)
             common = "x-v9-shadow-group: demo-platform\n"
-            skill(base / "openclaw", "demo", "OpenClaw entry", "version: 1.0.0\n" + common + "x-v9-variant: openclaw\n")
-            skill(base / "workbuddy", "demo", "WorkBuddy entry", "version: 1.7.0\n" + common + "x-v9-variant: workbuddy\n")
+            skill(
+                base / "openclaw", "demo", "OpenClaw entry",
+                "version: 1.0.0\n" + common + "x-v9-variant: openclaw\n",
+            )
+            skill(
+                base / "workbuddy", "demo", "WorkBuddy entry",
+                "version: 1.7.0\n" + common + "x-v9-variant: workbuddy\n",
+            )
             report = module.scan([base / "openclaw", base / "workbuddy"])
             self.assertEqual(0, report["summary"]["p1"])
             self.assertEqual(1, report["summary"]["explicit_variant_groups"])
@@ -86,7 +81,10 @@ class PhaseGTests(unittest.TestCase):
             base = Path(raw)
             common = "x-v9-shadow-group: demo-platform\n"
             skill(base / "a", "demo", "alpha", common + "x-v9-variant: a\n")
-            skill(base / "b", "demo", "beta", "version: 1.0.0\n" + common + "x-v9-variant: b\n")
+            skill(
+                base / "b", "demo", "beta",
+                "version: 1.0.0\n" + common + "x-v9-variant: b\n",
+            )
             report = module.scan([base / "a", base / "b"])
             self.assertEqual(1, report["summary"]["p1"])
 

@@ -64,8 +64,8 @@ tags: [规范, 治理, hook]
 |------|--------------|---------|-----------|
 | `task-start.sh` | pre-write 等价 | 手动 `bash` 调用 | 需 agent 主动调用 |
 | `task-end.sh` | task-end 等价 | 手动 `bash` 调用 | 需 agent 主动调用 |
-| `heartbeat.sh` | 心跳 | 手动或 cron | cron 已配置 |
-| `v8-watchdog.sh` | 超时检测 | cron */5 | 自动 |
+| `heartbeat.sh` | 心跳 | Agent 主动调用 | 手动；状态由 V9 反射器只读核验 |
+| `v8-watchdog.sh` | 旧超时检测 | 已退役 | 2026-07-18 从 crontab 移除；禁止自动改状态/发消息 |
 | `v8-validate.sh` | 收工检查 | 手动 | 需 agent 主动调用 |
 
 **合规执行**: AGENTS.md + SOUL.md 中注入了 V9 二元触发器规则。
@@ -75,6 +75,7 @@ agent 必须自觉调用脚本，平台不会自动拦截违规写入。
 - 无 blocking gate — agent 可以绕过所有脚本直接写文件
 - 事件流写入依赖 agent 调用 task-start/task-end
 - gate-enforce.py 未被自动调用
+- 旧 watchdog 会绕过任务卡直接写状态并触发外部通知，已停用；不得作为 V9 自动能力宣称
 
 ---
 

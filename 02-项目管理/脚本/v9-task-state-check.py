@@ -164,7 +164,7 @@ def check_card(path: Path, strict_missing_review: bool) -> list[dict]:
                 "p1" if hard_enforce and review_status in {"submitted", "reviewing", "changes_requested", "rejected", "accepted"} else "advisory",
                 "REVIEWER_MISSING",
                 rel,
-                f"{rel}: review_status={review_status} 但 reviewer 为空；默认应为人工Reviewer。",
+                f"{rel}: review_status={review_status} 但 reviewer 为空；默认应为用户。",
             )
         )
 

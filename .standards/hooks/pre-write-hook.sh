@@ -19,7 +19,7 @@
 set -uo pipefail
 # 注意：不用 set -e，因为需要手动处理各步退出码
 
-VAULT_ROOT="${VAULT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+VAULT_ROOT="${VAULT_ROOT:-$HOME/Desktop/obsidianVault}"
 STATUS_DIR="$VAULT_ROOT/02-项目管理/智能体状态"
 EVENT_FILE="$STATUS_DIR/智能体事件.jsonl"
 
@@ -32,7 +32,7 @@ V8_PLATFORM="${V8_PLATFORM:-claude-code}"
 # 根据 agent_id 解析状态文件名
 _resolve_status_name() {
   case "$1" in
-    claudian)                        echo "Claudian" ;;
+    claudian|assistant)               echo "Claudian" ;;
     xiaochong|amoxicillin|amox)      echo "阿莫西林" ;;
     toubao|cephalosporin|ceph)       echo "头孢" ;;
     hongmeisu|erythromycin|eryth)    echo "红霉素" ;;
@@ -42,11 +42,39 @@ _resolve_status_name() {
   esac
 }
 
+_normalize_agent_id() {
+  case "$1" in
+    claudian|assistant)               echo "claudian" ;;
+    xiaochong|amoxicillin|amox)      echo "xiaochong" ;;
+    toubao|cephalosporin|ceph)       echo "toubao" ;;
+    hongmeisu|erythromycin|eryth)    echo "hongmeisu" ;;
+    workbuddy)                       echo "workbuddy" ;;
+    qingmeisu|penicillin|peni)       echo "qingmeisu" ;;
+    *) echo "$1" ;;
+  esac
+}
+
 # ============================================================
 # 从 stdin 读取 tool input JSON，提取 file_path
 # ============================================================
 INPUT=$(cat)
 FILE_PATH=""
+
+# 兼容已启动、仍持有旧 hook 命令的 Codex 会话；新会话由适配器显式注入身份。
+if [[ "$V8_AGENT_ID" == "claudian" ]] && _V8_HOOK_INPUT="$INPUT" python3 - <<'PY' 2>/dev/null
+import json
+import os
+try:
+    data = json.loads(os.environ.get("_V8_HOOK_INPUT", "{}"))
+    is_codex = data.get("tool_name") == "apply_patch" and bool(data.get("session_id") or data.get("turn_id"))
+except (TypeError, json.JSONDecodeError):
+    is_codex = False
+raise SystemExit(0 if is_codex else 1)
+PY
+then
+  V8_AGENT_ID="hongmeisu"
+  V8_PLATFORM="codex"
+fi
 
 # 尝试用 python3 提取 file_path（最可靠）
 # Claude 兼容格式带 file_path；Codex apply_patch 把补丁文本放在 tool_input.command。
@@ -69,7 +97,7 @@ except:
 fi
 
 if [[ "$FILE_PATH" == __V9_APPLY_PATCH_* ]]; then
-  echo "[V9-HOOK-BLOCK] 当前入口无法安全展开此 apply_patch；请使用 Codex 多文件适配器。" >&2
+  echo "[V9-HOOK-BLOCK] 当前会话的旧 hook 入口无法安全展开此 apply_patch；请在新 Codex 任务中使用多文件适配器。" >&2
   exit 2
 fi
 
@@ -144,7 +172,7 @@ try:
     patch = ti.get("codex_patch") or ti.get("command") or ""
     if re.search(r"^\+review_status:\s*accepted\b", patch, re.MULTILINE):
         sys.stdout.write("DIRECT_ACCEPTED_WRITE")
-        sys.exit(2)
+        sys.exit(2)  # Codex apply_patch 只能提交评审，验收必须走 v9_accept
     content = ti.get("content")
     if content is None:  # Edit：用 old->new 在当前文件上重建候选全文
         old = ti.get("old_string", "") or ""
@@ -176,7 +204,7 @@ except SystemExit:
     raise
 except Exception:
     sys.stdout.write("ACCEPT_CHECK_FAILED")
-    sys.exit(2)
+    sys.exit(2)  # accepted 是不可逆语义转移，校验异常必须 fail-closed
 PYEOF
 )
   if [[ "$?" == "2" ]]; then
@@ -194,6 +222,9 @@ FORBIDDEN_PATHS=("00-MOC/" "30-规范/" "40-决策/" "02-项目管理/智能体�
 # 交付物路径：未激活 handshake 时阻断（防止跳过档位判定直接产出）
 DELIVERABLE_PATHS=("02-项目管理/交付物/")
 
+# 核心内容目录：idle 时仅允许持有单文件、短时效 M3 授权的写入。
+CORE_DIRS=("10-项目/" "20-资料/" "50-经验/" "02-项目管理/交付物/")
+
 # 读取当前 Agent 的 write_scope 和状态
 # 根据 V8_AGENT_ID 动态解析状态文件
 AGENT_STATUS_NAME=$(_resolve_status_name "$V8_AGENT_ID")
@@ -205,15 +236,70 @@ fi
 WRITE_SCOPE=""
 CURRENT_TASK=""
 AGENT_STATE=""
+TASK_ID=""
+SCOPE_SOURCE=""
 
 if [[ -n "$AGENT_STATUS" && -f "$AGENT_STATUS" ]]; then
-  AGENT_STATE=$(grep '^status:' "$AGENT_STATUS" | awk '{print $2}' | tr -d '"')
-  CURRENT_TASK=$(grep '^current_task:' "$AGENT_STATUS" | sed 's/^current_task: *//' | tr -d '"')
-  WRITE_SCOPE=$(grep '^write_scope:' "$AGENT_STATUS" 2>/dev/null | sed 's/^write_scope: *//' | tr -d '"')
-  if [[ "$WRITE_SCOPE" == "null" ]]; then
-    WRITE_SCOPE=""
-  fi
+  STATUS_VALUES=$(_V8_STATUS_FILE="$AGENT_STATUS" python3 - <<'PY'
+import os
+
+path = os.environ["_V8_STATUS_FILE"]
+values = {}
+try:
+    lines = open(path, encoding="utf-8").readlines()
+    if lines and lines[0].strip() == "---":
+        closing = next(i for i in range(1, len(lines)) if lines[i].strip() == "---")
+        for line in lines[1:closing]:
+            if ":" not in line:
+                continue
+            key, value = line.rstrip("\n").split(":", 1)
+            values[key.strip()] = value.strip().strip('"').strip("'")
+except (OSError, StopIteration):
+    pass
+
+for key in ("status", "current_task", "write_scope", "current_task_id", "scope_source"):
+    value = values.get(key, "")
+    print("" if value == "null" else value)
+PY
+)
+  AGENT_STATE=$(printf '%s\n' "$STATUS_VALUES" | sed -n '1p')
+  CURRENT_TASK=$(printf '%s\n' "$STATUS_VALUES" | sed -n '2p')
+  WRITE_SCOPE=$(printf '%s\n' "$STATUS_VALUES" | sed -n '3p')
+  TASK_ID=$(printf '%s\n' "$STATUS_VALUES" | sed -n '4p')
+  SCOPE_SOURCE=$(printf '%s\n' "$STATUS_VALUES" | sed -n '5p')
 fi
+
+IS_CORE_PATH=false
+for cdir in "${CORE_DIRS[@]}"; do
+  if [[ "$REL_PATH" == "$cdir"* ]]; then
+    IS_CORE_PATH=true
+    break
+  fi
+done
+
+_m3_scope_is_valid() {
+  local normalized_agent
+  normalized_agent=$(_normalize_agent_id "$V8_AGENT_ID")
+  local marker="/tmp/.v8-m3-context-${normalized_agent}.json"
+  _V8_M3_MARKER="$marker" _V8_M3_AGENT="$normalized_agent" _V8_M3_FILE="$REL_PATH" \
+    python3 - <<'PY'
+import json
+import os
+import time
+
+try:
+    data = json.load(open(os.environ["_V8_M3_MARKER"], encoding="utf-8"))
+    valid = (
+        data.get("agent") == os.environ["_V8_M3_AGENT"]
+        and data.get("scope", "").lstrip("./") == os.environ["_V8_M3_FILE"].lstrip("./")
+        and data.get("max_writes") == 1
+        and 0 <= int(time.time()) - int(data.get("created_at_epoch", 0)) <= 1200
+    )
+except (OSError, ValueError, TypeError, json.JSONDecodeError):
+    valid = False
+raise SystemExit(0 if valid else 1)
+PY
+}
 
 # -------- 禁止路径无条件拦截 --------
 # 即使 busy 状态，禁止路径也必须在 write_scope 中才能放行。
@@ -263,8 +349,13 @@ if [[ "$IS_FORBIDDEN" == "true" ]]; then
   # busy + 禁止路径 + 在 scope 中 → 继续到 Layer 1B 进一步验证
 fi
 
-# 如果读不到状态文件，非禁止路径放行
+# 如果读不到状态文件，核心目录保持 fail-closed；其他非禁止路径放行。
 if [[ -z "$AGENT_STATE" ]]; then
+  if [[ "$IS_CORE_PATH" == "true" ]]; then
+    echo "[V8-HOOK-BLOCK] 核心目录写入无法解析 Agent 状态。" >&2
+    echo "  路径: $REL_PATH" >&2
+    exit 2
+  fi
   exit 0
 fi
 
@@ -280,22 +371,30 @@ if [[ "$AGENT_STATE" != "busy" ]]; then
       exit 2
     fi
   done
+  if [[ "$IS_CORE_PATH" == "true" ]]; then
+    if _m3_scope_is_valid; then
+      exit 0
+    fi
+    echo "[V8-HOOK-BLOCK] 核心目录写入需要活动的 M4/M5 任务，或 20 分钟内的单文件 M3 授权。" >&2
+    echo "  路径: $REL_PATH" >&2
+    echo "  当前状态: ${AGENT_STATE:-idle}" >&2
+    exit 2
+  fi
   # 非 busy 状态 + 非禁止路径 + 非交付物路径 = 放行
   exit 0
+fi
+
+# busy 状态必须具备完整、活动的任务上下文；陈旧 scope 不构成授权。
+if [[ -z "$TASK_ID" || -z "$WRITE_SCOPE" || "$SCOPE_SOURCE" != "task_card" ]]; then
+  echo "[V8-HOOK-BLOCK] busy 状态的任务上下文不完整。" >&2
+  echo "  task_id: ${TASK_ID:-<empty>} | scope_source: ${SCOPE_SOURCE:-<empty>} | write_scope: ${WRITE_SCOPE:-<empty>}" >&2
+  exit 2
 fi
 
 # ============================================================
 # Layer 1B: busy 状态 — 任务卡授权验证 + gate-enforce pre-write
 # ============================================================
 GATE_SCRIPT="$VAULT_ROOT/.standards/gate-enforce.py"
-
-# 读取任务 ID 和 scope_source（WRITE_SCOPE 已在上方读取）
-TASK_ID=$(grep '^current_task_id:' "$AGENT_STATUS" 2>/dev/null | awk '{print $2}' | tr -d '"')
-SCOPE_SOURCE=$(grep '^scope_source:' "$AGENT_STATUS" 2>/dev/null | awk '{print $2}' | tr -d '"')
-
-if [[ "$SCOPE_SOURCE" == "null" ]]; then
-  SCOPE_SOURCE=""
-fi
 
 # gate-enforce 降级处理：
 # 如果 gate 不存在，禁止路径已在上方无条件拦截过，此处只影响非禁止路径。
@@ -305,16 +404,6 @@ if [[ ! -f "$GATE_SCRIPT" ]]; then
 fi
 
 # -------- Layer 1B-1: 任务卡授权验证 --------
-# 核心目录写入要求有 task_card 授权源（不接受 Agent 自声明）
-CORE_DIRS=("10-项目/" "20-知识/" "50-经验/" "02-项目管理/交付物/")
-IS_CORE_PATH=false
-for cdir in "${CORE_DIRS[@]}"; do
-  if [[ "$REL_PATH" == "$cdir"* ]]; then
-    IS_CORE_PATH=true
-    break
-  fi
-done
-
 if [[ "$IS_CORE_PATH" == "true" ]]; then
   # 核心目录：必须有任务卡 + scope_source=task_card
   TASK_CARD="$VAULT_ROOT/_temp/$TASK_ID/task-card.yaml"
@@ -388,6 +477,7 @@ GATE_OUTPUT=""
 GATE_EXIT=0
 GATE_OUTPUT=$(python3 "$GATE_SCRIPT" pre-write \
   --file "$REL_PATH" \
+  --agent "$(_normalize_agent_id "$V8_AGENT_ID")" \
   ${TASK_ID:+--task-id "$TASK_ID"} \
   ${WRITE_SCOPE:+--write-scope "$WRITE_SCOPE"} \
   --json 2>&1)

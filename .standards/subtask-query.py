@@ -30,7 +30,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", os.getcwd()))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
 TEMP_DIR = VAULT_ROOT / "_temp"
 
 # 活跃状态：仍需父 Agent 关注的所有状态（含待回收）

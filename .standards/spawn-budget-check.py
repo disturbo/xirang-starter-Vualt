@@ -27,7 +27,9 @@ import re
 import argparse
 from pathlib import Path
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", os.getcwd()))
+from jsonl_reader import read_jsonl
+
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
 EVENTS_PATH = VAULT_ROOT / "02-项目管理" / "智能体状态" / "智能体事件.jsonl"
 COST_EVENTS_PATH = VAULT_ROOT / "02-项目管理" / "agent-cost-events.jsonl"
 TASKS_DIR = VAULT_ROOT / "02-项目管理" / "任务卡"
@@ -98,25 +100,18 @@ def aggregate_cost(task_id: str) -> dict:
         if not events_path.is_file():
             continue
         try:
-            with open(events_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        ev = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    if ev.get("task_id") == task_id or ev.get("task") == task_id:
-                        cost = ev.get("cost_cny", 0) or 0
-                        tokens = ev.get("tokens", 0) or 0
-                        total_cost += float(cost)
-                        total_tokens += int(tokens)
-                        event_type = ev.get("type") or ev.get("event")
-                        if event_type in ("cost_event", "task_cost", "cost") or (
-                            event_type in ("task_end", "spawn_end") and (float(cost) > 0 or int(tokens) > 0)
-                        ):
-                            event_count += 1
+            rows, _ = read_jsonl(events_path, warn=True)
+            for ev in rows:
+                if ev.get("task_id") == task_id or ev.get("task") == task_id:
+                    cost = ev.get("cost_cny", 0) or 0
+                    tokens = ev.get("tokens", 0) or 0
+                    total_cost += float(cost)
+                    total_tokens += int(tokens)
+                    event_type = ev.get("type") or ev.get("event")
+                    if event_type in ("cost_event", "task_cost", "cost") or (
+                        event_type in ("task_end", "spawn_end") and (float(cost) > 0 or int(tokens) > 0)
+                    ):
+                        event_count += 1
         except IOError:
             continue
 

@@ -1,12 +1,12 @@
 ---
 title: "Skill Inventory"
-version: "1.1"
+version: "1.11"
 status: active
 maturity: 正式
 type: MOC
 tags: [MOC, 协作, 技能, Agent]
 created: 2026-05-16
-updated: 2026-05-23
+updated: 2026-07-18
 last-edited-by: Claudian
 ---
 
@@ -19,26 +19,41 @@ last-edited-by: Claudian
 
 ## 速查表
 
-| 我要做什么 | 用哪个 Skill | 平台 | 入口 |
-|---|---|---|---|
-| 开始一个任务 | start-task | Vault | `.skills/start-task/SKILL.md` |
-| 采集飞书文档 | feishu-collection | Vault + OpenClaw + Hermes | `.claude/commands/feishu.md` |
-| 采集原始资料（docx/截图/纪要） | ingest-source | Vault | `.skills/ingest-source/SKILL.md` |
-| 写 PRD / 设计方案 / 规范 | publish-wiki | Vault | `.skills/publish-wiki/SKILL.md` |
-| 发现资料冲突 | review-contradictions | Vault | `.skills/review-contradictions/SKILL.md` |
-| 联网搜集（行业/论文/博客/文档） | web-research | Vault | `.skills/web-research/SKILL.md` |
-| 生成图表（架构图/流程图/信息图） | generate-diagram | Vault | `.skills/generate-diagram/SKILL.md` |
-| 任务交接 / 结束 | handoff-task | Vault | `.skills/handoff-task/SKILL.md` |
-| PRD 品牌合规审查 | prd-brand-audit | Hermes | `~/.hermes/skills/project_slug-skills/prd-brand-audit/` |
-| PRD 骨架生成 + 校验 | project_slug-prd-spec | Hermes | `~/.hermes/skills/project_slug-skills/project_slug-prd-spec/` |
-| AI 方法论采集 | agent-methodology-collection | Hermes | `~/.hermes/skills/project_slug-skills/agent-methodology-collection/` |
-| 企业系统字段采集 | enterprise-system-field-collection | Hermes | `~/.hermes/skills/project_slug-skills/enterprise-system-field-collection/` |
-| 知识沉淀合成 | obsidian-knowledge-synthesis | Hermes | `~/.hermes/skills/note-taking/obsidian-knowledge-synthesis/` |
-| Wikilink 批量替换 | obsidian-batch-wikilink-update | Hermes | `~/.hermes/skills/note-taking/obsidian-batch-wikilink-update/` |
-| AI 幻觉审计 | ai-execution-hallucination-audit | Hermes | `~/.hermes/skills/productivity/ai-execution-hallucination-audit/` |
-| 自动化编码流水线 | flowforge | OpenClaw | `~/.openclaw/skills/flowforge/` |
-| GBrain 健康检查 | gbrain | OpenClaw | `~/.openclaw/skills/gbrain/run.sh` |
-| Obsidian 笔记操作 | obsidian | Hermes | `~/.hermes/skills/note-taking/obsidian/` |
+| 我要做什么                                     | 用哪个 Skill                          | 平台                                                                                          | 入口                                                                |
+| ----------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| 开始一个任务                                    | start-task                         | Vault                                                                                       | `.skills/start-task/SKILL.md`                                     |
+| 飞书/Lark 文档采集、编辑、归档、排障                     | feishu-collection                  | Codex + Vault + OpenClaw + Hermes + WorkBuddy                                               | `~/.skills-manager/skills/feishu-collection/SKILL.md`             |
+| 本地/URL 文件转 Markdown                       | markitdown                         | Codex + Vault + OpenClaw + Hermes + WorkBuddy                                               | `~/.skills-manager/skills/markitdown/SKILL.md`                    |
+| 图片/截图/扫描件文字识别                             | paddleocr-text-recognition         | Codex + Vault + Hermes + Hermes Desktop + Reasonix + OpenClaw + WorkBuddy + Claude + Agents | `~/.skills-manager/skills/paddleocr-text-recognition/SKILL.md`    |
+| 扫描 PDF/图片文档结构化解析                          | paddleocr-doc-parsing              | Codex + Vault + Hermes + Hermes Desktop + Reasonix + OpenClaw + WorkBuddy + Claude + Agents | `~/.skills-manager/skills/paddleocr-doc-parsing/SKILL.md`         |
+| 外部平台搜索/阅读/采集                              | agent-reach                        | Codex + Vault + OpenClaw + Hermes + WorkBuddy + Claude + Agents                             | `~/.skills-manager/skills/agent-reach/SKILL.md`                   |
+| 最近 30 天趋势/社区舆情研究                          | last30days                         | Codex + Vault + OpenClaw + Hermes + WorkBuddy + Claude + Agents                             | `~/.skills-manager/skills/last30days/SKILL.md`                    |
+| 采集原始资料（docx/截图/纪要）                        | ingest-source                      | Vault                                                                                       | `.skills/ingest-source/SKILL.md`                                  |
+| 写 PRD / 设计方案 / 规范                         | publish-wiki                       | Vault                                                                                       | `.skills/publish-wiki/SKILL.md`                                   |
+| 发现资料冲突                                    | review-contradictions              | Vault                                                                                       | `.skills/review-contradictions/SKILL.md`                          |
+| 联网搜集（行业/论文/博客/文档）                         | web-research                       | Vault                                                                                       | `.skills/web-research/SKILL.md`                                   |
+| 生成图表（架构图/流程图/信息图）                         | generate-diagram                   | Vault                                                                                       | `.skills/generate-diagram/SKILL.md`                               |
+| 飞书画板流程图（SVG→whiteboard-cli→画板）            | lark-whiteboard                    | Codex + Agents                                                                              | `~/.agents/skills/lark-whiteboard/SKILL.md`                       |
+| 前端 UI 审美/颜色/字体/图标一致性审查                    | taste-skill                        | Codex + Vault + Hermes + OpenClaw + WorkBuddy                                               | `~/.skills-manager/skills/taste-skill/SKILL.md`                   |
+| 任务交接 / 结束                                 | handoff-task                       | Vault                                                                                       | `.skills/handoff-task/SKILL.md`                                   |
+| PRD 品牌合规审查                                | prd-brand-audit                    | Hermes                                                                                      | `~/.hermes/skills/yijing-dms/prd-brand-audit/`                    |
+| PRD 骨架生成 + 校验                             | yijing-prd-spec                    | Codex + Vault + OpenClaw + Hermes + WorkBuddy                                               | `~/.skills-manager/skills/yijing-prd-spec/SKILL.md`               |
+| AI 方法论采集                                  | agent-methodology-collection       | Hermes                                                                                      | `~/.hermes/skills/yijing-dms/agent-methodology-collection/`       |
+| 企业系统字段采集                                  | enterprise-system-field-collection | Hermes                                                                                      | `~/.hermes/skills/yijing-dms/enterprise-system-field-collection/` |
+| 知识沉淀合成                                    | obsidian-knowledge-synthesis       | Hermes                                                                                      | `~/.hermes/skills/note-taking/obsidian-knowledge-synthesis/`      |
+| Wikilink 批量替换                             | obsidian-batch-wikilink-update     | Hermes                                                                                      | `~/.hermes/skills/note-taking/obsidian-batch-wikilink-update/`    |
+| AI 幻觉审计                                   | ai-execution-hallucination-audit   | Hermes                                                                                      | `~/.hermes/skills/productivity/ai-execution-hallucination-audit/` |
+| 自动化编码流水线                                  | flowforge                          | Codex + OpenClaw + WorkBuddy                                                                | `~/.skills-manager/skills/flowforge/SKILL.md`                     |
+| Cloudflare Pages / Workers 部署             | Wrangler CLI（共享工具）                 | 本机共享 CLI                                                                                    | `$HOME/.npm-global/bin/wrangler`                        |
+| GUI/源码仓库 CLI-Anything harness 构建、精炼、测试、校验 | cli-anything                       | Codex                                                                                       | `~/.codex/skills/cli-anything/SKILL.md`                           |
+| GBrain 健康检查                               | gbrain                             | OpenClaw                                                                                    | `~/.openclaw/skills/gbrain/run.sh`                                |
+| Obsidian 笔记操作                             | obsidian                           | Hermes                                                                                      | `~/.hermes/skills/note-taking/obsidian/`                          |
+| 把模糊动效描述反查成准确术语                    | animation-vocabulary               | Codex + OpenClaw + WorkBuddy + Hermes + Hermes Desktop + Reasonix + Claude + Agents + Vault                             | `~/.skills-manager/skills/animation-vocabulary/SKILL.md`         |
+| Apple 流体交互/手势/弹簧动效原则译到 Web        | apple-design                       | Codex + OpenClaw + WorkBuddy + Hermes + Hermes Desktop + Reasonix + Claude + Agents + Vault                             | `~/.skills-manager/skills/apple-design/SKILL.md`                 |
+| UI 打磨/组件设计/动效决策哲学                   | emil-design-eng                    | Codex + OpenClaw + WorkBuddy + Hermes + Hermes Desktop + Reasonix + Claude + Agents + Vault                             | `~/.skills-manager/skills/emil-design-eng/SKILL.md`             |
+| 扫描 UI 找"该动却没动"的动效机会                | find-animation-opportunities       | Codex + OpenClaw + WorkBuddy + Hermes + Hermes Desktop + Reasonix + Claude + Agents + Vault                             | `~/.skills-manager/skills/find-animation-opportunities/SKILL.md` |
+| 通读代码库动效产出审计+实施计划                 | improve-animations                 | Codex + OpenClaw + WorkBuddy + Hermes + Hermes Desktop + Reasonix + Claude + Agents + Vault                             | `~/.skills-manager/skills/improve-animations/SKILL.md`          |
+| 按高标准评审动效代码                            | review-animations                  | Codex + OpenClaw + WorkBuddy + Hermes + Hermes Desktop + Reasonix + Claude + Agents + Vault                             | `~/.skills-manager/skills/review-animations/SKILL.md`           |
 
 ---
 
@@ -67,7 +82,7 @@ last-edited-by: Claudian
   3. 每条摘要保留来源指针（文件名/tab/章节/截图编号/飞书段落）
   4. 遇冲突走 review-contradictions，不私自裁定
   5. 完成后写看板 Handoff
-- **产物路径**：`10-项目/{项目名}/{模块}/资料摘要.md` 或 `20-资料/业务文件/{名称}-摘要.md`
+- **产物路径**：当前工作稿进入 `10-项目/迭代/{迭代号}迭代/{迭代号}-{模块}-资料摘要工作稿.md`；封版后归集到 `10-项目/基线/{模块}/资料摘要.md`；跨模块资料摘要可放 `20-资料/业务文件/{名称}-摘要.md`
 - **质量线**：摘要 ≠ 原文拼接；PRD 可直接引用摘要层；关键判断可追溯到 source
 
 ### 3. publish-wiki · 发布到知识图谱
@@ -136,6 +151,20 @@ last-edited-by: Claudian
 - **质量线**：按决策树选型；Mermaid 必须 handDrawn；SVG 必须 viewBox 响应式 + 规范字体栈；嵌入前加说明行
 - **已有实例**：vault 中 4 个 SVG 架构图（V5/V6/V7/V8）、12+ drawio 流程图、多处 Mermaid 内联
 
+### 7b. lark-whiteboard · 飞书画板流程图
+
+- **用途**：生成 SVG 泳道流程图并通过 whiteboard-cli 发布到飞书画板
+- **触发**：需要在飞书画板上展示业务流程（尤其是跨角色泳道图）
+- **工具链**：`npx @larksuite/whiteboard-cli@^0.2.12` + `lark-cli whiteboard +update`
+- **三条路径**：
+  1. Flex DSL（简单泳道，无回路） → `scenes/swimlane.md`
+  2. SVG 绝对坐标网格（复杂泳道，含判断/回路） → `scenes/swimlane-grid.md`
+  3. Dagre 拓扑（非泳道流程图） → `scenes/flowchart.md`
+- **极简模式**：Prompt 模板 → `references/minimal-prompt.md`；色值 → 附录 K
+- **入口**：`~/.agents/skills/lark-whiteboard/SKILL.md`
+- **平台**：Codex + Agents
+- **质量线**：SVG 必须通过 `--check` 碰撞检测；正交折线无穿越；色值严格从附录 K 取
+
 ---
 
 ## 二、Claude 命令（`.claude/commands/`）
@@ -144,8 +173,10 @@ last-edited-by: Claudian
 
 - **用途**：一条命令完成飞书文档→Vault 的全流程采集
 - **语法**：`/feishu <飞书URL> [保存路径]`
-- **路径 A（API 全自动）**：`python3 .scripts/feishu_to_md.py "<URL>" "<路径>"` — 本地配置 `FEISHU_APP_ID` / `FEISHU_APP_SECRET`
-- **路径 B（浏览器提取）**：AppleScript + Chrome JS 注入 — 跨租户或 API 失败降级
+- **当前定位**：Claude 斜杠命令入口；通用能力以共享 `feishu-collection` 为准
+- **路径 A（CLI 优先）**：`lark-cli docs +fetch --doc "<URL-or-token>" --api-version v2`
+- **路径 B（项目脚本归档）**：`python3 .scripts/feishu_to_md.py "<URL>" "<路径>"` — 图片下载 / Obsidian Markdown 归档兜底
+- **路径 C（浏览器提取）**：AppleScript + Chrome JS 注入 — CLI/脚本失败后的短文档降级
 - **产出**：Markdown + 图片文件夹 + frontmatter
 - **质量检查**：大纲可见 / 表格渲染 / 图片显示 / frontmatter 齐全 / 无乱码
 - **关联规范**：[[飞书文档采集规范]]、[[教训库]] E-20260516-01
@@ -154,9 +185,9 @@ last-edited-by: Claudian
 
 ## 三、Hermes Skills（`~/.hermes/skills/`）
 
-> 🌊 头孢主平台。33 类 100+ 子技能，以下仅列{项目名} 相关 + vault 协作相关。
+> 🌊 头孢主平台。33 类 100+ 子技能，以下仅列示例项目 EXAMPLE 相关 + vault 协作相关。
 
-### {项目名} 专用（`project_slug-skills/`）
+### 示例项目 EXAMPLE 专用（`yijing-dms/`）
 
 #### 9. agent-methodology-collection · AI 方法论采集
 
@@ -172,11 +203,11 @@ last-edited-by: Claudian
 - **流程**：3 步验证（浏览器/curl/API）→ 不通则改截图/导出/API 文档/路径转发
 - **SSP 特有策略**：菜单搜索、browser console 提取下拉选项
 
-#### 11. feishu-collection（Hermes 版）· 飞书采集
+#### 11. feishu-collection · 飞书/Lark CLI 路由
 
-- **用途**：与 Vault 版/.claude 版同功能，三平台共享同一规范和脚本
-- **入口**：`~/.hermes/skills/project_slug-skills/feishu-collection/SKILL.md`
-- **备注**：三平台（Vault / OpenClaw / Hermes）的 feishu-collection 共享 `.scripts/feishu_to_md.py` 和 `30-规范/飞书文档采集规范.md`
+- **用途**：飞书/Lark 文档、知识库、表格、会议纪要、Markdown、白板的采集、编辑、归档和排障
+- **入口**：`~/.hermes/skills/yijing-dms/feishu-collection/SKILL.md`
+- **备注**：软链到 `~/.skills-manager/skills/feishu-collection/`；默认优先 `lark-cli`，项目脚本和浏览器为降级路径
 
 #### 12. prd-brand-audit · PRD 品牌合规审查
 
@@ -185,12 +216,14 @@ last-edited-by: Claudian
 - **6 条检查项**：品牌用词 / 品牌色值 / 编码规则 / 按钮数量 / 字段表格式 / 章节骨架
 - **产出**：自动修复高置信度违规 + JSON 格式 P0/P1 问题报告
 
-#### 13. project_slug-prd-spec · PRD 骨架生成与校验
+#### 13. yijing-prd-spec · PRD 骨架生成与校验
 
 - **用途**：标准化 PRD 产出——6 章固定骨架（背景/流程/用户故事/权限/功能/变更日志）
-- **触发**：编写或审查{项目名} 任意模块 PRD
+- **触发**：编写或审查示例项目 EXAMPLE 任意模块 PRD
 - **工具**：`prd-init.py` 生成骨架 → 填写章节 → `prd-check.py` 校验
-- **产物路径**：`~/docs/` 和 `10-项目/{项目名}/{模块}/`
+- **入口**：`~/.skills-manager/skills/yijing-prd-spec/SKILL.md`（Hermes 路径为软链）
+- **版本**：v3.3.5 跨平台共享完整版
+- **产物路径**：当前迭代先写 Vault `10-项目/迭代/260725迭代/`，封版后归集到 `10-项目/基线/{模块}/`；`.md` 为唯一维护格式
 
 ### 笔记工具（`note-taking/`）
 
@@ -211,7 +244,7 @@ last-edited-by: Claudian
 - **用途**：将多份零散原始资料（蓝图/截图/笔记）合成为统一的知识沉淀文档
 - **触发**：某模块有多份碎片资料，需要整合为结构化参考文档
 - **流程**：全 vault 搜索 → 读取所有来源 → 解决冲突（蓝图 vs 实际系统、枚举不一致）→ 产出知识沉淀
-- **产物**：`10-项目/{项目名}/{模块}/{模块名}-知识沉淀.md`，14 节标准模板
+- **产物**：当前迭代先写 `10-项目/迭代/{迭代号}迭代/{迭代号}-{模块}-知识沉淀工作稿.md`，封版后归集到 `10-项目/基线/{模块}/{模块名}-知识沉淀.md`；14 节标准模板
 
 ### 生产力工具（`productivity/`）
 
@@ -244,9 +277,9 @@ last-edited-by: Claudian
 
 > 🐛 阿莫西林主平台。3 个核心 skill。
 
-### 18. feishu-collection（OpenClaw 版）
+### 18. feishu-collection（OpenClaw 入口）
 
-- **同 Vault 版 / Hermes 版**，三平台共享规范和脚本
+- **同 Codex / Vault / Hermes 版**，软链到共享主目录
 - **入口**：`~/.openclaw/skills/feishu-collection/SKILL.md`
 
 ### 19. flowforge · 自动化编码流水线
@@ -276,38 +309,208 @@ last-edited-by: Claudian
 
 ---
 
-## 五、平台对照
+## 五、本机共享 Skills（`~/.skills-manager/skills/`）
 
-| 平台 | 主要 Agent | Skill 数量 | 存放位置 | 特点 |
-|------|-----------|-----------|---------|------|
-| **Vault** `.skills/` | 所有 agent 共用 | 7 个工作流 | vault 内 | 协作工作流骨架，与看板联动 |
-| **Claude** `.claude/` | ⚡Claudian | 1 个命令 | vault 内 | `/feishu` 斜杠命令 |
-| **Hermes** `~/.hermes/skills/` | 🌊 头孢 | 33 类 100+ | 用户目录 | 最丰富，含通用 + 项目专用 |
-| **OpenClaw** `~/.openclaw/skills/` | 🐛 阿莫西林 | 3 个核心 | 用户目录 | 飞书采集 + 代码流水线 + GBrain |
+> 作为跨智能体共享 skill 的主目录。各平台目录通过软链指向这里，避免多份 skill 漂移。
 
-### Skill 去重说明
+### 21. feishu-collection · 飞书/Lark CLI 路由
 
-| Skill 名 | 部署位置 | 共享资源 |
-|----------|---------|---------|
-| feishu-collection | Vault + Hermes + OpenClaw（3 处） | 共享 `.scripts/feishu_to_md.py` + `30-规范/飞书文档采集规范.md` |
-| gbrain | Hermes(`hermes/gbrain/`) + OpenClaw(`gbrain/`) | 共享 `~/.gbrain/brain.pglite/` 数据库 |
+- **用途**：飞书/Lark 文档、知识库、表格、会议纪要、Markdown、白板的采集、编辑、归档和排障
+- **主入口**：`~/.skills-manager/skills/feishu-collection/SKILL.md`
+- **共享入口**：Codex `~/.codex/skills/feishu-collection`；Vault `.skills/feishu-collection`；Hermes `~/.hermes/skills/yijing-dms/feishu-collection`；OpenClaw `~/.openclaw/skills/feishu-collection`；WorkBuddy `~/.workbuddy/skills/feishu-collection`
+- **工具**：`lark-cli` 优先；`.scripts/feishu_to_md.py` 仅作项目归档/图片下载兜底
+- **备份**：旧 Hermes/OpenClaw 实体目录在 `~/.hermes/skills/.backups/feishu-collection-20260608-before-share/`
+
+### 22. markitdown · Microsoft MarkItDown 文件转 Markdown
+
+- **用途**：将 PDF、DOCX、PPTX、XLS/XLSX、HTML、CSV/JSON/XML、ZIP、EPUB、图片、音频、YouTube transcript 等转换/抽取为 LLM 友好的 Markdown
+- **主入口**：`~/.skills-manager/skills/markitdown/SKILL.md`
+- **共享入口**：Codex `~/.codex/skills/markitdown`；Vault `.skills/markitdown`；Hermes `~/.hermes/skills/software-development/markitdown`；OpenClaw `~/.openclaw/skills/markitdown`；WorkBuddy `~/.workbuddy/skills/markitdown`
+- **工具**：`markitdown 0.1.6`，通过 `uv tool install --upgrade --prerelease=allow 'markitdown[all]==0.1.6'` 安装
+- **备注**：Feishu/Lark 仍优先走 `feishu-collection`；音频/视频类转换可能需要补装 `ffmpeg`
+
+### 23. agent-reach · 外部平台搜索/阅读路由
+
+- **用途**：给 agent 提供网页、GitHub、YouTube/B站、RSS、V2EX、微信公众号、Exa 搜索和可选社媒平台的读取/搜索路由
+- **主入口**：`~/.skills-manager/skills/agent-reach/SKILL.md`
+- **共享入口**：Codex `~/.codex/skills/agent-reach`；Vault `.skills/agent-reach`；Hermes `~/.hermes/skills/research/agent-reach`；OpenClaw `~/.openclaw/skills/agent-reach`；WorkBuddy `~/.workbuddy/skills/agent-reach`；Claude `~/.claude/skills/agent-reach`；Agents `~/.agents/skills/agent-reach`
+- **工具**：`agent-reach 1.4.0`（本地 editable 安装自 `~/.agent-reach/tools/agent-reach`）；`yt-dlp 2026.03.17`；`mcporter` home scope 配置 Exa
+- **当前状态**：`agent-reach doctor` 显示 8/16 渠道可用；Cookie 类平台（Twitter/X、小红书、雪球等）未配置
+- **备注**：GitHub main 直接 wheel 构建存在重复 include 问题，CLI 采用本地 clone + editable 安装；自动生成的 Claude/Agents 实体目录已备份并替换为共享软链
+
+### 24. last30days · 最近 30 天趋势研究
+
+- **用途**：围绕任意主题聚合 Reddit、X、YouTube、TikTok、HN、Polymarket、GitHub、Web 等最近 30 天信号，产出带社区热度和引用的研究简报
+- **主入口**：`~/.skills-manager/skills/last30days/SKILL.md`
+- **共享入口**：Codex `~/.codex/skills/last30days`；Vault `.skills/last30days`；Hermes `~/.hermes/skills/research/last30days`；OpenClaw `~/.openclaw/skills/last30days`；WorkBuddy `~/.workbuddy/skills/last30days`；Claude `~/.claude/skills/last30days`；Agents `~/.agents/skills/last30days`
+- **版本**：v3.3.2；脚本入口 `python3 ~/.skills-manager/skills/last30days/scripts/last30days.py`
+- **备注**：零配置可用源以 Reddit/HN/Polymarket/GitHub/Web 等为主；X/TikTok/Instagram/Perplexity 等需要额外 token 或 cookie
+
+### 25. paddleocr-text-recognition · 图片/截图/扫描件文字识别
+
+- **用途**：给不具备原生识图能力的 Reasonix / Hermes Desktop 等 agent 提供图片、截图、扫描件、无文字层 PDF 的文字抽取
+- **主入口**：`~/.skills-manager/skills/paddleocr-text-recognition/SKILL.md`
+- **共享入口**：Codex `~/.codex/skills/paddleocr-text-recognition`；Vault `.skills/paddleocr-text-recognition`；Hermes `~/.hermes/skills/productivity/paddleocr-text-recognition`；Hermes Desktop `~/Library/Application Support/hermes-desktop/skills/paddleocr-text-recognition`；Reasonix `.agents/skills` 与 `.claude/skills`；OpenClaw `~/.openclaw/skills/paddleocr-text-recognition`；WorkBuddy `~/.workbuddy/skills/paddleocr-text-recognition`；Claude `~/.claude/skills/paddleocr-text-recognition`；Agents `~/.agents/skills/paddleocr-text-recognition`
+- **工具**：`paddleocr 3.6.0` + `paddlepaddle 3.3.1`；本地 helper `uv tool run --from paddleocr python ~/.skills-manager/skills/paddleocr-text-recognition/scripts/local_ocr.py <image>`
+- **当前状态**：本地 mobile OCR 冒烟和长截图实测通过（`AgentOCR123`、`last30days-skitl`、`Agent-Reach`）；云 API 仍需 `PADDLEOCR_ACCESS_TOKEN`
+- **质量线**：输出必须标注 `[OCR:PaddleOCR-local]` / `[OCR:PaddleOCR-api]` / `[Vision:multimodal]` / `[Hybrid]` / `[Unverified]`；只用 OCR 时不能声称完整视觉理解
+
+### 26. paddleocr-doc-parsing · 扫描文档结构化解析
+
+- **用途**：处理扫描 PDF、复杂图片文档、表格、公式、印章、图表、多栏版面、阅读顺序等结构化解析
+- **主入口**：`~/.skills-manager/skills/paddleocr-doc-parsing/SKILL.md`
+- **共享入口**：同 `paddleocr-text-recognition`，各平台均为软链指向共享主目录
+- **工具**：`paddleocr api --model_type doc_parsing ...`；本地 `PPStructureV3` / `PaddleOCRVL` 可 import，但复杂解析默认走云 API
+- **当前状态**：需 `PADDLEOCR_ACCESS_TOKEN` 才能完整调用官方文档解析 API；无 token 时只能降级到本地文字 OCR 或 Hermes 既有 `ocr-and-documents` 路由
+- **质量线**：字段/表格/金额/编号/日期以 OCR/parser 为准；版面关系、视觉层级、图标意图必须另标 `[Vision:multimodal]` 或 `[Hybrid]`
+
+### 27. yijing-prd-spec · PRD 规范与校验
+
+- **用途**：示例项目 EXAMPLE PRD 编写、评审、升级、骨架生成和格式校验
+- **主入口**：`~/.skills-manager/skills/yijing-prd-spec/SKILL.md`
+- **共享入口**：Codex `~/.codex/skills/yijing-prd-spec`；Vault `.skills/yijing-prd-spec`；Hermes `~/.hermes/skills/yijing-dms/yijing-prd-spec` 与 `~/.hermes/skills/software-development/gstack-openclaw-skills/yijing-prd-spec`；OpenClaw `~/.openclaw/skills/yijing-prd-spec`；WorkBuddy `~/.workbuddy/skills/yijing-prd-spec`
+- **版本**：v3.3.5 跨平台共享完整版，含 `scripts/`、`references/`、`templates/`
+- **备份**：旧 v3.1.0 / gstack 适配版实体目录在 `~/.hermes/skills/.backups/yijing-prd-spec-20260608-before-share/`
+
+### 28. taste-skill · UI 审美与一致性守门
+
+- **用途**：前端/HTML 原型/应用 UI 编码、评审、视觉修复时，收敛颜色、字体、图标、圆角、间距和布局密度
+- **触发**：用户提到 taste、审美、视觉一致性、颜色很乱、字体很多、图标乱用、页面不够精致；或 agent 修改 UI 前需要先做设计系统发现
+- **主入口**：`~/.skills-manager/skills/taste-skill/SKILL.md`
+- **共享入口**：
+  - Codex：`~/.codex/skills/taste-skill`
+  - Vault：`.skills/taste-skill`
+  - Hermes：`~/.hermes/skills/software-development/taste-skill`
+  - OpenClaw：`~/.openclaw/skills/taste-skill`
+  - WorkBuddy：`~/.workbuddy/skills/taste-skill`
+- **工具**：`python3 ~/.skills-manager/skills/taste-skill/scripts/visual_audit.py <project-or-file>`
+- **质量线**：先读现有设计系统；优先使用 token/component；不新增随机色值、字体族或图标库；前端变更后做浏览器视觉验收
+
+### 29. flowforge · 自动化编码流水线
+
+- **用途**：Spec → Plan → Code → QA 自动化编码流水线，适合新功能、重构和 bug fix
+- **主入口**：`~/.skills-manager/skills/flowforge/SKILL.md`
+- **共享入口**：Codex `~/.codex/skills/flowforge`；OpenClaw `~/.openclaw/skills/flowforge`；WorkBuddy `~/.workbuddy/skills/flowforge`
+- **备注**：当前按代码执行类 agent 共享；如需纳入 Hermes/Vault 路由，先补入口再更新本清单和 `.skills/RESOLVER.md`
+
+### 30. emilkowalski 设计工程 / 动效 skills 包（6 个）
+
+- **来源**：`emilkowalski/skills`（本地 `~/Downloads/skills-main/skills/`，2026-07-17 移植安装）
+- **定位**：为所有 agent 提供 UI 动效与设计工程的判断力——动效命名、Apple 交互范式、Emil 设计哲学、动效机会发现、审计与评审
+- **主目录**：`~/.skills-manager/skills/{skill}/`
+- **共享入口（9 处软链指向主目录，共 60 条）**：Codex `~/.codex/skills/{skill}`；OpenClaw `~/.openclaw/skills/{skill}`；WorkBuddy `~/.workbuddy/skills/{skill}`；Hermes `~/.hermes/skills/software-development/{skill}`；Claude `~/.claude/skills/{skill}`；Agents `~/.agents/skills/{skill}`；Vault `.skills/{skill}`；Hermes Desktop `~/Library/Application Support/hermes-desktop/skills/{skill}`；Reasonix `.agents/skills` 与 `.claude/skills` 双入口（`~/Library/Application Support/reasonix/global-workspace/`）
+- **覆盖**：与 paddleocr 一致的全平台 9 面覆盖（2026-07-18 扩装 Hermes Desktop / Reasonix）
+
+| Skill | 用途 | 备注 |
+|-------|------|------|
+| animation-vocabulary | 把模糊的动效描述反查成准确术语（"popover 弹出的弹性感"→Pop in） | 只负责命名，不设计不实现 |
+| apple-design | Apple 流体交互与物理动效原则（手势/弹簧/惯性/材质/排版）译到 Web | 用于构建或评审手势驱动 UI |
+| emil-design-eng | Emil Kowalski 的 UI 打磨、组件设计、动效决策哲学 | 首次无具体问题调用时只回固定引导语 |
+| find-animation-opportunities | 只读扫描 UI 找"该动却没动"的地方，并拒绝不该动的 | 只提建议不改代码，输出上限 5–7 条 |
+| improve-animations | 通读代码库动效 → 产出分级审计 + 自包含实施计划交给其它/更便宜模型执行 | 只读源码，计划写入 `plans/` |
+| review-animations | 按 Emil 高标准评审动效代码，默认从严 flag，approval 需赢得 | frontmatter `disable-model-invocation: true`，需显式调用 |
+
+- **质量线**：这几个 skill 偏"品味/判断"，产出的是决策与建议；`find-animation-opportunities` / `improve-animations` / `review-animations` 均只读源码，不直接改代码
 
 ---
 
-## 六、Skill 生命周期
+## 六、本机共享 CLI 工具
+
+> 不是 Skill，但属于所有智能体共用的本机能力。Agent 调用前优先用 `which <cmd>` 和 `<cmd> --version` 做一次现场确认。
+
+### Wrangler CLI · Cloudflare 部署工具
+
+- **用途**：部署和管理 Cloudflare Pages / Workers / KV / D1 / R2 等 Cloudflare 资源；当前主要用于 Pages 静态站点上传，绕过网页拖拽上传的 1000 文件限制
+- **命令路径**：`$HOME/.npm-global/bin/wrangler`
+- **当前版本**：`wrangler 4.102.0`
+- **安装方式**：`npm install -g wrangler`
+- **登录状态**：已通过 OAuth 登录 Cloudflare 账号 `npcmu7536@gmail.com`；可用 `wrangler whoami` 复核
+- **常用命令**：
+  - `wrangler login` — 重新授权登录
+  - `wrangler whoami` — 查看当前账号和 token 权限
+  - `wrangler pages deploy ./dist --project-name <project-name>` — 上传 Pages 构建目录
+- **注意**：部署时应上传构建产物目录，如 `dist` / `build` / `out`，不要上传项目根目录、`node_modules` 或 `.git`
+
+---
+
+## 七、Codex 平台私有 Skills（`~/.codex/skills/`）
+
+> 仅服务 Codex 的实体 skill，不进入 `~/.skills-manager/skills/` 共享主目录。
+
+### 30. cli-anything · CLI-Anything harness 构建器
+
+- **用途**：让 Codex 按 CLI-Anything 方法论为 GUI 应用或源码仓库构建、精炼、测试、校验、列出 CLI harness
+- **主入口**：`~/.codex/skills/cli-anything/SKILL.md`
+- **来源**：`HKUDS/CLI-Anything` 仓库 `codex-skill/`
+- **资源**：已内置 `references/HARNESS.md`、`references/commands/`、`references/guides/`、`references/docs/PREVIEW_PROTOCOL.md`、`scripts/repl_skin.py`、`scripts/preview_bundle.py`、`scripts/skill_generator.py`、`scripts/templates/SKILL.md.template`
+- **备注**：平台私有实体目录；如未来需要 Hermes/OpenClaw/WorkBuddy 共用，再迁移到 `~/.skills-manager/skills/cli-anything/` 并改各平台入口为软链
+
+---
+
+## 八、平台对照
+
+| 平台 | 主要 Agent | Skill 数量 | 存放位置 | 特点 |
+|------|-----------|-----------|---------|------|
+| **本机共享** `~/.skills-manager/skills/` | 多智能体共享 | 15 个共享 skill | 用户目录 | 作为主目录，平台目录用软链引用 |
+| **Vault** `.skills/` | 所有 agent 共用 | 21 个工作流/共享 skill | vault 内 | 协作工作流骨架，与看板联动 |
+| **Claude** `.claude/` | ⚡Claudian / Claude Code | 1 个命令 + 10 个共享 skill | 用户目录 + vault 内 | `/feishu` 斜杠命令；Agent-Reach / Last30Days / PaddleOCR / 设计动效包入口 |
+| **Agents** `~/.agents/skills/` | Agent Skills hosts | 10 个共享 skill | 用户目录 | Agent-Reach / Last30Days / PaddleOCR / 设计动效包通用入口 |
+| **Codex** `~/.codex/skills/` | Codex | 15 个本机共享 skill + 1 个平台私有 skill + 系统 skill | 用户目录 | 编码、本机工具调用、CLI harness 构建 |
+| **Hermes** `~/.hermes/skills/` | 🌊 头孢 | 33 类 100+ + 共享 skill | 用户目录 | 最丰富，含通用 + EXAMPLE 专用 |
+| **Hermes Desktop** `~/Library/Application Support/hermes-desktop/skills/` | Hermes Desktop | 8 个共享 skill | 用户目录 | PaddleOCR 识图补盲 + 设计动效包入口 |
+| **Reasonix** global workspace | 克拉霉素 / Reasonix | 8 个共享 skill | App Support | `.agents/skills` 与 `.claude/skills` 双入口挂 PaddleOCR + 设计动效包 |
+| **OpenClaw** `~/.openclaw/skills/` | 🐛 阿莫西林 | 16 个核心/共享 skill | 用户目录 | 飞书/Lark + 外部搜索 + 趋势研究 + 文件转换 + OCR + PRD + 代码流水线 + GBrain + UI 审美守门 + 设计动效包 |
+| **WorkBuddy** `~/.workbuddy/skills/` | WorkBuddy / Claudian | 平台私有 skill + 15 个共享 skill | 用户目录 | 崩溃修复、Agent 排障、漂移检查 |
+
+### Skill 去重说明
+
+| Skill 名 | 部署位置 | 共享状态 |
+|----------|---------|---------|
+| agent-reach | Codex + Vault + Hermes + OpenClaw + WorkBuddy + Claude + Agents（7 处软链） | 共享 `~/.skills-manager/skills/agent-reach/`；CLI `agent-reach 1.4.0`；doctor 当前 8/16 渠道可用 |
+| flowforge | Codex + OpenClaw + WorkBuddy（3 处软链） | 共享 `~/.skills-manager/skills/flowforge/`；OpenClaw 旧实体副本已备份到 `~/.openclaw/skills/.backups/flowforge-20260608-before-share/` |
+| last30days | Codex + Vault + Hermes + OpenClaw + WorkBuddy + Claude + Agents（7 处软链） | 共享 `~/.skills-manager/skills/last30days/`；官方 v3.3.2 |
+| markitdown | Codex + Vault + Hermes + OpenClaw + WorkBuddy（5 处软链） | 共享 `~/.skills-manager/skills/markitdown/`；CLI 执行器为 `~/.local/bin/markitdown` |
+| paddleocr-text-recognition | Codex + Vault + Hermes + Hermes Desktop + Reasonix + OpenClaw + WorkBuddy + Claude + Agents（10 处软链） | 共享 `~/.skills-manager/skills/paddleocr-text-recognition/`；本地 helper 已验证；云 API 需 `PADDLEOCR_ACCESS_TOKEN` |
+| paddleocr-doc-parsing | Codex + Vault + Hermes + Hermes Desktop + Reasonix + OpenClaw + WorkBuddy + Claude + Agents（10 处软链） | 共享 `~/.skills-manager/skills/paddleocr-doc-parsing/`；官方文档解析 API 需 `PADDLEOCR_ACCESS_TOKEN` |
+| taste-skill | Codex + Vault + Hermes + OpenClaw + WorkBuddy（5 处软链） | 共享 `~/.skills-manager/skills/taste-skill/` |
+| feishu-collection | Codex + Vault + Hermes + OpenClaw + WorkBuddy（5 处软链） | 共享 `~/.skills-manager/skills/feishu-collection/`；旧分叉已退役备份 |
+| yijing-prd-spec | Codex + Vault + Hermes + OpenClaw + WorkBuddy（6 处软链，Hermes 有两个入口） | 共享 `~/.skills-manager/skills/yijing-prd-spec/`；统一 v3.3.5 |
+| gbrain | Hermes(`hermes/gbrain/`) + OpenClaw(`gbrain/`) | 共享 `~/.gbrain/brain.pglite/` 数据库；OpenClaw 侧以 `run.sh` 为执行入口 |
+| cli-anything | Codex（平台私有实体目录） | 安装于 `~/.codex/skills/cli-anything/`；来源 `HKUDS/CLI-Anything:codex-skill`；已内置完整 CLI-Anything methodology 资源 |
+| 设计动效包（animation-vocabulary / apple-design / emil-design-eng / find-animation-opportunities / improve-animations / review-animations） | Codex + OpenClaw + WorkBuddy + Hermes(software-development) + Claude + Agents + Vault + Hermes Desktop + Reasonix（9 面共 60 处软链） | 共享 `~/.skills-manager/skills/{skill}/`；来源 `emilkowalski/skills`；2026-07-17 移植，2026-07-18 扩至全平台 |
+| impeccable（Reasonix 平台变体） | Reasonix `.agents/skills` + `.claude/skills` | 两份均为 v3.5.0；`x-v9-shadow-group: reasonix-impeccable-3.5.0`，分别声明 `codex-agents` / `claude` 变体；正文保留各自平台路径，禁止按普通副本互相覆盖 |
+
+### 安装/升级规则
+
+1. 新增 skill 前先查本文件、`.skills/RESOLVER.md`、`~/.skills-manager/skills/`、`~/.codex/skills/`、`~/.hermes/skills/`、`~/.openclaw/skills/`、`~/.workbuddy/skills/`、`~/.claude/skills/`、`~/.agents/skills/`、`~/Library/Application Support/reasonix/global-workspace/`、`~/Library/Application Support/hermes-desktop/skills/`。
+2. 若 skill 可能被多个智能体调用，主目录必须放在 `~/.skills-manager/skills/{skill-name}/`，各平台目录只建软链。
+3. 只服务单一平台的 skill 可以保留在平台目录，但必须在本文件标注为“平台私有”或“平台分叉版”。
+4. 同名 skill 如保留多份实体目录，必须说明版本差异、主入口、共享资源和同步责任，不能默认为已共享。
+   平台定制变体还必须声明相同的 `version`、相同的 `x-v9-shadow-group` 和互不重复的 `x-v9-variant`；否则 `v9-skill-shadow-check.py` 报 P1。
+5. 安装或升级后必须同步更新本文件；涉及 Vault 路由的，还要更新 `.skills/RESOLVER.md`。
+6. 校验命令：
+
+```bash
+find ~/.skills-manager/skills ~/.codex/skills ~/.openclaw/skills ~/.workbuddy/skills ~/.hermes/skills ~/.claude/skills ~/.agents/skills ~/Desktop/obsidianVault/.skills ~/Library/Application\ Support/reasonix/global-workspace ~/Library/Application\ Support/hermes-desktop/skills -maxdepth 3 \( -name SKILL.md -o -type l \) -print
+```
+
+---
+
+## 九、Skill 生命周期
 
 | 状态 | 含义 | 当前 Skill |
 |------|------|-----------|
-| [Active] | 生产可用 | start-task, ingest-source, publish-wiki, handoff-task, review-contradictions, web-research, generate-diagram, /feishu, prd-brand-audit, project_slug-prd-spec, obsidian-knowledge-synthesis, flowforge |
+| [Active] | 生产可用 | start-task, ingest-source, publish-wiki, handoff-task, review-contradictions, web-research, generate-diagram, /feishu, agent-reach, feishu-collection, last30days, markitdown, paddleocr-text-recognition, paddleocr-doc-parsing, prd-brand-audit, yijing-prd-spec, obsidian-knowledge-synthesis, flowforge, taste-skill, cli-anything, animation-vocabulary, apple-design, emil-design-eng, find-animation-opportunities, improve-animations, review-animations |
 | [Experimental] | 实验中，功能不完整 | gbrain, enterprise-system-field-collection |
 | [Passive] | 按需调用，非核心链路 | obsidian, obsidian-batch-wikilink-update, ai-execution-hallucination-audit, agent-methodology-collection |
 
 ---
 
-## 七、关联文件
+## 十、关联文件
 
 - **Skill 路由**：`.skills/RESOLVER.md` — agent 不知道用哪个 skill 时先读这个
+- **共享技能目录**：`~/.skills-manager/skills/` — 跨 Codex / Vault / Hermes / Hermes Desktop / Reasonix / OpenClaw / WorkBuddy 复用的主目录
 - **Agent 注册表**：[[agents-registry]] — 谁是谁、能干啥
 - **工具路径**：[[agent-paths]] — 命令/数据/配置路径统一登记
-- **协作机制**：[[多智能体协作机制]] — 黑板模式规则
+- **协作机制**：[[50-经验/Agent协作方法论/息壤V9-运行时契约卡|息壤V9-运行时契约卡]] — 当前运行规则
 - **协作看板**：[[多智能体协作看板]] — 任务队列和交接记录

@@ -20,10 +20,22 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", os.getcwd()))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
 TASKS_DIR = VAULT_ROOT / "02-项目管理" / "任务卡"
 GATE_ENFORCE = VAULT_ROOT / ".standards" / "gate-enforce.py"
-LATEST_EVAL = VAULT_ROOT / "02-项目管理" / "巡检" / "harness-eval-latest.json"
+
+
+def runtime_inspect_dir() -> Path:
+    explicit = os.environ.get("XIRANG_V9_INSPECT_DIR")
+    if explicit:
+        return Path(explicit).expanduser()
+    runtime_root = os.environ.get("XIRANG_V9_RUNTIME_DIR")
+    if runtime_root:
+        return Path(runtime_root).expanduser() / "巡检"
+    return Path.home() / ".xirang" / "v9-runtime" / "巡检"
+
+
+LATEST_EVAL = runtime_inspect_dir() / "harness-eval-latest.json"
 TZ = timezone(timedelta(hours=8))
 
 
@@ -116,6 +128,14 @@ def atomic_write(path: Path, text: str) -> None:
 
 def build_candidate(text: str, accepted_by: str, reviewer: str | None) -> str:
     fm, _ = split_frontmatter(text)
+    source_review_status = fm_value(fm, "review_status")
+    if source_review_status not in {"submitted", "reviewing"}:
+        raise ValueError(
+            f"invalid acceptance transition: review_status={source_review_status or '<missing>'}; "
+            "expected submitted or reviewing"
+        )
+    if not accepted_by.strip():
+        raise ValueError("accepted_by must not be empty")
     reviewer_value = fm_value(fm, "reviewer")
     updates = {
         "review_status": "accepted",

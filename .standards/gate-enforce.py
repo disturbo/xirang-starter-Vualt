@@ -33,7 +33,7 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, asdict
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", os.getcwd()))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
 STANDARDS_DIR = VAULT_ROOT / ".standards"
 EVENT_FILE = Path(os.environ.get(
     "V9_GATE_EVENT_FILE",
@@ -50,7 +50,7 @@ FORBIDDEN_PATHS = ["00-MOC/", "30-规范/", "40-决策/", ".standards/"]
 # Agent ID -> 中文名映射
 AGENT_STATUS_FILES = {
     "claudian": "Claudian.md",
-    "legacy_agent": "Claudian.md",  # backward compat alias
+    "assistant": "Claudian.md",  # backward compat alias
     "xiaochong": "阿莫西林.md",
     "toubao": "头孢.md",
     "workbuddy": "WorkBuddy.md",
@@ -98,21 +98,35 @@ def _run_tool(script: str, args: list[str], timeout: int = 30) -> tuple[int, str
         return 98, "", f"工具调用失败: {script}: {e}"
 
 
-def _read_agent_status(agent: str) -> str | None:
-    """读取 Agent 状态文件中的 status 字段"""
+def _read_agent_frontmatter(agent: str) -> dict[str, str]:
+    """只读取 Agent 状态文件的首块 YAML frontmatter。"""
     filename = AGENT_STATUS_FILES.get(agent)
     if not filename:
-        return None
+        return {}
     status_file = AGENT_STATUS_DIR / filename
     if not status_file.exists():
-        return None
+        return {}
     try:
-        content = status_file.read_text(encoding="utf-8")
-        m = re.search(r"^status:\s*(.+)$", content, re.MULTILINE)
-        if m:
-            return m.group(1).strip().strip('"').strip("'")
-    except IOError:
-        pass
+        lines = status_file.read_text(encoding="utf-8").splitlines()
+        if not lines or lines[0].strip() != "---":
+            return {}
+        closing = next(i for i in range(1, len(lines)) if lines[i].strip() == "---")
+        values: dict[str, str] = {}
+        for line in lines[1:closing]:
+            if ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            values[key.strip()] = value.strip().strip('"').strip("'")
+        return values
+    except (IOError, StopIteration):
+        return {}
+
+
+def _read_agent_status(agent: str) -> str | None:
+    """读取 Agent 首块 frontmatter 中的 status 字段。"""
+    value = _read_agent_frontmatter(agent).get("status")
+    if value and value != "null":
+        return value
     return None
 
 
@@ -324,6 +338,39 @@ def cmd_pre_write(args) -> list[GateResult]:
     results = []
     file_path = args.file
 
+    # Hook 调用必须携带 agent，并与首块 frontmatter 的活动任务上下文一致。
+    # idle 状态下的残留 task_id/write_scope 永远不能构成授权。
+    if args.agent:
+        context = _read_agent_frontmatter(args.agent)
+        state = context.get("status", "")
+        active_task_id = context.get("current_task_id", "")
+        active_scope = context.get("write_scope", "")
+        scope_source = context.get("scope_source", "")
+        nullish = {"", "null", "None"}
+        if state != "busy":
+            results.append(GateResult(
+                priority=0, rule_id="INACTIVE_TASK_CONTEXT",
+                message=f"Agent {args.agent} 状态为 {state or 'unknown'}，不得使用任务 scope 写入",
+                source="agent-frontmatter",
+            ))
+        elif (
+            active_task_id in nullish
+            or active_scope in nullish
+            or scope_source != "task_card"
+            or args.task_id != active_task_id
+            or args.write_scope != active_scope
+        ):
+            results.append(GateResult(
+                priority=0, rule_id="TASK_CONTEXT_MISMATCH",
+                message="Hook 参数与活动任务 frontmatter 不一致",
+                source="agent-frontmatter",
+                details={
+                    "active_task_id": active_task_id,
+                    "provided_task_id": args.task_id,
+                    "scope_source": scope_source,
+                },
+            ))
+
     # P1: V9 声明缺失检测 — 无 task_id 且路径非豁免
     V9_EXEMPT_PATHS = ["02-项目管理/运行日志/", "02-项目管理/智能体状态/"]
     if not args.task_id:
@@ -437,8 +484,8 @@ def cmd_pre_end(args) -> list[GateResult]:
                 pass
 
     # P0/P1/P2: 收工完成度验证（v8-closeout-check.py）
-    # Fix 5: MISSING_DELIVERABLES / KANBAN_NOT_UPDATED / NO_RUN_LOG 升级为 P0 硬阻断
-    ESCALATE_TO_P0 = {"MISSING_DELIVERABLES", "KANBAN_NOT_UPDATED", "NO_RUN_LOG"}
+    # M4/M5 以 task card 为主记录；运行日志只属于 M3 轻量收工。
+    ESCALATE_TO_P0 = {"MISSING_DELIVERABLES", "KANBAN_NOT_UPDATED"}
 
     if args.task_id:
         gear = getattr(args, 'gear', 'M4') or 'M4'
@@ -479,6 +526,7 @@ def cmd_pre_end(args) -> list[GateResult]:
 
 
 TASK_STATE_CHECK = VAULT_ROOT / "02-项目管理" / "脚本" / "v9-task-state-check.py"
+HARNESS_REPORT_VERIFY = VAULT_ROOT / ".standards" / "harness-eval-verify.py"
 
 
 def _run_pyscript(script_path: Path, args: list[str], timeout: int = 30) -> tuple[int, str, str]:
@@ -523,31 +571,22 @@ def cmd_pre_accept(args) -> list[GateResult]:
 
     if getattr(args, "require_fresh_eval", False):
         report_path = Path(getattr(args, "eval_report", "") or "")
-        reason = None
-        if not report_path.exists():
-            reason = "eval 报告不存在"
-        else:
-            try:
-                rep = json.loads(report_path.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                rep = None
-            if rep is None:
-                reason = "eval 报告无法解析"
-            elif rep.get("summary", {}).get("failed", 1) != 0:
-                reason = "eval 报告存在失败用例"
-            elif not rep.get("tested_hashes"):
-                reason = "eval 报告缺 tested_hashes，无法证明针对当前代码"
-            else:
-                mismatched = []
-                for rel, h in rep["tested_hashes"].items():
-                    p = VAULT_ROOT / rel
-                    if not p.exists() or _file_sha16(p) != h:
-                        mismatched.append(rel)
-                if mismatched:
-                    reason = f"eval 报告 hash 与当前脚本不符: {mismatched[:3]}"
-        if reason:
+        code, stdout, stderr = _run_pyscript(HARNESS_REPORT_VERIFY, [
+            "--report", str(report_path),
+            "--root", str(VAULT_ROOT),
+            "--max-age-hours", "24",
+            "--json",
+        ])
+        try:
+            verification = json.loads(stdout) if stdout.strip() else None
+        except json.JSONDecodeError:
+            verification = None
+        if code != 0 or not isinstance(verification, dict) or not verification.get("valid"):
+            reasons = verification.get("reasons", []) if isinstance(verification, dict) else []
+            reason = reasons[0].get("message") if reasons else (stderr.strip() or "eval 校验器无有效输出")
             results.append(GateResult(priority=0, rule_id="STALE_EVAL",
-                message=f"eval 新鲜度校验未过: {reason}", source="internal", details={"reason": reason}))
+                message=f"eval 新鲜度校验未过: {reason}", source="harness-eval-verify.py",
+                details={"reason": reason, "verification": verification}))
 
     return results
 
@@ -588,6 +627,7 @@ def main():
     # pre-write
     p_write = subparsers.add_parser("pre-write", help="文件写入前门禁")
     p_write.add_argument("--file", required=True, help="目标文件路径（相对 vault root）")
+    p_write.add_argument("--agent", help="当前 Agent ID；Hook 调用时用于校验活动任务上下文")
     p_write.add_argument("--task-id", help="当前任务 ID")
     p_write.add_argument("--write-scope", help="声明的写入范围")
     p_write.add_argument("--json", action="store_true", default=True)

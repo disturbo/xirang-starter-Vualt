@@ -10,8 +10,8 @@ v0.1 Spike · 2026-05-17
   # 启动协调节点（小虫角色）
   python3 .standards/xirang-a2a-server.py --port 8900 --role coordinator
 
-  # 启动工作节点（Claudian角色）
-  python3 .standards/xirang-a2a-server.py --port 8910 --role worker --agent-id claudian
+  # 启动工作节点（协作助手角色）
+  python3 .standards/xirang-a2a-server.py --port 8910 --role worker --agent-id assistant
 
   # 用 client 测试
   python3 .standards/xirang-a2a-client.py --register

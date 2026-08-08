@@ -19,7 +19,7 @@
 #
 # 版本: 1.0.0 | 创建: 2026-05-31 | 息壤 V9.2
 
-VAULT_ROOT="${VAULT_ROOT:-$VAULT_ROOT}"
+VAULT_ROOT="${VAULT_ROOT:-$HOME/Desktop/obsidianVault}"
 STATUS_DIR="$VAULT_ROOT/02-项目管理/智能体状态"
 EVENT_FILE="$STATUS_DIR/智能体事件.jsonl"
 
@@ -47,6 +47,22 @@ _status_file_for() {
   esac
 }
 
+# 只读取首块 YAML frontmatter，避免正文中的规范示例污染运行态。
+_frontmatter_value() {
+  local file="$1"
+  local field="$2"
+  awk -v field="$field" '
+    NR == 1 && $0 == "---" { in_fm=1; next }
+    in_fm && $0 == "---" { exit }
+    in_fm && index($0, field ":") == 1 {
+      sub("^[^:]+:[[:space:]]*", "")
+      gsub(/^"|"$/, "")
+      print
+      exit
+    }
+  ' "$file" 2>/dev/null
+}
+
 HAS_TIMEOUT=false
 
 for agent in "${AGENTS[@]}"; do
@@ -55,14 +71,14 @@ for agent in "${AGENTS[@]}"; do
   [[ -z "$STATUS_FILE" || ! -f "$STATUS_FILE" ]] && continue
 
   # 只检查 busy 状态的 agent
-  CURRENT_STATUS=$(grep '^status:' "$STATUS_FILE" 2>/dev/null | awk '{print $2}' | tr -d '"')
+  CURRENT_STATUS=$(_frontmatter_value "$STATUS_FILE" status)
   [[ "$CURRENT_STATUS" != "busy" ]] && continue
 
   # 读取心跳时间和任务信息
-  LAST_HB=$(grep '^last_heartbeat:' "$STATUS_FILE" 2>/dev/null | sed 's/^last_heartbeat: *//' | tr -d '"')
-  CURRENT_TASK=$(grep '^current_task:' "$STATUS_FILE" 2>/dev/null | sed 's/^current_task: *//' | tr -d '"')
-  TASK_ID=$(grep '^current_task_id:' "$STATUS_FILE" 2>/dev/null | awk '{print $2}' | tr -d '"')
-  HB_PID=$(grep '^heartbeat_pid:' "$STATUS_FILE" 2>/dev/null | awk '{print $2}' | tr -d '"')
+  LAST_HB=$(_frontmatter_value "$STATUS_FILE" last_heartbeat)
+  CURRENT_TASK=$(_frontmatter_value "$STATUS_FILE" current_task)
+  TASK_ID=$(_frontmatter_value "$STATUS_FILE" current_task_id)
+  HB_PID=$(_frontmatter_value "$STATUS_FILE" heartbeat_pid)
 
   [[ -z "$LAST_HB" ]] && continue
 
@@ -98,16 +114,13 @@ except:
     echo "  操作: 自动回收为 idle 状态"
 
     # 更新状态文件
+    TS=$(date '+%Y-%m-%dT%H:%M:%S+08:00')
     source "$VAULT_ROOT/.standards/v8-handshake.sh"
-    _v8_safe_update_yaml "$STATUS_FILE" "status" "idle"
-    _v8_safe_update_yaml "$STATUS_FILE" "current_task" "null"
-    _v8_safe_update_yaml "$STATUS_FILE" "current_task_id" "null"
-    _v8_safe_update_yaml "$STATUS_FILE" "write_scope" "null"
+    _v8_close_status_atomic "$STATUS_FILE" "$TS"
     _v8_safe_update_yaml "$STATUS_FILE" "heartbeat_pid" "null"
     _v8_safe_update_yaml "$STATUS_FILE" "heartbeat_source" "null"
 
     # 记录事件
-    TS=$(date '+%Y-%m-%dT%H:%M:%S+08:00')
     EVENT="{\"ts\":\"$TS\",\"event\":\"heartbeat_dead\",\"agent\":\"$agent\",\"task_id\":\"${TASK_ID:-none}\",\"elapsed_s\":$ELAPSED,\"pid_alive\":\"$PID_ALIVE\",\"auto_action\":\"idle\"}"
     echo "$EVENT" >> "$EVENT_FILE" 2>/dev/null
 

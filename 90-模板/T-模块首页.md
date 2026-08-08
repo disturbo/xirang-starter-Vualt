@@ -1,4 +1,5 @@
 ---
+title: "{{module_name}}"
 module_id: "{{module_id}}"
 module_name: "{{module_name}}"
 module_no: "{{module_no}}"
@@ -19,7 +20,7 @@ created: 2026-05-16
 > **所属域**：{{domain}}
 > **业务编码**：{{business_code}}
 > **优先级**：{{priority}}
-> **负责人**：{你的名字}
+> **负责人**：用户
 
 ---
 
@@ -49,8 +50,8 @@ created: 2026-05-16
 
 | 类型 | Vault 路径 | 说明 |
 |---|---|---|
-| 资料摘要 | [[资料摘要]] | Step 1 · RAG 检索产出 |
-| 设计方案 | [[设计方案]] | Step 2 · 业务流程 + 角色权限 + 状态机 + 字段 |
+| 资料摘要 | [[知识库工程化/01-个人库团队库联动/资料摘要]] | Step 1 · RAG 检索产出 |
+| 设计方案 | [[10-项目/基线/01-PDI管理/设计方案]] | Step 2 · 业务流程 + 角色权限 + 状态机 + 字段 |
 | 逻辑确认稿 | [[逻辑确认稿]] | Step 3.5 · 页面×字段×操作映射表 |
 | 原型 | 见下方原型映射 | Step 4 · HTML 原型页面 |
 | PRD | [[{{module_no}}-{{module_name}}-PRD]] | Step 5 · 完整 PRD 文档 |
@@ -59,7 +60,7 @@ created: 2026-05-16
 
 ## 原型映射
 
-> 原型根路径：`~/Desktop/沙箱/{项目}项目/{项目名}/prototype/v3.2/pages/{{module_abbr}}/`
+> 原型根路径：`~/Desktop/沙箱/示例项目项目/示例项目EXAMPLE/prototype/v3.2/pages/{{module_abbr}}/`
 
 | 原型页面 | 沙箱路径 | 对应说明 |
 |---|---|---|

@@ -25,6 +25,8 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from collections import Counter
 
+from jsonl_reader import read_jsonl
+
 # === 路径配置 ===
 VAULT_ROOT = Path(__file__).resolve().parent.parent
 TASKS_DIR = VAULT_ROOT / "02-项目管理" / "tasks"
@@ -102,16 +104,7 @@ def parse_pwc_log():
 
 def parse_events():
     """解析 智能体事件.jsonl"""
-    entries = []
-    if not EVENTS_LOG.exists():
-        return entries
-    for line in EVENTS_LOG.read_text(encoding="utf-8").strip().split("\n"):
-        if line.strip():
-            try:
-                entries.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
-    return entries
+    return read_jsonl(EVENTS_LOG, warn=True)
 
 
 def parse_retrospectives():
@@ -327,11 +320,12 @@ def main():
     # 采集数据
     cards = parse_task_cards()
     pwc_log = parse_pwc_log()
-    events = parse_events()
+    events, event_quality = parse_events()
     retros = parse_retrospectives()
 
     # 计算指标
     metrics = compute_metrics(cards, pwc_log, events, retros)
+    metrics["event_jsonl_data_quality"] = event_quality.to_dict()
     score = health_score(metrics)
     metrics["health_score"] = score
 

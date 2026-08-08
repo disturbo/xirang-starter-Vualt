@@ -829,33 +829,16 @@ def collect_runtime_liveness(
 
     phoenix_method = ROOT / "50-经验/Agent协作方法论/息壤方法论-V9.md"
     phoenix_eval = ROOT / "50-经验/Agent进化/不死鸟Phoenix-借鉴评估报告.md"
-    phoenix_readme = ROOT / "README.md"
-    phoenix_governance = ROOT / "GOVERNANCE.md"
     try:
         method_text = phoenix_method.read_text(encoding="utf-8")
-    except OSError:
-        method_text = ""
-    try:
         eval_text = phoenix_eval.read_text(encoding="utf-8")
     except OSError:
-        eval_text = ""
-    try:
-        readme_text = phoenix_readme.read_text(encoding="utf-8")
-        governance_text = phoenix_governance.read_text(encoding="utf-8")
-    except OSError:
-        readme_text = governance_text = ""
-    production_evidence = (
-        "runtime_status: design_only" in eval_text
-        and "executor: none" in eval_text
-        and "scheduler: none" in eval_text
-    )
-    starter_evidence = (
-        "未部署 scheduler 或 executor" in readme_text
-        and "不包含 executor 或 scheduler" in governance_text
-    )
+        method_text = eval_text = ""
     phoenix_truthful = (
         "Phoenix 当前仅为设计参考" in method_text
-        and (production_evidence or starter_evidence)
+        and "runtime_status: design_only" in eval_text
+        and "executor: none" in eval_text
+        and "scheduler: none" in eval_text
     )
     if not phoenix_truthful:
         findings.append(make_finding(

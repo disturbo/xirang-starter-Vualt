@@ -4,7 +4,7 @@ title: "{{title}}"
 domain: "{{domain}}"
 date: "{{date}}"
 status: "proposed"
-tags: [decision, project/project_slug]
+tags: [decision, project/yijing]
 ---
 
 # D-{{date}}-{{seq}} {{title}}

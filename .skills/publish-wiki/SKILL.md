@@ -16,7 +16,7 @@
 1. 从 summary 层抽取，不直接搬 source 原文。
 2. 发布层文件必须有 frontmatter：version、status、last-edited-by、last-edited-at。
 3. 新增或大改时更新模块 README/模块笔记的交付物清单。
-4. 涉及进度时更新 `00-MOC/{项目名}-MOC.md`。
+4. 涉及进度时更新 `00-MOC/示例项目EXAMPLE-MOC.md`。
 5. 涉及规则时更新 `30-规范/`，并在决策日志或 changelog 说明影响。
 
 ## Quality Bar

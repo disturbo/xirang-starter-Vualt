@@ -17,7 +17,6 @@ Agent 不可绕过：由 gate-enforce.py pre-end 自动调用。
 检查项:
   [P1] MISSING_DELIVERABLES  - 无产物写入记录（事件流中无 file_write）
   [P1] KANBAN_NOT_UPDATED    - 看板未更新该任务状态
-  [P1] NO_RUN_LOG            - 当日运行日志未记录
   [P2] UNCOLLECTED_SUBTASKS  - 子任务未全部收集
   [P2] NO_HANDOFF            - M5 任务无 Handoff 记录
   [P2] SCOPE_VIOLATION       - 写入了 write_scope 之外的文件
@@ -30,16 +29,14 @@ import json
 import re
 import argparse
 from pathlib import Path
-from datetime import datetime, timezone, timedelta
+
+from jsonl_reader import read_jsonl
 from dataclasses import dataclass
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", os.getcwd()))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
 EVENT_FILE = VAULT_ROOT / "02-项目管理" / "智能体状态" / "智能体事件.jsonl"
-LOG_DIR = VAULT_ROOT / "02-项目管理" / "运行日志"
 KANBAN_FILE = VAULT_ROOT / "00-MOC" / "多智能体协作看板.md"
 AGENT_STATUS_DIR = VAULT_ROOT / "02-项目管理" / "智能体状态"
-
-TZ = timezone(timedelta(hours=8))
 
 
 @dataclass
@@ -62,20 +59,8 @@ def _read_events_for_task(task_id: str) -> list[dict]:
     events = []
     if not EVENT_FILE.exists():
         return events
-    try:
-        with open(EVENT_FILE, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    ev = json.loads(line)
-                    if ev.get("task_id") == task_id:
-                        events.append(ev)
-                except json.JSONDecodeError:
-                    continue
-    except IOError:
-        pass
+    rows, _ = read_jsonl(EVENT_FILE, warn=True)
+    events.extend(ev for ev in rows if ev.get("task_id") == task_id)
     return events
 
 
@@ -125,7 +110,7 @@ def _get_write_scope(agent: str) -> str:
     """从状态文件读取当前 write_scope"""
     agent_files = {
         "claudian": "Claudian.md",
-        "claudian": "Claudian.md",
+        "assistant": "Claudian.md",
         "workbuddy": "WorkBuddy.md",
         "xiaochong": "阿莫西林.md",
         "toubao": "头孢.md",
@@ -139,7 +124,10 @@ def _get_write_scope(agent: str) -> str:
         return ""
     try:
         content = status_file.read_text(encoding="utf-8")
-        m = re.search(r'^write_scope:\s*"?(.+?)"?\s*$', content, re.MULTILINE)
+        fm = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
+        if not fm:
+            return ""
+        m = re.search(r'^write_scope:\s*"?(.+?)"?\s*$', fm.group(1), re.MULTILINE)
         if m:
             val = m.group(1).strip()
             if val == "null":
@@ -228,21 +216,6 @@ def _check_kanban(task_id: str) -> list[CheckResult]:
     return results
 
 
-def _check_run_log() -> list[CheckResult]:
-    """检查当日运行日志是否存在"""
-    results = []
-    today = datetime.now(TZ).strftime("%Y-%m-%d")
-    log_file = LOG_DIR / f"{today}.md"
-    if not log_file.exists():
-        results.append(CheckResult(
-            priority=1,
-            rule_id="NO_RUN_LOG",
-            message=f"当日运行日志 {today}.md 不存在。",
-            details={"expected_path": str(log_file.relative_to(VAULT_ROOT))}
-        ))
-    return results
-
-
 def _check_subtasks(task_id: str) -> list[CheckResult]:
     """检查是否有未收集的子任务"""
     results = []
@@ -282,7 +255,7 @@ def _check_handoff(task_id: str, gear: str) -> list[CheckResult]:
             content = KANBAN_FILE.read_text(encoding="utf-8")
             # 查找 Handoff 区域中是否有该任务
             handoff_section = re.search(
-                r'## Handoff.*?(?=\n## |\Z)', content, re.DOTALL
+                r'## (?:Handoff|交接记录).*?(?=\n## |\Z)', content, re.DOTALL
             )
             if handoff_section:
                 if task_id in handoff_section.group():
@@ -348,7 +321,6 @@ def run_closeout_check(task_id: str, agent: str, gear: str = "M4") -> list[Check
 
     all_results.extend(_check_deliverables(task_id))
     all_results.extend(_check_kanban(task_id))
-    all_results.extend(_check_run_log())
     all_results.extend(_check_subtasks(task_id))
     all_results.extend(_check_handoff(task_id, gear))
     all_results.extend(_check_scope_violation(task_id, agent))

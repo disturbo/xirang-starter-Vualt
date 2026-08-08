@@ -32,7 +32,7 @@ import argparse
 from pathlib import Path
 from datetime import datetime
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", os.getcwd()))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
 TEMP_DIR = VAULT_ROOT / "_temp"
 
 # V8 10 态状态机 — 合法转换表
@@ -51,7 +51,7 @@ VALID_TRANSITIONS = {
 }
 
 VALID_TASK_TYPES = {"prototype", "code", "prd", "research", "spec", "review", "batch", "diagram"}
-VALID_AGENTS = {"claudian", "xiaochong", "toubao", "workbuddy", "qingmeisu", "hongmeisu"}
+VALID_AGENTS = {"claudian", "assistant", "xiaochong", "toubao", "workbuddy", "qingmeisu", "hongmeisu"}
 
 # 别名映射：英文别名 -> 规范 agent_id（v8-handshake.sh 用英文别名，本工具用规范 ID）
 AGENT_ALIASES = {

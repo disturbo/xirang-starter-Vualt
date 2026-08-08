@@ -10,7 +10,7 @@
 ## 调用方式
 
 ```bash
-codex exec -C $VAULT_ROOT "任务描述"
+codex exec -C $HOME/Desktop/obsidianVault "任务描述"
 ```
 
 ## 正式入口

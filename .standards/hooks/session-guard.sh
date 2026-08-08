@@ -13,15 +13,15 @@
 #
 # 退出码：总是 0
 #
-# 版本: 1.1.0 | 创建: 2026-05-26 | 修订: 2026-05-31（多平台参数化） | 息壤 V9.2
+# 版本: 1.2.0 | 创建: 2026-05-26 | 修订: 2026-07-18（反射器调度/新鲜度自检） | 息壤 V9
 
-VAULT_ROOT="${VAULT_ROOT:-$VAULT_ROOT}"
+VAULT_ROOT="${VAULT_ROOT:-$HOME/Desktop/obsidianVault}"
 V8_AGENT_ID="${V8_AGENT_ID:-claudian}"
 
 # 根据 agent_id 解析状态文件名
 _resolve_status_name() {
   case "$1" in
-    claudian)               echo "Claudian" ;;
+    claudian|assistant)               echo "Claudian" ;;
     xiaochong|amoxicillin|amox)      echo "阿莫西林" ;;
     toubao|cephalosporin|ceph)       echo "头孢" ;;
     hongmeisu|erythromycin|eryth)    echo "红霉素" ;;
@@ -38,6 +38,21 @@ else
 fi
 # 每个 agent 独立的节流戳（避免多 agent 并行互相干扰）
 GUARD_STAMP="/tmp/.v8-session-guard-stamp-${V8_AGENT_ID}"
+
+_frontmatter_value() {
+  local file="$1"
+  local field="$2"
+  awk -v field="$field" '
+    NR == 1 && $0 == "---" { in_fm=1; next }
+    in_fm && $0 == "---" { exit }
+    in_fm && index($0, field ":") == 1 {
+      sub("^[^:]+:[[:space:]]*", "")
+      gsub(/^"|"$/, "")
+      print
+      exit
+    }
+  ' "$file" 2>/dev/null
+}
 
 # ============================================================
 # 节流：每 5 分钟最多检查一次
@@ -61,9 +76,48 @@ if [[ -z "$STATUS_FILE" || ! -f "$STATUS_FILE" ]]; then
   exit 0
 fi
 
-AGENT_STATE=$(grep '^status:' "$STATUS_FILE" | awk '{print $2}' | tr -d '"')
-CURRENT_TASK=$(grep '^current_task:' "$STATUS_FILE" | sed 's/^current_task: *//' | tr -d '"')
-LAST_HB=$(grep '^last_heartbeat:' "$STATUS_FILE" | sed 's/^last_heartbeat: *//' | tr -d '"')
+AGENT_STATE=$(_frontmatter_value "$STATUS_FILE" status)
+CURRENT_TASK=$(_frontmatter_value "$STATUS_FILE" current_task)
+LAST_HB=$(_frontmatter_value "$STATUS_FILE" last_heartbeat)
+
+# 第一反射器独立新鲜度看门狗：调度器死亡时，不能依赖反射器自报。
+if [[ -n "${XIRANG_V9_INSPECT_DIR:-}" ]]; then
+  REFLEX_HEALTH_FILE="$XIRANG_V9_INSPECT_DIR/health-latest.json"
+else
+  REFLEX_RUNTIME_ROOT="${XIRANG_V9_RUNTIME_DIR:-$HOME/.xirang/v9-runtime}"
+  REFLEX_HEALTH_FILE="$REFLEX_RUNTIME_ROOT/巡检/health-latest.json"
+fi
+
+REFLEX_FRESHNESS=$(python3 - "$REFLEX_HEALTH_FILE" <<'PY' 2>/dev/null
+import os
+import sys
+import time
+
+path = sys.argv[1]
+if not os.path.isfile(path):
+    print("missing")
+else:
+    age = max(0, int(time.time() - os.path.getmtime(path)))
+    print(f"stale:{age}" if age > 2 * 3600 else f"fresh:{age}")
+PY
+)
+case "$REFLEX_FRESHNESS" in
+  missing)
+    echo "[V9-REFLEX-WARN] 第一反射器快照不存在: $REFLEX_HEALTH_FILE" >&2
+    ;;
+  stale:*)
+    REFLEX_AGE_SECONDS="${REFLEX_FRESHNESS#stale:}"
+    echo "[V9-REFLEX-WARN] 第一反射器快照已超过 2 小时（age=${REFLEX_AGE_SECONDS}s）: $REFLEX_HEALTH_FILE" >&2
+    ;;
+esac
+
+# watcher-of-watcher：即使旧快照仍新鲜，也要检查 launchd 是否真的加载。
+LAUNCHCTL_BIN="${XIRANG_LAUNCHCTL:-/bin/launchctl}"
+if [[ -x "$LAUNCHCTL_BIN" ]]; then
+  if ! "$LAUNCHCTL_BIN" print "gui/$(id -u)/com.xirang.v9reflex" >/dev/null 2>&1; then
+    echo "[V9-REFLEX-WARN] 第一反射器 launchd 未加载: com.xirang.v9reflex" >&2
+  fi
+fi
 
 # ============================================================
 # 场景 1: Agent 状态为 busy 但心跳超时（可能是上次崩溃残留）

@@ -20,7 +20,6 @@ mkdir -p "$DIST"
 DIRS=(
   ".claude"
   ".codex"
-  ".scripts"
   ".standards"
   ".prompt-src"
   ".skills"
@@ -36,6 +35,7 @@ FILES=(
   "setup.sh"
   "02-项目管理/巡检/README.md"
   "02-项目管理/evals/README.md"
+  "50-经验/Agent进化/不死鸟Phoenix-借鉴评估报告.md"
 )
 
 RSYNC_EXCLUDES=(
@@ -43,6 +43,8 @@ RSYNC_EXCLUDES=(
   --exclude="__pycache__/"
   --exclude="*.pyc"
   --exclude="settings.local.json"
+  --exclude="settings.json"
+  --exclude="飞书文档采集规范.md"
   --exclude="projects/"
   --exclude="sessions/"
   --exclude="logs/"
@@ -52,6 +54,12 @@ RSYNC_EXCLUDES=(
   --exclude=".claudian/**"
   --exclude="/_build/"
   --exclude="/diagram-governance/candidates/"
+  --exclude="/diagram-governance/node_modules/"
+  --exclude="/diagram-governance/previews/"
+  --exclude="/diagram-governance/reports/"
+  --exclude="/diagram-governance/references/"
+  --exclude="/diagram-governance/fixtures/"
+  --exclude="/_archive/"
   --exclude=".obsidian/plugins/**/data*.json"
   --exclude="智能体约束/*MEMORY.md"
   --exclude="health-latest.json"
@@ -73,6 +81,12 @@ for dir in "${DIRS[@]}"; do
     "$VAULT/$dir/" "$DIST/$dir/"
 done
 
+# 共享 skill 在生产 Vault 中可能是指向本机 skills-manager 的绝对路径软链接；
+# starter 只分发仓库内自包含的 skill，避免泄漏用户名并确保跨机器可移植。
+if [[ -d "$DIST/.skills" ]]; then
+  find "$DIST/.skills" -type l -delete
+fi
+
 # --- 同步根文件 ---
 for file in "${FILES[@]}"; do
   if [[ -f "$VAULT/$file" ]]; then
@@ -86,6 +100,35 @@ done
 echo ""
 echo "[clean] 移除看板..."
 rm -f "$DIST/00-MOC/多智能体协作看板.md"
+rm -f "$DIST/00-MOC/示例项目EXAMPLE-MOC.md"
+rm -f "$DIST/00-MOC/待办汇总.md"
+rm -f "$DIST/00-MOC/项目运营笔记本.md"
+rm -f "$DIST/30-规范/奕境PRD硬约束-v3.3.md"
+rm -f "$DIST/30-规范/奕境项目-主数据字典与全局枚举.md"
+rm -f "$DIST/30-规范/奕境项目-助手端UI输出规范.md"
+rm -f "$DIST/90-模板"/奕境PRD模板-*.md
+
+# 将生产 Vault 中的本机绝对路径机械改写为 starter 的可移植默认路径。
+rg --hidden --no-ignore -l0 '/Users/yudongbo|余东波|波波|奕境|东风|联友|花都|保险经纪|YJDMS|DFIB|DMS|dongfeng|@im\.wechat|openclaw-memory-promotion' "$DIST" \
+  -g '!.git/**' -g '!.standards/tests/**' -g '!02-项目管理/脚本/v9-starter-leak-check.py' -g '!sync-to-dist.sh' \
+  | xargs -0 perl -pi -e '
+    s#/Users/yudongbo/Desktop/obsidianVault#\$HOME/Desktop/obsidianVault#g;
+    s#/Users/yudongbo#\$HOME#g;
+    s/余东波|波波/用户/g;
+    s/奕境/示例项目/g;
+    s/东风/协作助手/g;
+    s/联友|花都|保险经纪/示例组织/g;
+    s/YJDMS|DFIB|DMS/EXAMPLE/g;
+    s/dongfeng/assistant/g;
+    s/\@im\.wechat/\@example.invalid/g;
+    s/openclaw-memory-promotion/session-memory-example/g;
+  ' || true
+
+# LLM-Wiki 的生产原型绝对路径在 starter 中改为显式、可覆盖的便携默认值。
+perl -pi -e 's/^import argparse$/import argparse\nimport os/; s#^VAULT = .*$#VAULT = Path(os.environ.get("VAULT_ROOT", Path.home() / "Desktop" / "obsidianVault"))#; s#^PROTOTYPE_ROOT = .*$#PROTOTYPE_ROOT = Path(os.environ.get("XIRANG_PROTOTYPE_ROOT", VAULT / "10-项目" / "示例项目" / "prototype"))#' \
+  "$DIST/.standards/scripts/llm_wiki_check.py"
+perl -0pi -e 's/(    def test_llm_wiki_uses_only_exact_725_relative_paths)/    \@unittest.skip("production-only prototype path is intentionally absent from starter")\n$1/' \
+  "$DIST/.standards/tests/test_v9_phase_e.py"
 
 # README.md 与 GOVERNANCE.md 是 starter 专用入口，不从生产 Vault 覆盖。
 # 巡检和 eval 只分发说明文件；生产快照、审计报告和本地 fixture 不属于 starter。
@@ -111,8 +154,13 @@ fi
 
 # --- 敏感信息扫描：旧租户、硬编码凭证、会话记录、个人账号 ---
 echo "[scan] 敏感信息..."
-SENSITIVE_PATTERN='(https://[a-z0-9]+\.feishu\.cn/(wiki|docx)/[A-Za-z0-9_-]{12,}|cli_[a-z0-9]{12,}|"app_secret"[[:space:]]*:[[:space:]]*"[A-Za-z0-9_-]{20,}"|APP_SECRET[[:space:]]*=[[:space:]]*"[A-Za-z0-9_-]{20,}"|Session ID|Conversation Summary|openclaw-memory-promotion|\.claudian/sessions|@im\.wechat|Bot [0-9]{6,})'
-if grep -RInIE "$SENSITIVE_PATTERN" "$DIST" --exclude-dir=".git" >/tmp/xirang-starter-sensitive-scan.txt 2>/dev/null; then
+SENSITIVE_PATTERN='(https://[a-z0-9]+\.feishu\.cn/(wiki|docx)/[A-Za-z0-9_-]{12,}|cli_[a-z0-9]{12,}|"app_secret"[[:space:]]*:[[:space:]]*"[A-Za-z0-9_-]{20,}"|APP_SECRET[[:space:]]*=[[:space:]]*"[A-Za-z0-9_-]{20,}"|Session ID|Conversation Summary)'
+if grep -RInIE "$SENSITIVE_PATTERN" "$DIST" \
+  --exclude-dir=".git" \
+  --exclude="v9-harness-eval-runner.py" \
+  --exclude="v9-starter-leak-check.py" \
+  --exclude="sync-to-dist.sh" \
+  >/tmp/xirang-starter-sensitive-scan.txt 2>/dev/null; then
   echo "ERROR: 分发目录仍包含敏感信息，已停止。命中如下："
   cat /tmp/xirang-starter-sensitive-scan.txt
   exit 1

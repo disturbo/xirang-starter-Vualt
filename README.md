@@ -1,7 +1,7 @@
 # 息壤 V9 · Starter Vault
 
 > 多智能体协作方法论的最小可运行 Obsidian Vault 骨架。
-> V9.4.3 · 2026-07-19 runtime-truth baseline · Clone 即用，3 分钟从零到可运行。
+> V9.4.3 · 2026-08-08 distribution refresh · Clone 即用，3 分钟从零到可运行。
 
 ---
 

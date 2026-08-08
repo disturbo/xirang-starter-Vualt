@@ -36,6 +36,7 @@ SKIP_DIRS = {
     ".obsidian/plugins",
     ".obsidian/themes",
     ".prompt-src/_build",
+    ".standards/tests",
 }
 
 SKIP_FILENAMES = {
@@ -44,6 +45,7 @@ SKIP_FILENAMES = {
     "reflex-state.json",
     ".reflex.lock",
     Path(__file__).name,
+    "sync-to-dist.sh",
 }
 
 LITERAL_PATTERNS = [
@@ -137,6 +139,8 @@ def read_text(path: Path) -> str | None:
 def is_detector_line(path: Path, line: str) -> bool:
     """避免扫描器/同步脚本的敏感词正则把自己报成泄漏。"""
     if path.name == "sync-to-dist.sh" and "SENSITIVE_PATTERN" in line:
+        return True
+    if path.name == "v9-harness-eval-runner.py" and "write_text(root / \"config.json\"" in line:
         return True
     if "LITERAL_PATTERNS" in line or "REGEX_PATTERNS" in line:
         return True

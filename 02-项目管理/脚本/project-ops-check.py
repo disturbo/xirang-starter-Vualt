@@ -12,7 +12,7 @@ Usage:
   --json     结构化 JSON，统一 severity schema（p0/p1/advisory），供 V9 第一反射器消费。
 
 severity 约定（统一 schema，与 gate-enforce / health-latest 对齐）:
-  p0        阻断级，需立即处理 / @人工Reviewer
+  p0        阻断级，需立即处理 / @用户
   p1        结构性问题，需修复（字段缺失、状态非法、in_progress 超期）
   advisory  提示级，不一定要动（日志缺 frontmatter、距上次开卡天数）
 """
@@ -215,21 +215,14 @@ def check_task_cards(f: Findings, today: date, max_gap_days: int, all_months: bo
 
 
 def check_run_logs(f: Findings, today: date, lookback_days: int) -> None:
+    """Validate logs that exist; V9 only requires a run log when M3 work occurred."""
     dates = run_log_dates()
-
-    today_log = RUN_LOG_ROOT / f"{today.isoformat()}.md"
-    if today not in dates:
-        f.add("advisory", "TODAY_LOG_MISSING", str(today_log), f"今天缺运行日志：{today_log}")
-    else:
-        f.ok(f"今天运行日志存在：{today_log}")
-
     start = today - timedelta(days=lookback_days - 1)
-    missing = []
+    checked = 0
     day = start
     while day <= today:
-        if day not in dates:
-            missing.append(day.isoformat())
-        else:
+        if day in dates:
+            checked += 1
             path = RUN_LOG_ROOT / f"{day.isoformat()}.md"
             text = read_text(path)
             if not frontmatter(text):
@@ -237,16 +230,7 @@ def check_run_logs(f: Findings, today: date, lookback_days: int) -> None:
             if "## 任务记录" not in text:
                 f.add("advisory", "RUNLOG_NO_SECTION", str(path), f"{path}: 缺少 `## 任务记录` 小节。")
         day += timedelta(days=1)
-
-    if missing:
-        f.add(
-            "advisory",
-            "LOG_GAP",
-            ",".join(missing),
-            f"最近 {lookback_days} 天缺日志：{', '.join(missing)}。如当天无工作，不补写；有工作则补日志。",
-        )
-    else:
-        f.ok(f"最近 {lookback_days} 天运行日志连续。")
+    f.ok(f"最近 {lookback_days} 天已存在的 {checked} 份 M3 运行日志完成结构校验；不以日期连续性推断缺失。")
 
 
 def build_report(f: Findings, today: date) -> dict:

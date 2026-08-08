@@ -1,3 +1,14 @@
+---
+title: "Pre-flight Auto-Platform Template"
+version: v1.0
+status: active
+type: template
+domain: 多智能体协作
+maintainer: 用户
+created: 2026-05-28
+updated: 2026-06-11
+---
+
 # Pre-flight Auto-Platform Template
 
 > 本文件是自动平台（Claudian/WorkBuddy/青霉素/红霉素）的 pre-flight 流程模板。

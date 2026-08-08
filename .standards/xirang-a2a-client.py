@@ -7,19 +7,19 @@ v0.1 Spike · 2026-05-17
 
 用法：
   # 注册 Agent
-  python3 .standards/xirang-a2a-client.py --register --agent-id claudian --role "技术执行"
+  python3 .standards/xirang-a2a-client.py --register --agent-id assistant --role "技术执行"
 
   # 查看 Registry
   python3 .standards/xirang-a2a-client.py --registry
 
   # 创建任务
-  python3 .standards/xirang-a2a-client.py --create-task --target claudian --desc "批量重绘流程图"
+  python3 .standards/xirang-a2a-client.py --create-task --target assistant --desc "批量重绘流程图"
 
   # 推进任务状态
   python3 .standards/xirang-a2a-client.py --advance T-20260517-001 RUNNING
 
   # 发送心跳
-  python3 .standards/xirang-a2a-client.py --heartbeat claudian --task T-20260517-001 --progress "完成3/8"
+  python3 .standards/xirang-a2a-client.py --heartbeat assistant --task T-20260517-001 --progress "完成3/8"
 
   # 健康检查
   python3 .standards/xirang-a2a-client.py --health
@@ -194,7 +194,7 @@ def cmd_demo():
     # 1. 注册 Agent
     print("--- [1] 注册 Agent ---")
     r1 = cmd_register("xiaochong", "小虫", "协调中枢", "openclaw", "http://localhost:8900")
-    r2 = cmd_register("claudian", "Claudian", "技术执行", "codebuddy", "http://localhost:8910")
+    r2 = cmd_register("assistant", "Claudian", "技术执行", "codebuddy", "http://localhost:8910")
     r3 = cmd_register("toubao", "头孢", "资料采集", "hermes", "http://localhost:8912")
     print()
 
@@ -205,7 +205,7 @@ def cmd_demo():
 
     # 3. 创建任务
     print("--- [3] 创建任务 ---")
-    task_id = cmd_create_task("claudian", "批量重绘 16 个 drawio 白底背景")
+    task_id = cmd_create_task("assistant", "批量重绘 16 个 drawio 白底背景")
     if not task_id:
         print("[ABORT] 任务创建失败")
         return
@@ -217,13 +217,13 @@ def cmd_demo():
 
     # 5. 心跳
     print("--- [5] 心跳上报 ---")
-    cmd_heartbeat("claudian", task_id, "完成 4/16 个文件", 0.25)
-    cmd_heartbeat("claudian", task_id, "完成 12/16 个文件", 0.75)
+    cmd_heartbeat("assistant", task_id, "完成 4/16 个文件", 0.25)
+    cmd_heartbeat("assistant", task_id, "完成 12/16 个文件", 0.75)
     print()
 
     # 6. 完成
     print("--- [6] 任务完成 ---")
-    cmd_advance(task_id, "SUCCESS", result={"files_modified": 16, "path": "10-项目/{项目名}/"})
+    cmd_advance(task_id, "SUCCESS", result={"files_modified": 16, "path": "10-项目/基线/"})
     cmd_advance(task_id, "COLLECTED")
     cmd_advance(task_id, "DESTROYED")
     print()

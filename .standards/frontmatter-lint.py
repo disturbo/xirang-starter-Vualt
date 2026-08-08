@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-frontmatter-lint.py — 息壤 V8 Frontmatter 深度校验
-v1.0 · 2026-05-17 | 息壤 V8.5.0
+frontmatter-lint.py — 息壤 V9 Frontmatter 深度校验
+v1.2 · 2026-07-22 | 息壤 V9
 
 扫描 vault 中 .md 文件的 frontmatter 合规性（按文件类型分 Schema）。
 
@@ -31,6 +31,10 @@ BASE_REQUIRED = ["title", "created", "tags"]
 
 # 各类型文件的必填字段
 SCHEMAS = {
+    "任务卡": {
+        "required": ["task_id", "title", "status", "created"],
+        "path_pattern": "02-项目管理/任务卡/",
+    },
     "方法论": {
         "required": ["title", "version", "status", "maturity", "type", "created", "tags"],
         "path_pattern": "50-经验/Agent协作方法论/",
@@ -62,15 +66,39 @@ SCHEMAS = {
 }
 
 # 枚举约束
-VALID_STATUS = ["草稿", "正式", "废弃", "WIP", "归档"]
-VALID_MATURITY = ["草稿", "正式", "试行", "归档"]
+VALID_STATUS = [
+    "草稿", "正式", "废弃", "WIP", "归档",
+    "draft", "active", "proposed", "generated", "completed", "implemented",
+    "ready", "in_progress", "pending", "submitted", "review", "accepted",
+    "pilot", "official", "retired", "archived", "deprecated", "cancelled", "blocked",
+]
+VALID_MATURITY = [
+    "草稿", "正式", "试行", "归档",
+    "骨架占位", "业务理解已完成", "业务理解+流程已完成", "已设计方案", "已发布PRD",
+    "draft", "partial", "partial_implementation", "implemented", "verified", "stable",
+    "complete", "closed", "blocked", "stale", "archived",
+]
 VALID_TYPE = ["方法论", "方法论指南", "规范", "MOC", "决策", "PRD", "方案", "复盘", "经验", "模板"]
+TASK_STATUS = ["ready", "in_progress", "blocked", "done", "cancelled", "submitted"]
+TASK_MATURITY = ["draft", "partial", "complete", "implemented", "verified", "stale", "closed", "blocked"]
 
 # 跳过的目录
 SKIP_DIRS = ["_archive", "_temp", ".obsidian", ".trash", ".standards", "node_modules"]
 
 # 跳过的文件
 SKIP_FILES = ["README.md", "CHANGELOG.md"]
+
+DEFAULT_TAGS_BY_PREFIX = {
+    "00-MOC/": "MOC",
+    "02-项目管理/": "项目管理",
+    "10-项目/": "项目文档",
+    "20-资料/": "资料",
+    "30-规范/": "规范",
+    "40-决策/": "决策",
+    "50-经验/": "经验",
+    "60-归档/": "归档",
+    "90-模板/": "模板",
+}
 
 
 def parse_frontmatter(content: str) -> tuple[dict | None, str | None]:
@@ -85,11 +113,11 @@ def parse_frontmatter(content: str) -> tuple[dict | None, str | None]:
     fm_text = content[4:end]  # skip first "---\n"
     fields = {}
 
-    for line in fm_text.split("\n"):
-        line = line.strip()
-        if not line or line.startswith("#"):
+    lines = fm_text.split("\n")
+    for index, line in enumerate(lines):
+        if not line.strip() or line.lstrip().startswith("#"):
             continue
-        # 简单 key: value 解析（不处理嵌套 YAML）
+        # 只读顶层 key；嵌套 deliverables/gates 不得覆盖顶层 status/type。
         match = re.match(r'^(\w[\w_-]*)\s*:\s*(.*)', line)
         if match:
             key = match.group(1)
@@ -99,6 +127,14 @@ def parse_frontmatter(content: str) -> tuple[dict | None, str | None]:
                 value = value[1:-1]
             elif value.startswith("'") and value.endswith("'"):
                 value = value[1:-1]
+            if not value:
+                # 多行列表/映射是有值字段，不应被误报为缺失。
+                for child in lines[index + 1:]:
+                    if not child.strip() or child.lstrip().startswith("#"):
+                        continue
+                    if child[:1].isspace():
+                        value = "- block-list" if child.lstrip().startswith("-") else "{block-map}"
+                    break
             fields[key] = value
 
     return fields, None
@@ -113,9 +149,14 @@ def detect_schema(filepath: str, fields: dict) -> tuple[str, dict]:
         # 不是 agent 状态文件，按"规范"处理
         return "规范", SCHEMAS["规范"]
 
+    if "02-项目管理/任务卡/" in filepath and os.path.basename(filepath).startswith("T-"):
+        return "任务卡", SCHEMAS["任务卡"]
+
     for schema_name, schema in SCHEMAS.items():
         if schema_name == "智能体状态":
             continue  # 已在上面处理
+        if schema_name == "任务卡":
+            continue  # 只匹配正式 T-*.md 任务卡
         if schema["path_pattern"] in filepath:
             return schema_name, schema
     # 默认使用基础 schema
@@ -127,37 +168,31 @@ def validate_field_values(fields: dict, schema_name: str) -> list[dict]:
     violations = []
 
     # status 枚举校验
-    if "status" in fields and fields["status"]:
+    if "status" in fields and fields["status"] and schema_name == "任务卡":
         status_val = fields["status"]
-        if status_val not in VALID_STATUS and schema_name != "智能体状态":
+        allowed_status = TASK_STATUS
+        if status_val not in allowed_status:
             violations.append({
                 "type": "enum_invalid",
                 "severity": "warning",
                 "message": f"status 值 '{status_val}' 不在枚举中",
-                "suggestion": f"允许值: {', '.join(VALID_STATUS)}"
+                "suggestion": f"允许值: {', '.join(allowed_status)}"
             })
 
     # maturity 枚举校验
-    if "maturity" in fields and fields["maturity"]:
+    if "maturity" in fields and fields["maturity"] and schema_name == "任务卡":
         maturity_val = fields["maturity"]
-        if maturity_val not in VALID_MATURITY:
+        allowed_maturity = TASK_MATURITY
+        if maturity_val not in allowed_maturity:
             violations.append({
                 "type": "enum_invalid",
                 "severity": "warning",
                 "message": f"maturity 值 '{maturity_val}' 不在枚举中",
-                "suggestion": f"允许值: {', '.join(VALID_MATURITY)}"
+                "suggestion": f"允许值: {', '.join(allowed_maturity)}"
             })
 
-    # type 枚举校验
-    if "type" in fields and fields["type"]:
-        type_val = fields["type"]
-        if type_val not in VALID_TYPE and schema_name not in ("智能体状态", "MOC"):
-            violations.append({
-                "type": "enum_invalid",
-                "severity": "info",
-                "message": f"type 值 '{type_val}' 不在标准枚举中",
-                "suggestion": f"标准值: {', '.join(VALID_TYPE)}"
-            })
+    # V9 的 type 是开放分类（例如 task_card、运行日志、技术文档）。
+    # 必填性由 schema 校验，不再用 V8 的封闭十项枚举制造误报。
 
     # tags 格式校验
     if "tags" in fields:
@@ -173,18 +208,19 @@ def validate_field_values(fields: dict, schema_name: str) -> list[dict]:
     # version 格式校验
     if "version" in fields and fields["version"]:
         ver = fields["version"]
-        if not re.match(r'^\d+(\.\d+)*[a-zA-Z]?$', ver):
+        if not re.match(r'^[vV]?\d+(\.\d+)*[a-zA-Z]?$', ver):
             violations.append({
                 "type": "format_invalid",
                 "severity": "info",
                 "message": f"version 格式不规范: '{ver}'",
-                "suggestion": "建议格式: X.Y 或 X.Y.Z（如 1.0, 8.1.2L）"
+                "suggestion": "建议格式: X.Y 或 vX.Y.Z（如 1.0, v8.1.2L）"
             })
 
     # created 日期格式校验
     if "created" in fields and fields["created"]:
         date_val = fields["created"]
-        if not re.match(r'^\d{4}-\d{2}-\d{2}', date_val):
+        is_template = bool(re.fullmatch(r'\{\{[^{}]+\}\}|YYYY-MM-DD', date_val))
+        if not is_template and not re.match(r'^\d{4}-\d{2}-\d{2}', date_val):
             violations.append({
                 "type": "format_invalid",
                 "severity": "warning",
@@ -210,7 +246,7 @@ def check_parent_ref(fields: dict, filepath: str, vault_root: str) -> list[dict]
 
     # 尝试在 vault 中查找
     # 直接路径
-    if not parent_ref.endswith(".md"):
+    if not Path(parent_ref).suffix:
         parent_ref += ".md"
 
     # 在同目录下查找
@@ -283,7 +319,13 @@ def scan_file(filepath: str, vault_root: str = ".") -> list[dict]:
 
     # 3. 必填字段检查
     for field in schema["required"]:
-        if field not in fields or not fields[field] or fields[field] == "null":
+        value_present = field in fields and bool(fields[field]) and fields[field] != "null"
+        if field == "created" and not value_present:
+            value_present = any(
+                bool(fields.get(alias)) and fields.get(alias) != "null"
+                for alias in ("created_at", "date")
+            )
+        if not value_present:
             violations.append({
                 "file": filepath,
                 "line": 1,
@@ -331,11 +373,111 @@ def scan_vault(target_path: str = ".", vault_root: str = ".") -> list[dict]:
     return all_violations
 
 
+def normalized_rel(filepath: str) -> str:
+    return filepath.replace("\\", "/").removeprefix("./")
+
+
+def safe_fix_updates(filepath: str, violations: list[dict]) -> dict[str, str]:
+    """Return only values derivable from the governed path, never guessed semantics."""
+    rel = normalized_rel(filepath)
+    if rel.startswith("10-项目/基线/"):
+        return {}
+
+    missing = {
+        match.group(1)
+        for item in violations
+        if item.get("type") == "fm_field_missing"
+        if (match := re.search(r"'([^']+)'$", item.get("message", "")))
+    }
+    updates: dict[str, str] = {}
+    if "tags" in missing:
+        for prefix, tag in DEFAULT_TAGS_BY_PREFIX.items():
+            if rel.startswith(prefix):
+                updates["tags"] = f"[{tag}]"
+                break
+    if "type" in missing and rel.startswith("40-决策/"):
+        updates["type"] = "决策"
+    return updates
+
+
+def set_top_level_fields(content: str, updates: dict[str, str]) -> str:
+    if not updates or not content.startswith("---"):
+        return content
+    had_trailing_newline = content.endswith("\n")
+    lines = content.splitlines()
+    try:
+        closing = next(index for index in range(1, len(lines)) if lines[index].strip() == "---")
+    except StopIteration:
+        return content
+
+    for key, value in updates.items():
+        pattern = re.compile(rf"^{re.escape(key)}\s*:\s*(?:null|~)?\s*$")
+        replaced = False
+        for index in range(1, closing):
+            if pattern.fullmatch(lines[index]):
+                lines[index] = f"{key}: {value}"
+                replaced = True
+                break
+        if not replaced:
+            lines.insert(closing, f"{key}: {value}")
+            closing += 1
+    return "\n".join(lines) + ("\n" if had_trailing_newline else "")
+
+
+def release_protected_paths(root: Path = Path(".")) -> set[str]:
+    manifest = root / "02-项目管理" / "巡检" / "v9-release-manifest.json"
+    if not manifest.is_file():
+        return set()
+    try:
+        payload = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return set()
+
+    paths: set[str] = set()
+
+    def visit(value: object) -> None:
+        if isinstance(value, dict):
+            path = value.get("path")
+            if isinstance(path, str):
+                paths.add(normalized_rel(path))
+            for child in value.values():
+                visit(child)
+        elif isinstance(value, list):
+            for child in value:
+                visit(child)
+
+    visit(payload)
+    return paths
+
+
+def apply_safe_fixes(violations: list[dict]) -> list[str]:
+    grouped: dict[str, list[dict]] = {}
+    for item in violations:
+        grouped.setdefault(item["file"], []).append(item)
+
+    changed: list[str] = []
+    protected = release_protected_paths()
+    for filepath, items in sorted(grouped.items()):
+        if normalized_rel(filepath) in protected:
+            continue
+        updates = safe_fix_updates(filepath, items)
+        if not updates:
+            continue
+        path = Path(filepath)
+        content = path.read_text(encoding="utf-8")
+        updated = set_top_level_fields(content, updates)
+        if updated != content:
+            path.write_text(updated, encoding="utf-8")
+            changed.append(filepath)
+    return changed
+
+
 def main():
     target = "."
     vault_root = "."
     output_json = "--json" in sys.argv
     scan_all = "--all" in sys.argv
+    fix = "--fix" in sys.argv
 
     for i, arg in enumerate(sys.argv):
         if arg == "--path" and i + 1 < len(sys.argv):
@@ -347,6 +489,10 @@ def main():
         target = "."
 
     violations = scan_vault(target, vault_root)
+    fixed_files: list[str] = []
+    if fix:
+        fixed_files = apply_safe_fixes(violations)
+        violations = scan_vault(target, vault_root)
 
     # 统计
     errors = [v for v in violations if v["severity"] == "error"]
@@ -362,15 +508,20 @@ def main():
                 "info": len(infos),
                 "files_scanned": len(set(v["file"] for v in violations)) if violations else 0
             },
+            "fixed_files": fixed_files,
             "violations": violations
         }
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
         if not violations:
+            if fixed_files:
+                print(f"[fixed] 已安全修复 {len(fixed_files)} 个文件")
             print(f"[pass] Frontmatter 合规检查通过（扫描路径: {target}）")
             sys.exit(0)
 
         print(f"Frontmatter 合规扫描结果（{target}）：")
+        if fixed_files:
+            print(f"  Safe fixes: {len(fixed_files)} files")
         print(f"  Errors: {len(errors)} | Warnings: {len(warnings)} | Info: {len(infos)}")
         print()
 

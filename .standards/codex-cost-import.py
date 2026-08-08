@@ -103,6 +103,7 @@ def rollout_metadata_incremental(
                 if usage:
                     latest = {key: int(usage.get(key) or 0) for key in USAGE_KEYS}
                     usage_timestamp = str(row.get("timestamp") or "")
+
     cursor: dict[str, int | bool] = {
         "offset": next_offset,
         "device": stat.st_dev,

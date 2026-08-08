@@ -98,7 +98,7 @@ Agent 直接输出 SVG XML 代码，保存为 `.svg` 文件。Obsidian 原生支
 
 - viewBox 响应式（不硬编码 width/height），推荐 `0 0 1280 1500`
 - 字体：`-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif`
-- 色值对齐品牌 token：品牌主色 `#2563EB`、各角色色系见规范
+- 色值对齐品牌 token：品牌红 `#861B2F`、各角色色系见规范
 - 用 `<defs>` 集中定义 CSS class + arrow marker + gradient
 - 用 `<g transform="translate(x,y)">` 定位元素组
 - 中文行高 >= 字号 x 1.6

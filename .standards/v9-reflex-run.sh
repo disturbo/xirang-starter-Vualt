@@ -1,15 +1,11 @@
 #!/bin/bash
-# Portable scheduler entrypoint for the V9 first reflector. It refreshes and
-# verifies Harness evidence before publishing health and summary state.
+# Stable launchd entrypoint kept outside macOS protected Desktop directories.
+# Publishes the UI status in the same scheduler transaction as health.
 set -u
 
-WRAPPER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VAULT="${XIRANG_V9_VAULT_DIR:-}"
-if [[ -z "$VAULT" && -f "$WRAPPER_DIR/../02-项目管理/脚本/v9-reflex-check.py" ]]; then
-  VAULT="$(cd "$WRAPPER_DIR/.." && pwd)"
-fi
-RUNTIME="${XIRANG_V9_RUNTIME_DIR:-${HOME}/.xirang/v9-runtime}"
-PYTHON="${XIRANG_V9_PYTHON:-/usr/bin/python3}"
+VAULT="${XIRANG_V9_VAULT_DIR:-$HOME/Desktop/obsidianVault}"
+RUNTIME="${XIRANG_V9_RUNTIME_DIR:-$HOME/.xirang/v9-runtime}"
+PYTHON="${XIRANG_V9_PYTHON:-/opt/homebrew/bin/python3}"
 SCRIPT="${XIRANG_V9_REFLEX_SCRIPT:-$VAULT/02-项目管理/脚本/v9-reflex-check.py}"
 SUMMARY_SCRIPT="${XIRANG_V9_STATUS_SCRIPT:-$VAULT/02-项目管理/脚本/v9-status-summary.py}"
 HARNESS_SCRIPT="${XIRANG_V9_HARNESS_SCRIPT:-$VAULT/02-项目管理/脚本/v9-harness-eval-runner.py}"
@@ -17,8 +13,8 @@ HARNESS_VERIFY_SCRIPT="${XIRANG_V9_HARNESS_VERIFY_SCRIPT:-$VAULT/.standards/harn
 HARNESS_REPORT="${XIRANG_V9_HARNESS_REPORT:-$RUNTIME/巡检/harness-eval-latest.json}"
 HARNESS_MAX_AGE_HOURS="${XIRANG_V9_HARNESS_MAX_AGE_HOURS:-20}"
 GBRAIN_CONTRACT_SOURCE="${XIRANG_GBRAIN_CONTRACT_SOURCE:-$VAULT/50-经验/Agent协作方法论/息壤V9-运行时契约卡.md}"
-GBRAIN_CONTRACT_MIRROR="${XIRANG_GBRAIN_CONTRACT_MIRROR:-${HOME}/.gbrain/runtime-contract-current.md}"
-GBRAIN_MAINTENANCE="${XIRANG_GBRAIN_MAINTENANCE:-${HOME}/.gbrain/maintenance-run.sh}"
+GBRAIN_CONTRACT_MIRROR="${XIRANG_GBRAIN_CONTRACT_MIRROR:-$HOME/.gbrain/runtime-contract-current.md}"
+GBRAIN_MAINTENANCE="${XIRANG_GBRAIN_MAINTENANCE:-$HOME/.gbrain/maintenance-run.sh}"
 STATE="$RUNTIME/巡检/reflex-scheduler-health.json"
 
 write_state() {
@@ -63,7 +59,7 @@ refresh_harness_if_needed() {
       --max-age-hours "$HARNESS_MAX_AGE_HOURS" --json >/dev/null 2>&1; then
     return 0
   fi
-  XIRANG_V9_RUNTIME_DIR="$RUNTIME" XIRANG_V9_HARNESS_REPORT="$HARNESS_REPORT" \
+  XIRANG_V9_RUNTIME_DIR="$RUNTIME" \
     "$PYTHON" "$HARNESS_SCRIPT" --write-latest --json >/dev/null || return $?
   "$PYTHON" "$HARNESS_VERIFY_SCRIPT" \
     --report "$HARNESS_REPORT" --root "$VAULT" \
@@ -71,28 +67,49 @@ refresh_harness_if_needed() {
 }
 
 refresh_gbrain_contract_if_needed() {
-  [[ -f "$GBRAIN_CONTRACT_SOURCE" && -f "$GBRAIN_CONTRACT_MIRROR" && -x "$GBRAIN_MAINTENANCE" ]] || return 0
-  /usr/bin/cmp -s "$GBRAIN_CONTRACT_SOURCE" "$GBRAIN_CONTRACT_MIRROR" && return 0
-  local mirror_dir temp_path
-  mirror_dir="$(/usr/bin/dirname "$GBRAIN_CONTRACT_MIRROR")"
-  temp_path="$(/usr/bin/mktemp "$mirror_dir/.runtime-contract-current.XXXXXX")" || return 73
-  if ! /bin/cp "$GBRAIN_CONTRACT_SOURCE" "$temp_path" || ! /bin/chmod 600 "$temp_path" || ! /bin/mv "$temp_path" "$GBRAIN_CONTRACT_MIRROR"; then
-    /bin/rm -f "$temp_path"
-    return 73
-  fi
+  [[ -f "$GBRAIN_CONTRACT_SOURCE" && -x "$GBRAIN_MAINTENANCE" ]] || return 0
+  local refresh_result
+  refresh_result="$(
+    GBRAIN_CONTRACT_SOURCE="$GBRAIN_CONTRACT_SOURCE" \
+    GBRAIN_CONTRACT_MIRROR="$GBRAIN_CONTRACT_MIRROR" \
+      "$PYTHON" - <<'PY'
+import os
+import tempfile
+from pathlib import Path
+
+source = Path(os.environ["GBRAIN_CONTRACT_SOURCE"])
+mirror = Path(os.environ["GBRAIN_CONTRACT_MIRROR"])
+payload = source.read_bytes()
+if mirror.is_file() and mirror.read_bytes() == payload:
+    print("unchanged")
+    raise SystemExit(0)
+
+mirror.parent.mkdir(parents=True, exist_ok=True)
+fd, temp_name = tempfile.mkstemp(prefix=".runtime-contract-current.", dir=mirror.parent)
+try:
+    with os.fdopen(fd, "wb") as handle:
+        handle.write(payload)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.chmod(temp_name, 0o600)
+    os.replace(temp_name, mirror)
+finally:
+    if os.path.exists(temp_name):
+        os.unlink(temp_name)
+print("changed")
+PY
+  )" || return 73
+  [[ "$refresh_result" == "unchanged" ]] && return 0
+  [[ "$refresh_result" == "changed" ]] || return 73
   "$GBRAIN_MAINTENANCE" sync >/dev/null 2>&1
 }
 
-if [[ -z "$VAULT" ]]; then
-  write_state "failed" 78 "vault_root_not_configured"
-  exit 78
-fi
 if [[ ! -f "$SCRIPT" ]]; then
-  write_state "failed" 78 "reflex_script_missing_or_vault_denied"
+  write_state "failed" 78 "reflex_script_missing_or_desktop_denied"
   exit 78
 fi
 if [[ ! -f "$SUMMARY_SCRIPT" ]]; then
-  write_state "failed" 78 "status_summary_script_missing_or_vault_denied"
+  write_state "failed" 78 "status_summary_script_missing_or_desktop_denied"
   exit 78
 fi
 
@@ -107,7 +124,10 @@ XIRANG_V9_RUNTIME_DIR="$RUNTIME" "$PYTHON" "$SCRIPT" --quiet
 reflex_rc=$?
 XIRANG_V9_RUNTIME_DIR="$RUNTIME" "$PYTHON" "$SUMMARY_SCRIPT" --write-latest --json >/dev/null
 summary_rc=$?
-cd /tmp || true
+# Python launched from a macOS background agent may be denied while its cwd is
+# Desktop even after the scan itself completes. Leave the protected directory
+# before persisting the scheduler result.
+cd "$HOME" || true
 
 status_value="$(XIRANG_V9_RUNTIME_DIR="$RUNTIME" XIRANG_RUN_STARTED_EPOCH="$run_started_epoch" /usr/bin/python3 - <<'PY'
 import json
@@ -167,13 +187,9 @@ if [[ $reflex_rc -ne 0 && "$status_value" != "red" ]]; then
   write_state "failed" "$reflex_rc" "reflex_exit_without_red_status"
   exit "$reflex_rc"
 fi
-if [[ $gbrain_rc -ne 0 && "$status_value" != "red" ]]; then
-  write_state "failed" "$gbrain_rc" "gbrain_refresh_failed_without_red_status"
-  exit "$gbrain_rc"
-fi
 if [[ $gbrain_rc -ne 0 ]]; then
-  write_state "success" 0 "completed_status_red_gbrain_refresh_failed"
-  exit 0
+  write_state "failed" "$gbrain_rc" "gbrain_refresh_failed"
+  exit "$gbrain_rc"
 fi
 if [[ $harness_rc -ne 0 ]]; then
   write_state "success" 0 "completed_status_red_harness_refresh_failed"

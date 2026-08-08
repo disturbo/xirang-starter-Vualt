@@ -7,7 +7,7 @@ v1.0.0 | 2026-05-24 | 息壤 V8.5.0
 不做分布式 broker——单机 JSONL + 文件锁即够用。
 
 用法:
-  python3 .standards/msg-queue.py enqueue --from claudian --to xiaochong --type cost_alert --priority P1 --payload '{"task_id":"T-xxx"}' [--ref-task T-xxx] [--expires 86400] [--json]
+  python3 .standards/msg-queue.py enqueue --from assistant --to xiaochong --type cost_alert --priority P1 --payload '{"task_id":"T-xxx"}' [--ref-task T-xxx] [--expires 86400] [--json]
   python3 .standards/msg-queue.py peek --agent xiaochong [--type cost_alert] [--json]
   python3 .standards/msg-queue.py dequeue --agent xiaochong [--json]
   python3 .standards/msg-queue.py ack --msg-id msg-xxx [--json]
@@ -36,7 +36,7 @@ import argparse
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", os.getcwd()))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
 QUEUE_FILE = VAULT_ROOT / "_temp" / "msg-queue.jsonl"
 LOCK_FILE = VAULT_ROOT / "_temp" / "msg-queue.lock"
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB

@@ -66,7 +66,7 @@ V9 已激活：
 2. **自查结果**：路径合规 / frontmatter / 无装饰性emoji / 无越权声明 / 看板
 3. **验收建议**：验收方 + 检查点 + 风险假设
 4. 更新状态文件 status -> idle, current_task -> null
-5. 追加 task_end 事件（记录任务、结果与身份）
+5. 追加 task_end 事件（只记录任务、结果与身份）
 6. 看板 Handoff：`00-MOC/多智能体协作看板.md`
 
 ---

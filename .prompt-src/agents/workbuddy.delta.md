@@ -1,3 +1,15 @@
+---
+agent_id: workbuddy
+agent_name: WorkBuddy
+platform: "Codebuddy (Claudian CLI)"
+role: "排障修复 / 配置漂移检查"
+cooldown: "按需触发"
+status: active
+version: v1.0
+created: 2026-05-28
+updated: 2026-06-11
+---
+
 # WorkBuddy Delta
 
 agent_id: workbuddy
@@ -5,7 +17,6 @@ agent_name: WorkBuddy
 platform: Codebuddy (Claudian CLI)
 role: 排障修复 / 配置漂移检查
 cooldown: 按需触发
-
 ## 触发条件（非主动启动）
 - L2 错误升级触发
 - 父 Agent 崩溃后孤儿清理

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/usr/bin/python3 .standards/hooks/codex-hook-adapter.py session-start",
+            "command": "/usr/bin/python3 $HOME/Desktop/obsidianVault/.standards/hooks/codex-hook-adapter.py session-start",
             "timeout": 30,
             "statusMessage": "Syncing Xirang Codex identity"
           }
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/usr/bin/python3 .standards/hooks/codex-hook-adapter.py pre-exec",
+            "command": "/usr/bin/python3 $HOME/Desktop/obsidianVault/.standards/hooks/codex-hook-adapter.py pre-exec",
             "timeout": 30,
             "statusMessage": "Blocking unaudited shell file writes"
           }
@@ -30,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/usr/bin/python3 .standards/hooks/codex-hook-adapter.py pre-write",
+            "command": "/usr/bin/python3 $HOME/Desktop/obsidianVault/.standards/hooks/codex-hook-adapter.py pre-write",
             "timeout": 60,
             "statusMessage": "Checking Xirang write scope"
           }
@@ -41,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/usr/bin/python3 .standards/hooks/codex-hook-adapter.py session-guard",
+            "command": "/usr/bin/python3 $HOME/Desktop/obsidianVault/.standards/hooks/codex-hook-adapter.py session-guard",
             "timeout": 30
           }
         ]
@@ -53,7 +53,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/usr/bin/python3 .standards/hooks/codex-hook-adapter.py post-exec",
+            "command": "/usr/bin/python3 $HOME/Desktop/obsidianVault/.standards/hooks/codex-hook-adapter.py post-exec",
             "timeout": 30,
             "statusMessage": "Recording Codex shell event"
           }
@@ -64,7 +64,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/usr/bin/python3 .standards/hooks/codex-hook-adapter.py post-write",
+            "command": "/usr/bin/python3 $HOME/Desktop/obsidianVault/.standards/hooks/codex-hook-adapter.py post-write",
             "timeout": 60,
             "statusMessage": "Recording Xirang write event"
           }
@@ -76,7 +76,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/usr/bin/python3 .standards/hooks/codex-hook-adapter.py session-stop",
+            "command": "/usr/bin/python3 $HOME/Desktop/obsidianVault/.standards/hooks/codex-hook-adapter.py session-stop",
             "timeout": 30
           }
         ]

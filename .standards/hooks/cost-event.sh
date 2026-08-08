@@ -21,7 +21,7 @@
 echo "[V9-RETIRED] 成本治理已于 2026-07-19 退出当前运行能力；未写入事件。" >&2
 exit 3
 
-VAULT_ROOT="${VAULT_ROOT:-$VAULT_ROOT}"
+VAULT_ROOT="${VAULT_ROOT:-$HOME/Desktop/obsidianVault}"
 EVENT_FILE="$VAULT_ROOT/02-项目管理/智能体状态/智能体事件.jsonl"
 
 PHASE="$1"

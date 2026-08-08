@@ -85,7 +85,7 @@ pre-write-hook.sh v1.1 通过环境变量支持多 Agent 共用同一 hook：
 | UNCOLLECTED_SUBTASKS | P1 | 关闭时有未收集子任务 |
 | MISSING_DELIVERABLES | P0 | 收工缺产物 |
 | KANBAN_NOT_UPDATED | P0 | 收工未更新看板 |
-| NO_RUN_LOG | P0 | 收工无运行日志 |
+| NO_RUN_LOG | 已移除 | 仅 M3 收工写一行运行日志；M4/M5 以 task card 为主记录，不设此门禁 |
 | FRONTMATTER_MISSING | P1 | 产物缺 frontmatter |
 | EMOJI_DETECTED | P2 | 检测到装饰性 emoji |
 | BRAND_COLOR | P3 | 品牌色不合规 |
@@ -101,9 +101,9 @@ pre-write-hook.sh v1.1 通过环境变量支持多 Agent 共用同一 hook：
 ```bash
 # 手动检查
 python3 .standards/gate-enforce.py pre-write \
-  --file "10-项目/{项目名}/file.md" \
+  --file "10-项目/示例项目EXAMPLE/file.md" \
   --task-id "T-20260528-01" \
-  --write-scope "10-项目/{项目名}/" \
+  --write-scope "10-项目/示例项目EXAMPLE/" \
   --json
 
 # 退出码

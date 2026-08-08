@@ -28,6 +28,8 @@ import re
 import subprocess
 from pathlib import Path
 
+from jsonl_reader import read_jsonl
+
 EVENTS_PATH = "02-项目管理/智能体状态/智能体事件.jsonl"
 AGENT_COST_EVENTS_PATH = "02-项目管理/agent-cost-events.jsonl"
 TASKS_DIR = "02-项目管理/任务卡"
@@ -68,36 +70,25 @@ def aggregate_cost(task_id: str) -> dict:
     for events_path in (EVENTS_PATH, AGENT_COST_EVENTS_PATH):
         if not os.path.isfile(events_path):
             continue
-        with open(events_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    ev = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if ev.get("task_id") == task_id or ev.get("task") == task_id:
-                    event_type = ev.get("type") or ev.get("event")
+        rows, _ = read_jsonl(Path(events_path), warn=True)
+        for ev in rows:
+            if ev.get("task_id") == task_id or ev.get("task") == task_id:
+                event_type = ev.get("type") or ev.get("event")
 
-                    # V9.2 口径规则：
-                    # - cost_start: 不计入汇总（只是标记起点）
-                    # - cost_checkpoint / cost_finalize: 增量计入
-                    # - task_end / spawn_end: 增量计入（兼容旧格式）
-                    # - cost_event / task_cost / cost: 增量计入（兼容旧格式）
-                    if event_type == "cost_start":
-                        event_count += 1  # 计数但不累加金额
-                        continue
+                # V9.2 口径规则：cost_start 只标记起点，其余成本事件增量计入。
+                if event_type == "cost_start":
+                    event_count += 1
+                    continue
 
-                    cost = ev.get("cost_cny", 0) or 0
-                    tokens = ev.get("tokens", 0) or 0
-                    total_cost += float(cost)
-                    total_tokens += int(tokens)
-                    if event_type in ("cost_event", "task_cost", "cost",
-                                      "cost_checkpoint", "cost_finalize") or (
-                        event_type in ("task_end", "spawn_end") and (float(cost) > 0 or int(tokens) > 0)
-                    ):
-                        event_count += 1
+                cost = ev.get("cost_cny", 0) or 0
+                tokens = ev.get("tokens", 0) or 0
+                total_cost += float(cost)
+                total_tokens += int(tokens)
+                if event_type in ("cost_event", "task_cost", "cost",
+                                  "cost_checkpoint", "cost_finalize") or (
+                    event_type in ("task_end", "spawn_end") and (float(cost) > 0 or int(tokens) > 0)
+                ):
+                    event_count += 1
 
     return {"tokens": total_tokens, "cost_cny": total_cost, "events": event_count}
 
@@ -131,17 +122,10 @@ def find_agent_for_task(task_id: str) -> str | None:
     for events_path in (EVENTS_PATH, AGENT_COST_EVENTS_PATH):
         if not os.path.isfile(events_path):
             continue
-        with open(events_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    ev = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if (ev.get("task_id") == task_id or ev.get("task") == task_id) and ev.get("agent"):
-                    return ev["agent"]
+        rows, _ = read_jsonl(Path(events_path), warn=True)
+        for ev in rows:
+            if (ev.get("task_id") == task_id or ev.get("task") == task_id) and ev.get("agent"):
+                return ev["agent"]
     return None
 
 

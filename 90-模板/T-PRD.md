@@ -1,23 +1,24 @@
 ---
+title: "{{module_name}} PRD v1.0"
 module: "{{module_name}}"
 module_no: "{{module_no}}"
 version: "v1.0"
 status: "draft"
-author: "{你的名字}"
+author: "用户"
 created: "{{date}}"
 updated: "{{date}}"
-tags: [PRD, project/project_slug]
+tags: [PRD, project/yijing]
 ---
 
 # {{module_name}} PRD v1.0
 
 > **模块编号**：{{module_no}}
-> **模块定位**：{项目名} · {{domain}}域 · {{module_name}}
+> **模块定位**：示例项目 EXAMPLE · {{domain}}域 · {{module_name}}
 > **业务编码**：{{business_code}}
-> **品牌口径**：{项目} / {产品代号}（含纯电版 / 增程版）
-> **遵循规范**：[[{项目}PRD硬约束-v3.3]]
+> **品牌口径**：示例项目 / X9（含纯电版 / 增程版）
+> **遵循规范**：[[示例项目PRD硬约束-v3.3]]
 > **文档版本**：v1.0（{{date}}，初版）
-> **编写人**：{你的名字}
+> **编写人**：用户
 > **依据文档**：
 
 ---
@@ -178,8 +179,8 @@ tags: [PRD, project/project_slug]
 
 | 日期 | 版本 | 变更内容 | 编写人 |
 |---|---|---|---|
-| {{date}} | v1.0 | 首版 | {你的名字} |
+| {{date}} | v1.0 | 首版 | 用户 |
 
 ---
 
-*使用 Templater 模板生成 · 遵循 [[{项目}PRD硬约束-v3.3]] · [[PRD输出规范-通用版-v1.0]]*
+*使用 Templater 模板生成 · 遵循 [[示例项目PRD硬约束-v3.3]] · [[PRD输出规范-通用版-v1.0]]*
