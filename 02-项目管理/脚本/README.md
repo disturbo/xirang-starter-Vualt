@@ -27,6 +27,7 @@ updated: 2026-06-27
 | 命令 | 用途 | 常用命令 |
 |---|---|---|
 | `.standards/v9-accept.py` / `v9_accept` | 安全验收任务卡：候选 accepted → pre-accept 门禁 → 原子写回 | `v9_accept T-xxxx 用户` |
+| `.standards/adversarial-review-check.py` | 多 Agent 对抗性审查正式报告只读校验；兼容 M0，检查风险触发、盲审声明、finding 证据、汇总计数与重复证据 | `python3 .standards/adversarial-review-check.py report.json --json` |
 | `.standards/agent-cost-events.py` | **已退役（2026-07-19）**：仅保留隔离期审计，不再进入运行链 | 不得用于当前任务完成条件 |
 | `.standards/hooks/pre-commit-harness-eval.sh` | git pre-commit：当 staged 文件触达 `.standards/` 或 `02-项目管理/脚本/` 时自动跑 harness eval；中文路径用 `core.quotepath=false` 识别 | `.git/hooks/pre-commit` 自动调用 |
 

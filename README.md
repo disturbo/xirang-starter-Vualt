@@ -1,7 +1,7 @@
 # 息壤 V9 · Starter Vault
 
 > 多智能体协作方法论的最小可运行 Obsidian Vault 骨架。
-> V9.4.3 · 2026-08-08 distribution refresh · Clone 即用，3 分钟从零到可运行。
+> V9.4.3 · 2026-08-10 distribution refresh · Clone 即用，3 分钟从零到可运行。
 
 ---
 
@@ -123,6 +123,7 @@ bash setup.sh
 | Handoff 可接手性扫描 | `02-项目管理/脚本/v9-handoff-check.py` |
 | Harness 回归测试 | `02-项目管理/脚本/v9-harness-eval-runner.py` |
 | 安全验收正门 | `.standards/v9-accept.py` |
+| 风险触发型多 Agent 对抗审查 | `50-经验/Agent协作方法论/息壤V9-多Agent对抗性审查协议.md` + `.standards/adversarial-review-check.py` |
 | 成本治理（已退役） | 历史脚本只读保留至 2026-08-02，不计入运行能力 |
 | Codex Desktop 门禁/生命周期适配 | `.standards/hooks/codex-hook-adapter.py` |
 | SessionStart/任务握手 GBrain 自动召回 | `.standards/semantic-recall.py` + `semantic_recall` 事件 |

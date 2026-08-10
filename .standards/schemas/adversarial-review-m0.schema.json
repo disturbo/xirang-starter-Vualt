@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Xi Rang Adversarial Review M0 Report",
+  "version": "0.1.0",
+  "type": "object",
+  "required": ["schema_version", "review_id", "task_id", "review_mode", "context_mode", "reviewer", "review_package", "findings"],
+  "properties": {
+    "schema_version": {"const": "0.1.0"},
+    "review_id": {"type": "string", "pattern": "^AR-[A-Za-z0-9._-]+$"},
+    "task_id": {"type": "string", "minLength": 1},
+    "review_mode": {"const": "single_challenger"},
+    "context_mode": {"const": "blind_package"},
+    "reviewer": {
+      "type": "object",
+      "required": ["agent_id", "model", "platform"],
+      "properties": {
+        "agent_id": {"type": "string", "minLength": 1},
+        "model": {"type": "string", "minLength": 1},
+        "platform": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "review_package": {
+      "type": "object",
+      "required": ["artifact", "references", "acceptance_criteria", "excluded_context"],
+      "properties": {
+        "artifact": {"type": "string", "minLength": 1},
+        "references": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "acceptance_criteria": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true},
+        "attack_surfaces": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "excluded_context": {
+          "type": "array",
+          "items": {"enum": ["author_chat_history", "author_self_assessment", "prior_review_findings", "unconfirmed_directional_opinions"]},
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "severity", "claim", "evidence", "impact", "reproduction_or_counterexample", "recommendation", "blocking_recommendation"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^F-[0-9]{3}$"},
+          "severity": {"enum": ["P0", "P1", "P2", "P3"]},
+          "claim": {"type": "string", "minLength": 1},
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["source", "locator", "excerpt_or_observation"],
+              "properties": {
+                "source": {"type": "string", "minLength": 1},
+                "locator": {"type": "string", "minLength": 1},
+                "excerpt_or_observation": {"type": "string", "minLength": 1}
+              },
+              "additionalProperties": false
+            }
+          },
+          "impact": {"type": "string", "minLength": 1},
+          "reproduction_or_counterexample": {"type": "string", "minLength": 1},
+          "recommendation": {"type": "string", "minLength": 1},
+          "blocking_recommendation": {"type": "boolean"},
+          "author_response": {
+            "type": "object",
+            "required": ["position", "note"],
+            "properties": {
+              "position": {"enum": ["agree", "disagree", "needs_evidence"]},
+              "note": {"type": "string", "minLength": 1}
+            },
+            "additionalProperties": false
+          },
+          "human_decision": {
+            "type": "object",
+            "required": ["result", "decided_by", "note"],
+            "properties": {
+              "result": {"enum": ["accepted_finding", "rejected_finding", "accepted_risk", "needs_verification"]},
+              "decided_by": {"type": "string", "minLength": 1},
+              "note": {"type": "string", "minLength": 1}
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
