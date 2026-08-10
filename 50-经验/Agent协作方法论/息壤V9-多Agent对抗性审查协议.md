@@ -98,4 +98,3 @@ python3 .standards/adversarial-review-check.py path/to/report.json --json
 ## 8. 晋级依据
 
 M0 使用“示例项目 EXAMPLE 服务模块 828 迭代 PRD”完成 A/B 回放。普通审查更擅长静态规范与字段完整性；独立 Challenger 额外发现旧二维码跨渠道超额支付、H5 授权与身份边界、自提交自审核等动态风险。回放同时暴露汇总数量不一致与布尔字段类型错误，因此正式模式将原始报告固化和机械校验列为必经步骤。
-
