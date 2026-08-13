@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import tempfile
 import unittest
@@ -94,6 +95,28 @@ class PhaseFTests(unittest.TestCase):
         )
         self.assertEqual(1, migrated["observations"]["LEGACY"]["count"])
         self.assertEqual([], candidates)
+
+    def test_v1_poll_counts_are_not_consumed_by_v2_runtime(self) -> None:
+        module = load(PHOENIX, "phase_f_state_migration")
+        with tempfile.TemporaryDirectory() as raw:
+            runtime = Path(raw)
+            governance = runtime / "治理"
+            governance.mkdir()
+            (governance / "phoenix-observations.json").write_text(json.dumps({
+                "schema_version": "v1",
+                "observations": {"LEGACY": {"rule_id": "LEGACY", "count": 99}},
+            }), encoding="utf-8")
+            health = runtime / "health.json"
+            health.write_text(json.dumps({
+                "generated_at": "2026-08-14T00:00:00+08:00",
+                "findings": [{"rule_id": "LEGACY", "severity": "p1", "source": "test", "object": "x"}],
+            }), encoding="utf-8")
+            with mock.patch.dict(os.environ, {"XIRANG_V9_RUNTIME_DIR": str(runtime)}):
+                report = module.build_report(health, False)
+            migrated = json.loads((governance / "phoenix-observations.json").read_text(encoding="utf-8"))
+            self.assertEqual("v2", migrated["schema_version"])
+            self.assertEqual(1, migrated["observations"]["LEGACY"]["count"])
+            self.assertEqual(0, report["upgrade_candidates"])
 
 
 if __name__ == "__main__":

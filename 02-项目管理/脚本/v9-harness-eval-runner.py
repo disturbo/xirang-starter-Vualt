@@ -3242,14 +3242,14 @@ def case_phase_f_positive_capability_truth() -> EvalResult:
         [sys.executable, str(PHASE_F_TEST)],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
     )
-    passed = proc.returncode == 0 and "Ran 5 tests" in proc.stderr and "OK" in proc.stderr
+    passed = proc.returncode == 0 and "Ran 6 tests" in proc.stderr and "OK" in proc.stderr
     return EvalResult(
         "phase_f_positive_capability_truth",
         "positive",
         "Phoenix capability state",
         passed,
         "Phase F bounded executor, allowlist, and proposal-only evolution regressions pass",
-        "5/5 Phase F Phoenix runtime tests passed" if passed else "Phase F regression suite failed",
+        "6/6 Phase F Phoenix runtime tests passed" if passed else "Phase F regression suite failed",
         {"returncode": proc.returncode, "stdout": proc.stdout[-500:], "stderr": proc.stderr[-1000:]},
     )
 

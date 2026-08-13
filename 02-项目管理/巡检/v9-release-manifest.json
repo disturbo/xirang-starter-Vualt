@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-14T00:16:03+08:00",
+  "generated_at": "2026-08-14T00:18:04+08:00",
   "distribution": "starter-local",
   "roots": {
     "starter": "."
@@ -9,7 +9,7 @@
     {
       "name": "starter",
       "root": "starter",
-      "tree_sha256": "b8ef033ebdb18a9ccd71431e20529bf5d09fc39e059ebc33adb145395ca32796"
+      "tree_sha256": "ab9c6f473328ed27b4d58c12979749e64d6b68cabcf643c4d249ff28afb60d74"
     }
   ],
   "artifacts": [
@@ -81,7 +81,7 @@
     {
       "root": "starter",
       "path": ".standards/tests/test_v9_phase_f.py",
-      "sha256": "3782f05a6acc905f1f63ad691535d8ed9318b00f282b22735d7beab24014552f"
+      "sha256": "2f8a99e2fbefb9ec0f8717cf880a38b435fde01f7416f7dcb9c776f69fafa3c8"
     },
     {
       "root": "starter",
@@ -141,7 +141,7 @@
     {
       "root": "starter",
       "path": "02-项目管理/脚本/v9-harness-eval-runner.py",
-      "sha256": "6015fb9f23df3866b174543b106ffcba3c01c77dfebfcb21fd7c6119b0014e1e"
+      "sha256": "e6e898876297a6763f5da90b4e4cd60f061d787ae3a9e8f525db8ad5ab003807"
     },
     {
       "root": "starter",
@@ -161,7 +161,7 @@
     {
       "root": "starter",
       "path": "02-项目管理/脚本/v9-phoenix.py",
-      "sha256": "e4531fa291af7c8b81c5573ee089cbabbae7848d496ee92e2bb83646a86606b0"
+      "sha256": "49e8305d428d738a7c8a0a7d75716b705b37828b8301fc5948c11fb2d19fec1a"
     },
     {
       "root": "starter",

@@ -23,6 +23,7 @@ from pathlib import Path
 
 CHECK_NAME = "v9-phoenix"
 SCHEMA_VERSION = "v1"
+OBSERVATION_SCHEMA_VERSION = "v2"
 ROOT = Path(__file__).resolve().parents[2]
 UPGRADE_THRESHOLD = 3
 TRUSTED_HOME = Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()
@@ -154,7 +155,7 @@ def update_observations(
             }
         )
     return {
-        "schema_version": SCHEMA_VERSION,
+        "schema_version": OBSERVATION_SCHEMA_VERSION,
         "updated_at": observed_at,
         "observations": observations,
     }, candidates
@@ -199,14 +200,17 @@ def build_report(health_path: Path, apply_safe: bool) -> dict:
     actions = [run_action(action, apply_safe) for action in repair_actions(findings)]
     runtime = runtime_root()
     observation_path = runtime / "治理/phoenix-observations.json"
+    previous_observations = read_json(observation_path)
+    if previous_observations.get("schema_version") != OBSERVATION_SCHEMA_VERSION:
+        previous_observations = {}
     observation_state, candidates = update_observations(
-        read_json(observation_path), findings, generated_at, str(health.get("generated_at", "")),
+        previous_observations, findings, generated_at, str(health.get("generated_at", "")),
     )
     atomic_write_json(observation_path, observation_state)
     atomic_write_json(
         runtime / "治理/phoenix-upgrade-candidates.json",
         {
-            "schema_version": SCHEMA_VERSION,
+            "schema_version": OBSERVATION_SCHEMA_VERSION,
             "updated_at": generated_at,
             "policy": "proposal_only; human_acceptance_required; phoenix_cannot_activate_own_upgrade",
             "threshold": UPGRADE_THRESHOLD,
