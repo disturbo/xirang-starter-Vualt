@@ -13,6 +13,7 @@ import argparse
 import hashlib
 import json
 import os
+import pwd
 import subprocess
 import sys
 import tempfile
@@ -24,6 +25,8 @@ CHECK_NAME = "v9-phoenix"
 SCHEMA_VERSION = "v1"
 ROOT = Path(__file__).resolve().parents[2]
 UPGRADE_THRESHOLD = 3
+TRUSTED_HOME = Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()
+TRUSTED_PYTHON = Path(sys.executable).resolve()
 
 
 def now_iso() -> str:
@@ -66,14 +69,12 @@ def append_jsonl(path: Path, payload: dict) -> None:
 
 
 def action_catalog() -> dict[str, dict]:
-    home = Path.home()
-    python = os.environ.get("XIRANG_V9_PYTHON", sys.executable)
     return {
         "refresh_entropy": {
             "rules": {"ENTROPY_JOB_STATE_INVALID", "ENTROPY_SHADOW_MISSING", "ENTROPY_SHADOW_STALE"},
             "command": [
-                python,
-                os.environ.get("XIRANG_ENTROPY_EXECUTOR", str(home / ".hermes/scripts/v9-entropy-shadow.py")),
+                str(TRUSTED_PYTHON),
+                str(TRUSTED_HOME / ".hermes/scripts/v9-entropy-shadow.py"),
             ],
             "timeout": 1800,
         },
@@ -84,7 +85,7 @@ def action_catalog() -> dict[str, dict]:
                 "GBRAIN_CURRENT_REVISION_NOT_CONSUMED",
             },
             "command": [
-                os.environ.get("XIRANG_GBRAIN_MAINTENANCE", str(home / ".gbrain/maintenance-run.sh")),
+                str(TRUSTED_HOME / ".gbrain/maintenance-run.sh"),
                 "sync",
             ],
             "timeout": 300,
@@ -102,7 +103,9 @@ def repair_actions(findings: list[dict]) -> list[dict]:
     return actions
 
 
-def update_observations(previous: dict, findings: list[dict], observed_at: str) -> tuple[dict, list[dict]]:
+def update_observations(
+    previous: dict, findings: list[dict], observed_at: str, health_generated_at: str = "",
+) -> tuple[dict, list[dict]]:
     observations = previous.get("observations") if isinstance(previous.get("observations"), dict) else {}
     seen_this_run: set[str] = set()
     for finding in findings:
@@ -111,15 +114,25 @@ def update_observations(previous: dict, findings: list[dict], observed_at: str) 
             continue
         seen_this_run.add(rule_id)
         current = observations.get(rule_id) if isinstance(observations.get(rule_id), dict) else {}
+        # Count distinct failure episodes, not scheduler polls of one unresolved
+        # snapshot. A rule becomes a new episode only after it disappeared.
+        was_active = current.get("active") is True
         observations[rule_id] = {
             "rule_id": rule_id,
-            "count": int(current.get("count", 0) or 0) + 1,
+            "count": int(current.get("count", 0) or 0) + (0 if was_active else 1),
             "first_seen": current.get("first_seen") or observed_at,
             "last_seen": observed_at,
+            "last_health_generated_at": health_generated_at or None,
+            "active": True,
             "severity": finding.get("severity"),
             "source": finding.get("source"),
             "object": finding.get("object"),
         }
+
+    for rule_id, current in observations.items():
+        if rule_id not in seen_this_run and isinstance(current, dict):
+            current["active"] = False
+            current["cleared_at"] = observed_at
 
     candidates = []
     auto_rules = {rule for action in action_catalog().values() for rule in action["rules"]}
@@ -160,7 +173,11 @@ def run_action(action: dict, apply_safe: bool) -> dict:
             capture_output=True,
             text=True,
             timeout=action["timeout"],
-            env={**os.environ, "XIRANG_V9_VAULT_DIR": str(ROOT)},
+            env={
+                "HOME": str(TRUSTED_HOME),
+                "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+                "LANG": "en_US.UTF-8",
+            },
         )
         return {
             **base,
@@ -180,7 +197,9 @@ def build_report(health_path: Path, apply_safe: bool) -> dict:
     actions = [run_action(action, apply_safe) for action in repair_actions(findings)]
     runtime = runtime_root()
     observation_path = runtime / "治理/phoenix-observations.json"
-    observation_state, candidates = update_observations(read_json(observation_path), findings, generated_at)
+    observation_state, candidates = update_observations(
+        read_json(observation_path), findings, generated_at, str(health.get("generated_at", "")),
+    )
     atomic_write_json(observation_path, observation_state)
     atomic_write_json(
         runtime / "治理/phoenix-upgrade-candidates.json",
@@ -207,6 +226,14 @@ def build_report(health_path: Path, apply_safe: bool) -> dict:
         "repairs_applied": applied,
         "repairs_failed": failed,
         "upgrade_candidates": len(candidates),
+        "execution_policy": {
+            "environment_overrides_allowed": False,
+            "trusted_home": str(TRUSTED_HOME),
+            "catalog": {
+                action_id: {"command": contract["command"], "rules": sorted(contract["rules"])}
+                for action_id, contract in action_catalog().items()
+            },
+        },
         "safety": {
             "source_note_edits": False,
             "gate_changes": False,

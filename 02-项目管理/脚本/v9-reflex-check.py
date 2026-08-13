@@ -49,6 +49,7 @@ import contextlib
 import fcntl
 import json
 import os
+import pwd
 import re
 import subprocess
 import sys
@@ -842,15 +843,25 @@ def collect_runtime_liveness(
         wrapper_text = phoenix_wrapper.read_text(encoding="utf-8")
     except OSError:
         wrapper_text = ""
+    try:
+        phoenix_source = phoenix_executor.read_text(encoding="utf-8")
+    except OSError:
+        phoenix_source = ""
     phoenix_issues = []
     if not phoenix_executor.is_file():
         phoenix_issues.append("executor_missing")
     if '"$PHOENIX_SCRIPT" --apply-safe' not in wrapper_text:
         phoenix_issues.append("scheduler_integration_missing")
+    if 'write_state "failed" "$phoenix_rc" "phoenix_failed"' not in wrapper_text:
+        phoenix_issues.append("scheduler_swallows_failure")
+    if any(name in phoenix_source for name in (
+        "XIRANG_ENTROPY_EXECUTOR", "XIRANG_GBRAIN_MAINTENANCE", "XIRANG_V9_PYTHON",
+    )):
+        phoenix_issues.append("allowlist_environment_override_present")
     phoenix_generated = parse_iso(str((phoenix_state or {}).get("generated_at", "")))
     if not phoenix_state:
         phoenix_issues.append("state_missing")
-    elif phoenix_state.get("status") not in {"success", "degraded"}:
+    elif phoenix_state.get("status") != "success":
         phoenix_issues.append(f"state={phoenix_state.get('status')}")
     elif phoenix_generated is None or now - phoenix_generated > timedelta(hours=24):
         phoenix_issues.append("state_stale")
@@ -859,6 +870,26 @@ def collect_runtime_liveness(
         "source_note_edits", "gate_changes", "self_acceptance", "manifest_changes",
     )):
         phoenix_issues.append("safety_contract_invalid")
+    trusted_home = Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()
+    expected_catalog = {
+        "refresh_entropy": {
+            "command": [str(Path(sys.executable).resolve()), str(trusted_home / ".hermes/scripts/v9-entropy-shadow.py")],
+            "rules": ["ENTROPY_JOB_STATE_INVALID", "ENTROPY_SHADOW_MISSING", "ENTROPY_SHADOW_STALE"],
+        },
+        "refresh_gbrain": {
+            "command": [str(trusted_home / ".gbrain/maintenance-run.sh"), "sync"],
+            "rules": ["GBRAIN_CURRENT_REVISION_NOT_CONSUMED", "GBRAIN_SYNC_NEVER_SUCCEEDED", "GBRAIN_SYNC_STALE"],
+        },
+    }
+    execution_policy = (phoenix_state or {}).get("execution_policy")
+    if not isinstance(execution_policy, dict):
+        phoenix_issues.append("execution_policy_missing")
+    elif (
+        execution_policy.get("environment_overrides_allowed") is not False
+        or execution_policy.get("trusted_home") != str(trusted_home)
+        or execution_policy.get("catalog") != expected_catalog
+    ):
+        phoenix_issues.append("execution_policy_invalid")
     if phoenix_issues:
         findings.append(make_finding(
             "p1", "PHOENIX_RUNTIME_INVALID", str(phoenix_state_path),

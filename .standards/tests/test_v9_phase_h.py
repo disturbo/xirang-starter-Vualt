@@ -313,6 +313,7 @@ class PhaseHTests(unittest.TestCase):
             harness_report = runtime / "巡检/harness-eval-latest.json"
             env = {
                 **os.environ,
+                "XIRANG_V9_TEST_MODE": "1",
                 "XIRANG_V9_VAULT_DIR": str(vault),
                 "XIRANG_V9_RUNTIME_DIR": str(runtime),
                 "XIRANG_V9_PYTHON": "/usr/bin/python3",
@@ -339,6 +340,18 @@ class PhaseHTests(unittest.TestCase):
             state = json.loads((runtime / "巡检/reflex-scheduler-health.json").read_text(encoding="utf-8"))
             self.assertEqual("success", state["status"])
             self.assertEqual("completed_status_green", state["reason"])
+
+            phoenix.write_text("raise SystemExit(9)\n", encoding="utf-8")
+            failed = subprocess.run(
+                ["/bin/bash", str(REFLEX_WRAPPER)], capture_output=True, text=True,
+                env=env, timeout=30,
+            )
+            self.assertEqual(9, failed.returncode)
+            failed_state = json.loads(
+                (runtime / "巡检/reflex-scheduler-health.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual("failed", failed_state["status"])
+            self.assertEqual("phoenix_failed", failed_state["reason"])
 
     def test_cost_pipeline_is_explicitly_retired(self) -> None:
         self.assertNotIn("codex_cost_telemetry", REFLEX.read_text(encoding="utf-8"))

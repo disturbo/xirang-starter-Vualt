@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -44,6 +46,17 @@ class PhaseFTests(unittest.TestCase):
         actions = module.repair_actions(findings)
         self.assertEqual(["refresh_entropy"], [item["action_id"] for item in actions])
 
+    def test_allowlist_commands_ignore_environment_overrides(self) -> None:
+        module = load(PHOENIX, "phase_f_fixed_commands")
+        with mock.patch.dict(os.environ, {
+            "XIRANG_V9_PYTHON": "/tmp/evil-python",
+            "XIRANG_ENTROPY_EXECUTOR": "/tmp/evil-entropy",
+            "XIRANG_GBRAIN_MAINTENANCE": "/tmp/evil-gbrain",
+        }):
+            catalog = module.action_catalog()
+        commands = [part for item in catalog.values() for part in item["command"]]
+        self.assertFalse(any(str(part).startswith("/tmp/evil-") for part in commands))
+
     def test_recurrence_generates_proposal_not_activation(self) -> None:
         module = load(PHOENIX, "phase_f_evolution")
         state: dict = {}
@@ -54,9 +67,25 @@ class PhaseFTests(unittest.TestCase):
                 [{"rule_id": "NON_ALLOWLISTED_REPEAT", "severity": "p1", "source": "test", "object": "x"}],
                 f"2026-08-13T00:00:0{index}+08:00",
             )
+            if index < 2:
+                state, _ = module.update_observations(
+                    state, [], f"2026-08-13T00:00:1{index}+08:00",
+                )
         self.assertEqual(1, len(candidates))
         self.assertTrue(candidates[0]["requires_human_review"])
         self.assertEqual("forbidden_without_external_acceptance", candidates[0]["activation"])
+
+    def test_persistent_finding_counts_as_one_episode(self) -> None:
+        module = load(PHOENIX, "phase_f_episode_dedup")
+        state: dict = {}
+        for index in range(3):
+            state, candidates = module.update_observations(
+                state,
+                [{"rule_id": "PERSISTENT", "severity": "p1", "source": "test", "object": "x"}],
+                f"2026-08-13T00:00:0{index}+08:00",
+            )
+        self.assertEqual(1, state["observations"]["PERSISTENT"]["count"])
+        self.assertEqual([], candidates)
 
 
 if __name__ == "__main__":

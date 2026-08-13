@@ -12,7 +12,11 @@ HARNESS_SCRIPT="${XIRANG_V9_HARNESS_SCRIPT:-$VAULT/02-项目管理/脚本/v9-har
 HARNESS_VERIFY_SCRIPT="${XIRANG_V9_HARNESS_VERIFY_SCRIPT:-$VAULT/.standards/harness-eval-verify.py}"
 HARNESS_REPORT="${XIRANG_V9_HARNESS_REPORT:-$RUNTIME/巡检/harness-eval-latest.json}"
 HARNESS_MAX_AGE_HOURS="${XIRANG_V9_HARNESS_MAX_AGE_HOURS:-20}"
-PHOENIX_SCRIPT="${XIRANG_V9_PHOENIX_SCRIPT:-$VAULT/02-项目管理/脚本/v9-phoenix.py}"
+if [[ "${XIRANG_V9_TEST_MODE:-0}" == "1" ]]; then
+  PHOENIX_SCRIPT="${XIRANG_V9_PHOENIX_SCRIPT:-$VAULT/02-项目管理/脚本/v9-phoenix.py}"
+else
+  PHOENIX_SCRIPT="$VAULT/02-项目管理/脚本/v9-phoenix.py"
+fi
 GBRAIN_CONTRACT_SOURCE="${XIRANG_GBRAIN_CONTRACT_SOURCE:-$VAULT/50-经验/Agent协作方法论/息壤V9-运行时契约卡.md}"
 GBRAIN_CONTRACT_MIRROR="${XIRANG_GBRAIN_CONTRACT_MIRROR:-$HOME/.gbrain/runtime-contract-current.md}"
 GBRAIN_MAINTENANCE="${XIRANG_GBRAIN_MAINTENANCE:-$HOME/.gbrain/maintenance-run.sh}"
@@ -212,8 +216,8 @@ if [[ $harness_rc -ne 0 ]]; then
   exit 0
 fi
 if [[ $phoenix_rc -ne 0 ]]; then
-  write_state "success" 0 "completed_status_${status_value}_phoenix_degraded"
-  exit 0
+  write_state "failed" "$phoenix_rc" "phoenix_failed"
+  exit "$phoenix_rc"
 fi
 write_state "success" 0 "completed_status_${status_value}"
 exit 0
