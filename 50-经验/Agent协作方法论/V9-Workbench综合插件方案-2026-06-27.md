@@ -12,6 +12,7 @@ related:
   - "[[V9-状态面板MVP需求卡-2026-06-27]]"
   - "[[V9.5-月度迭代Ops方案-2026-06-27]]"
   - "[[50-经验/Agent进化/V9借鉴]]"
+maturity: stable
 ---
 
 # V9 Workbench 综合插件方案

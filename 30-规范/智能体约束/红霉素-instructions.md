@@ -4,6 +4,10 @@ source: ".codex/instructions.md"
 snapshot_date: "2026-06-11"
 platform: "Codex"
 agent_id: hongmeisu
+created: 2026-06-27
+status: active
+version: "1.0"
+tags: ["规范"]
 ---
 
 > 本文件为只读快照。源文件：`.codex/instructions.md`

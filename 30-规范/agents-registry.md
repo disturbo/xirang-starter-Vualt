@@ -7,6 +7,7 @@ created: 2026-05-13
 updated: 2026-06-10
 status: active
 tags: [规范]
+version: "1.0"
 ---
 
 # Agents Registry — 跨智能体登记表

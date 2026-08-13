@@ -194,6 +194,24 @@ def git_head(path: Path) -> str:
         return ""
 
 
+def artifact_tree_sha256(roots: dict, artifacts: list, root_name: str) -> str:
+    """Portable release identity over the actual governed artifact tree."""
+    rows = []
+    root = Path(str(roots.get(root_name, ""))).expanduser()
+    for artifact in sorted(
+        (item for item in artifacts if isinstance(item, dict) and item.get("root") == root_name),
+        key=lambda item: str(item.get("path", "")),
+    ):
+        relative = str(artifact.get("path", ""))
+        target = root / relative
+        if not target.is_file():
+            return ""
+        rows.append(f"{relative}:{sha256(target)}")
+    if not rows:
+        return ""
+    return hashlib.sha256(("\n".join(rows) + "\n").encode()).hexdigest()
+
+
 def check_distribution(manifest: dict) -> dict:
     roots = manifest.get("roots") if isinstance(manifest.get("roots"), dict) else {}
     releases = manifest.get("releases") if isinstance(manifest.get("releases"), list) else []
@@ -203,9 +221,16 @@ def check_distribution(manifest: dict) -> dict:
         if not isinstance(release, dict):
             issues.append("invalid_release")
             continue
-        root = Path(str(roots.get(release.get("root"), ""))).expanduser()
-        if git_head(root) != release.get("commit"):
-            issues.append(f"commit:{release.get('name', release.get('root'))}")
+        root_name = str(release.get("root", ""))
+        root = Path(str(roots.get(root_name, ""))).expanduser()
+        if release.get("commit"):
+            if git_head(root) != release.get("commit"):
+                issues.append(f"commit:{release.get('name', root_name)}")
+        elif release.get("tree_sha256"):
+            if artifact_tree_sha256(roots, artifacts, root_name) != release.get("tree_sha256"):
+                issues.append(f"tree:{release.get('name', root_name)}")
+        else:
+            issues.append(f"identity_missing:{release.get('name', root_name)}")
     checked = 0
     for artifact in artifacts:
         if not isinstance(artifact, dict):

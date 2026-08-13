@@ -4,10 +4,11 @@ date: 2026-05-16
 author: "用户（Hermes）"
 source: "不死鸟Phoenix-技术文档.md"
 type: "评估报告"
-status: "评估已确认（未实现）"
-runtime_status: design_only
-executor: none
-scheduler: none
+status: "Phase 1 有界运行态已实现"
+runtime_status: active_bounded
+executor: v9-phoenix.py
+scheduler: v9-reflex-run.sh
+updated: 2026-08-13
 tags: [不死鸟, Phoenix, 知识管理, 自动融合, 自愈系统, 借鉴方案]
 ---
 
@@ -15,7 +16,7 @@ tags: [不死鸟, Phoenix, 知识管理, 自动融合, 自愈系统, 借鉴方�
 
 > **评估结论：6项可直接借鉴，2项待讨论，3项不适用。**
 
-> **运行声明（2026-07-18）**：本文确认的是借鉴价值，不是部署状态。当前没有 Phoenix scheduler / executor / 状态产物 / 执行日志，所有“自动修复”均为候选设计，不得计入 V9 已生效能力。
+> **运行声明（2026-08-13）**：Phoenix v1 已以有界模式部署。当前能力只包括固定白名单运行态修复、执行留痕和重复故障升级候选；文中其余外部架构能力仍是参考，不得整体宣称已实现。
 
 ---
 

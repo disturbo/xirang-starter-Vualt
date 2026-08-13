@@ -308,7 +308,7 @@ def case_starter_leak_positive_clean() -> EvalResult:
 def case_starter_leak_negative_project_term() -> EvalResult:
     with tempfile.TemporaryDirectory(prefix="v9-eval-starter-term-") as tmp:
         root = Path(tmp)
-        write_text(root / "00-MOC" / "知识管理规范.md", "这里残留了 EXAMPLE 项目口径。\n")
+        write_text(root / "00-MOC" / "知识管理规范.md", "这里残留了 INTERNAL_PROJECT_FIXTURE 项目口径。\n")
         code, report, stdout, stderr = run_json(STARTER_LEAK, ["--root", str(root), "--json"], REPO_ROOT)
         passed = report is not None and has_rule(report, "PROJECT_TERM") and blocking_count(report) > 0
         observed = "PROJECT_TERM blocked" if passed else "project term leak was not blocked"
@@ -2890,6 +2890,13 @@ def case_reflex_negative_missing_sources_visible() -> EvalResult:
         runtime_root = root / ".v9-runtime"
         env = dict(os.environ)
         env["XIRANG_V9_RUNTIME_DIR"] = str(runtime_root)
+        # 本用例只验证“缺失治理源必须显式暴露”。隔离宿主机 GBrain/Ollama/cron，
+        # 避免把外部语义查询和 180 秒契约验证带入负样本，造成环境相关超时。
+        env["XIRANG_GBRAIN_CLI"] = "/usr/bin/false"
+        env["XIRANG_OLLAMA_CLI"] = "/usr/bin/false"
+        env["XIRANG_CRONTAB"] = "/usr/bin/false"
+        env["XIRANG_GBRAIN_CONTRACT_VERIFY"] = "/usr/bin/false"
+        env["XIRANG_LLM_WIKI_CHECKER"] = "/usr/bin/false"
         proc = subprocess.run(
             [sys.executable, str(REFLEX), "--today", TODAY.isoformat(), "--quiet"],
             cwd=str(root),
@@ -3235,14 +3242,14 @@ def case_phase_f_positive_capability_truth() -> EvalResult:
         [sys.executable, str(PHASE_F_TEST)],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
     )
-    passed = proc.returncode == 0 and "Ran 1 test" in proc.stderr and "OK" in proc.stderr
+    passed = proc.returncode == 0 and "Ran 3 tests" in proc.stderr and "OK" in proc.stderr
     return EvalResult(
         "phase_f_positive_capability_truth",
         "positive",
         "Phoenix capability state",
         passed,
-        "Phase F truthful design-state regression passes",
-        "1/1 Phase F capability-state test passed" if passed else "Phase F regression suite failed",
+        "Phase F bounded executor, allowlist, and proposal-only evolution regressions pass",
+        "3/3 Phase F Phoenix runtime tests passed" if passed else "Phase F regression suite failed",
         {"returncode": proc.returncode, "stdout": proc.stdout[-500:], "stderr": proc.stderr[-1000:]},
     )
 
@@ -3269,14 +3276,14 @@ def case_phase_h_positive_long_session_stability() -> EvalResult:
         [sys.executable, str(PHASE_H_TEST)],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
     )
-    passed = proc.returncode == 0 and "Ran 10 tests" in proc.stderr and "OK" in proc.stderr
+    passed = proc.returncode == 0 and "Ran 13 tests" in proc.stderr and "OK" in proc.stderr
     return EvalResult(
         "phase_h_positive_long_session_stability",
         "positive",
         "system-Python Codex hook runtime",
         passed,
         "Phase H adapter, handshake interpreter, and RFC 3339 regressions all pass",
-        "10/10 Phase H long-session tests passed" if passed else "Phase H regression suite failed",
+        "13/13 Phase H long-session tests passed" if passed else "Phase H regression suite failed",
         {"returncode": proc.returncode, "stdout": proc.stdout[-500:], "stderr": proc.stderr[-1000:]},
     )
 

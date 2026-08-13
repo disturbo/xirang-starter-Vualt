@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from collections import Counter
@@ -16,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 
-VAULT = Path("$HOME/Desktop/obsidianVault")
+VAULT = Path(os.environ.get("VAULT_ROOT", Path.home() / "Desktop" / "obsidianVault"))
 MODULE_ROOT = VAULT / "10-项目" / "基线"
 DEFAULT_OUTPUT = MODULE_ROOT / "module-registry.json"
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---", re.DOTALL)

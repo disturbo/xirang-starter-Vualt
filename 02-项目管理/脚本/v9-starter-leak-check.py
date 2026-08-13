@@ -49,6 +49,7 @@ SKIP_FILENAMES = {
 }
 
 LITERAL_PATTERNS = [
+    ("PROJECT_TERM", "INTERNAL_PROJECT_FIXTURE"),
     ("PERSONAL_NAME", "波波"),
     ("PERSONAL_NAME", "余东波"),
     ("PERSONAL_PATH", "/Users/yudongbo"),
@@ -141,6 +142,8 @@ def is_detector_line(path: Path, line: str) -> bool:
     if path.name == "sync-to-dist.sh" and "SENSITIVE_PATTERN" in line:
         return True
     if path.name == "v9-harness-eval-runner.py" and "write_text(root / \"config.json\"" in line:
+        return True
+    if path.name == "v9-harness-eval-runner.py" and "INTERNAL_PROJECT_FIXTURE" in line:
         return True
     if "LITERAL_PATTERNS" in line or "REGEX_PATTERNS" in line:
         return True

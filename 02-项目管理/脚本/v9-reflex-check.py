@@ -330,10 +330,13 @@ def collect_task_state() -> list[dict]:
     summary = data.get("summary") if isinstance(data.get("summary"), dict) else {}
     missing = int(summary.get("done_missing_review_status", 0) or 0)
     awaiting = int(summary.get("awaiting_review", 0) or 0)
-    if missing or awaiting:
+    # submitted/reviewing 是正常 HITL 队列，不是 Agent 可自行偿还的治理债。
+    # 只有结构缺失才进入 health finding；完整队列由 task-review-queue.json 承载。
+    if missing:
         findings.append(make_finding(
             "advisory", "TASK_REVIEW_DEBT", "formal-task-cards",
-            f"正式任务卡仍有验收治理债：done 缺 review_status={missing}，待用户评审={awaiting}。",
+            f"正式任务卡存在验收结构债：done 缺 review_status={missing}；"
+            f"另有正常 HITL 待评审队列={awaiting}（不计治理债）。",
             "task-state", detail=summary,
         ))
     return findings
@@ -827,27 +830,48 @@ def collect_runtime_liveness(
     else:
         checks.append(_runtime_check("llm_wiki", "ok", str(wiki_data.get("prototype_root"))))
 
-    phoenix_method = ROOT / "50-经验/Agent协作方法论/息壤方法论-V9.md"
-    phoenix_eval = ROOT / "50-经验/Agent进化/不死鸟Phoenix-借鉴评估报告.md"
+    phoenix_executor = Path(os.environ.get(
+        "XIRANG_V9_PHOENIX_SCRIPT", str(ROOT / "02-项目管理/脚本/v9-phoenix.py"),
+    ))
+    phoenix_wrapper = ROOT / ".standards/v9-reflex-run.sh"
+    phoenix_state_path = Path(os.environ.get(
+        "XIRANG_V9_PHOENIX_STATE", str(home / ".xirang/v9-runtime/巡检/phoenix-latest.json"),
+    ))
+    phoenix_state = _read_json(phoenix_state_path)
     try:
-        method_text = phoenix_method.read_text(encoding="utf-8")
-        eval_text = phoenix_eval.read_text(encoding="utf-8")
+        wrapper_text = phoenix_wrapper.read_text(encoding="utf-8")
     except OSError:
-        method_text = eval_text = ""
-    phoenix_truthful = (
-        "Phoenix 当前仅为设计参考" in method_text
-        and "runtime_status: design_only" in eval_text
-        and "executor: none" in eval_text
-        and "scheduler: none" in eval_text
-    )
-    if not phoenix_truthful:
+        wrapper_text = ""
+    phoenix_issues = []
+    if not phoenix_executor.is_file():
+        phoenix_issues.append("executor_missing")
+    if '"$PHOENIX_SCRIPT" --apply-safe' not in wrapper_text:
+        phoenix_issues.append("scheduler_integration_missing")
+    phoenix_generated = parse_iso(str((phoenix_state or {}).get("generated_at", "")))
+    if not phoenix_state:
+        phoenix_issues.append("state_missing")
+    elif phoenix_state.get("status") not in {"success", "degraded"}:
+        phoenix_issues.append(f"state={phoenix_state.get('status')}")
+    elif phoenix_generated is None or now - phoenix_generated > timedelta(hours=24):
+        phoenix_issues.append("state_stale")
+    safety = (phoenix_state or {}).get("safety") if isinstance((phoenix_state or {}).get("safety"), dict) else {}
+    if phoenix_state and not all(safety.get(key) is False for key in (
+        "source_note_edits", "gate_changes", "self_acceptance", "manifest_changes",
+    )):
+        phoenix_issues.append("safety_contract_invalid")
+    if phoenix_issues:
         findings.append(make_finding(
-            "p1", "PHOENIX_CAPABILITY_OVERCLAIMED", str(phoenix_method),
-            "Phoenix 无执行器时必须标记为 design/reference，不能声称自动自愈已生效。", "runtime-liveness",
+            "p1", "PHOENIX_RUNTIME_INVALID", str(phoenix_state_path),
+            f"Phoenix 执行链异常：{','.join(phoenix_issues)}。", "runtime-liveness",
+            detail={"issues": phoenix_issues, "state": phoenix_state},
         ))
-        checks.append(_runtime_check("phoenix_capability", "failed", "design_state_not_declared"))
+        checks.append(_runtime_check("phoenix_capability", "failed", ",".join(phoenix_issues)))
     else:
-        checks.append(_runtime_check("phoenix_capability", "design", "executor=none scheduler=none"))
+        checks.append(_runtime_check(
+            "phoenix_capability", "ok",
+            f"mode={phoenix_state.get('mode')} repairs={phoenix_state.get('repairs_applied')} "
+            f"upgrade_candidates={phoenix_state.get('upgrade_candidates')}",
+        ))
 
     # Hermes One owns the deterministic weekly entropy-v2 shadow job. Check
     # the scheduler, desired job contract, and last real execution separately;

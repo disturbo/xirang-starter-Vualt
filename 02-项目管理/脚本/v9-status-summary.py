@@ -207,6 +207,9 @@ def iteration_status(report: dict | None, error: str | None) -> dict:
         "current_iteration": report.get("current_iteration") if report else None,
         "iteration_root": report.get("iteration_root") if report else None,
         "management_root": report.get("management_root") if report else None,
+        "preparation_iteration": report.get("preparation_iteration") if report else None,
+        "preparation_root": report.get("preparation_root") if report else None,
+        "preparation_management_root": report.get("preparation_management_root") if report else None,
         "summary": summary,
         "findings": report.get("findings", []) if report else [],
     }
@@ -249,6 +252,7 @@ def build_report(args: argparse.Namespace) -> dict:
     status = overall_status([health_part, eval_part, iteration_part])
     iteration_root = iteration_part.get("iteration_root")
     management_root = iteration_part.get("management_root")
+    preparation_root = iteration_part.get("preparation_root")
     workbench_path = str(Path(management_root) / "README.md") if management_root else None
     paths = {
         "runtime_dir": str(inspect_dir),
@@ -260,6 +264,7 @@ def build_report(args: argparse.Namespace) -> dict:
         "iteration_root": iteration_root,
         "management_root": management_root,
         "iteration_workbench": workbench_path,
+        "preparation_root": preparation_root,
     }
     badges = [
         {
@@ -286,6 +291,7 @@ def build_report(args: argparse.Namespace) -> dict:
     ]
     actions = [
         {"id": "open_iteration_workbench", "label": "打开迭代工作台", "kind": "open_file", "target": "iteration_workbench"},
+        {"id": "open_preparation_root", "label": "打开需求准备区", "kind": "open_file", "target": "preparation_root"},
         {"id": "open_health_latest", "label": "打开反射器状态", "kind": "open_file", "target": "health_latest"},
         {"id": "open_harness_eval_latest", "label": "打开回归测试", "kind": "open_file", "target": "harness_eval_latest"},
         {"id": "open_status_latest", "label": "打开状态文件", "kind": "open_file", "target": "status_latest"},
@@ -300,6 +306,7 @@ def build_report(args: argparse.Namespace) -> dict:
         "runtime_dir": str(inspect_dir),
         "max_age_hours": args.max_age_hours,
         "current_iteration": iteration_part.get("current_iteration"),
+        "preparation_iteration": iteration_part.get("preparation_iteration"),
         "project_root": str(args.project_root),
         "paths": paths,
         "parts": {
@@ -309,7 +316,10 @@ def build_report(args: argparse.Namespace) -> dict:
         },
         "ui": {
             "headline": f"V9 {status_label}",
-            "summary": f"{status_label} · 迭代 {iteration_part.get('current_iteration') or '-'}",
+            "summary": (
+                f"{status_label} · 交付 {iteration_part.get('current_iteration') or '-'}"
+                f" · 准备 {iteration_part.get('preparation_iteration') or '-'}"
+            ),
             "badges": badges,
             "actions": actions,
         },

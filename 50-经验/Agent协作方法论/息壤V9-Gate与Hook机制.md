@@ -10,6 +10,7 @@ tags: [方法论, 息壤, V9, Gate, Hook]
 supersedes:
   - "[[_archive/V8.5/息壤V8.5-Gate强制机制]]"
   - "[[_archive/V8.5/息壤V8.5-Hook强制门禁设计]]"
+maturity: stable
 ---
 
 # 息壤 V9 Gate 与 Hook 机制

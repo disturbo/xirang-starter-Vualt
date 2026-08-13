@@ -58,7 +58,7 @@ class AdversarialReviewM0Tests(unittest.TestCase):
         payload = valid_report()
         item = payload["findings"][0]
         item["author_response"] = {"position": "agree", "note": "补充失败路径。"}
-        item["human_decision"] = {"result": "accepted_finding", "decided_by": "用户", "note": "纳入修订。"}
+        item["human_decision"] = {"result": "accepted_finding", "decided_by": "波波", "note": "纳入修订。"}
         self.assertEqual([], self.module.validate_report(payload))
         item["human_decision"]["decided_by"] = ""
         issues = self.module.validate_report(payload)

@@ -76,6 +76,16 @@ def read_authorized_paths(card_path: Path) -> list[str] | None:
     return [norm_path(x) for x in items]
 
 
+def resolve_task_card(task_root: Path, task_id: str) -> Path | None:
+    """优先读取运行授权卡；缺失时回退到正式任务卡。"""
+    runtime_card = task_root / task_id / "task-card.yaml"
+    if runtime_card.exists():
+        return runtime_card
+    formal_root = task_root.parent / "02-项目管理" / "任务卡"
+    matches = sorted(formal_root.glob(f"20??-??/{task_id}.md"))
+    return matches[0] if len(matches) == 1 else None
+
+
 def covered_by(scope_entry: str, authorized: list[str]) -> bool:
     """scope_entry 是否被某个授权路径覆盖（在其之内）。"""
     for a in authorized:
@@ -93,6 +103,7 @@ def check_status_file(status_path: Path, task_root: Path) -> list[dict]:
     if not fm:
         return findings
     agent_id = fm_value(fm, "agent_id") or status_path.stem
+    agent_status = fm_value(fm, "status")
     scope_raw = fm_value(fm, "write_scope")
     task_id = fm_value(fm, "current_task_id")
     rel = str(status_path)
@@ -103,19 +114,24 @@ def check_status_file(status_path: Path, task_root: Path) -> list[dict]:
     scope_list = parse_scope_list(scope_raw)
 
     if not task_id or task_id in {"null", "None"}:
-        # busy 有 scope 却无任务卡支撑——无法比对授权，给 advisory
+        # idle/cooling/standby 的历史 scope 不具备写入授权效力，不应误报为活动扩权。
+        if agent_status in {"idle", "cooling", "standby"}:
+            return findings
+        # 活动/异常状态有 scope 却无任务卡支撑——无法比对授权，给 advisory。
         findings.append({
             "severity": "advisory", "rule_id": "SCOPE_NO_TASK", "object": agent_id,
-            "message": f"{agent_id}: write_scope={scope_raw} 但无 current_task_id，无法核对授权。",
+            "message": (f"{agent_id}: status={agent_status or 'unknown'} 且 write_scope={scope_raw}，"
+                        "但无 current_task_id，无法核对授权。"),
         })
         return findings
 
-    card = task_root / task_id / "task-card.yaml"
-    authorized = read_authorized_paths(card)
+    card = resolve_task_card(task_root, task_id)
+    authorized = read_authorized_paths(card) if card else None
     if authorized is None:
+        expected = task_root / task_id / "task-card.yaml"
         findings.append({
             "severity": "advisory", "rule_id": "SCOPE_CARD_MISSING", "object": agent_id,
-            "message": f"{agent_id}: 找不到任务卡 {card}，无法核对授权。",
+            "message": f"{agent_id}: 找不到运行授权卡 {expected} 或唯一正式任务卡，无法核对授权。",
         })
         return findings
 

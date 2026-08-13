@@ -32,7 +32,7 @@ import argparse
 from pathlib import Path
 from datetime import datetime
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", Path.home() / "Desktop" / "obsidianVault"))
 TEMP_DIR = VAULT_ROOT / "_temp"
 
 # V8 10 态状态机 — 合法转换表

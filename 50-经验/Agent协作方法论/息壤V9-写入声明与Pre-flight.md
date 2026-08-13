@@ -7,6 +7,7 @@ created: 2026-05-28
 author: claudian
 tags: [方法论, 息壤, V9, pre-flight]
 supersedes: "[[_archive/V8/息壤V8-启动握手与失败判定]]"
+maturity: stable
 ---
 
 # 息壤 V9 写入声明与 Pre-flight

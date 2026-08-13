@@ -4,6 +4,10 @@ source: "~/.openclaw/workspace/AGENTS.md"
 snapshot_date: "2026-06-11"
 platform: "OpenClaw"
 agent_id: xiaochong
+created: 2026-06-27
+status: active
+version: "1.0"
+tags: ["规范"]
 ---
 
 > 本文件为只读快照。源文件：`~/.openclaw/workspace/AGENTS.md`

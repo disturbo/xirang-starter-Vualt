@@ -16,6 +16,8 @@ ENTROPY = ROOT / "02-项目管理/脚本/v9-entropy-governance.py"
 LLM_WIKI = ROOT / ".standards/scripts/llm_wiki_check.py"
 GBRAIN_VERIFY = Path.home() / ".gbrain/verify-runtime-contract.py"
 SEMANTIC_RECALL = ROOT / ".standards/semantic-recall.py"
+SCOPE_TAMPER = ROOT / "02-项目管理/脚本/v9-scope-tamper-check.py"
+REFLEX = ROOT / "02-项目管理/脚本/v9-reflex-check.py"
 
 
 def load(path: Path, name: str):
@@ -27,6 +29,56 @@ def load(path: Path, name: str):
 
 
 class PhaseETests(unittest.TestCase):
+    def test_idle_stale_scope_is_not_an_active_authorization_debt(self) -> None:
+        module = load(SCOPE_TAMPER, "scope_tamper_idle")
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            status = root / "02-项目管理/智能体状态/Claudian.md"
+            status.parent.mkdir(parents=True)
+            status.write_text(
+                '---\nagent_id: claudian\nstatus: idle\ncurrent_task_id: null\n'
+                'write_scope: "10-项目/迭代/260828迭代/"\n---\n',
+                encoding="utf-8",
+            )
+            self.assertEqual([], module.check_status_file(status, root / "_temp"))
+
+    def test_scope_checker_falls_back_to_formal_task_card(self) -> None:
+        module = load(SCOPE_TAMPER, "scope_tamper_formal_card")
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            card = root / "02-项目管理/任务卡/2026-08/T-TEST.md"
+            card.parent.mkdir(parents=True)
+            card.write_text(
+                '---\ntask_id: T-TEST\npaths:\n  allowed_write_roots:\n'
+                '    - "02-项目管理/"\n---\n',
+                encoding="utf-8",
+            )
+            status = root / "02-项目管理/智能体状态/红霉素.md"
+            status.parent.mkdir(parents=True, exist_ok=True)
+            status.write_text(
+                '---\nagent_id: hongmeisu\nstatus: busy\ncurrent_task_id: T-TEST\n'
+                'write_scope: "02-项目管理/脚本/"\n---\n',
+                encoding="utf-8",
+            )
+            self.assertEqual([], module.check_status_file(status, root / "_temp"))
+
+    def test_normal_hitl_queue_is_not_labeled_governance_debt(self) -> None:
+        module = load(REFLEX, "reflex_review_queue")
+        with tempfile.TemporaryDirectory() as raw:
+            scripts = Path(raw)
+            fake = scripts / "v9-task-state-check.py"
+            fake.write_text(
+                'import json\nprint(json.dumps({"findings": [], "summary": '
+                '{"done_missing_review_status": 0, "awaiting_review": 53}}))\n',
+                encoding="utf-8",
+            )
+            original = module.SCRIPT_DIR
+            try:
+                module.SCRIPT_DIR = scripts
+                self.assertEqual([], module.collect_task_state())
+            finally:
+                module.SCRIPT_DIR = original
+
     def test_semantic_recall_consumes_results_without_logging_raw_query(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             temp = Path(raw)

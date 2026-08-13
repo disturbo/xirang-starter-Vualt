@@ -28,6 +28,7 @@
 02-项目管理/脚本/v9-entropy-governance.py
 02-项目管理/脚本/v9-freeze-observation.py
 02-项目管理/脚本/v9-iteration-ops-check.py
+02-项目管理/脚本/v9-phoenix.py
 02-项目管理/脚本/v9-reflex-check.py
 02-项目管理/脚本/v9-scope-tamper-check.py
 02-项目管理/脚本/v9-skill-shadow-check.py

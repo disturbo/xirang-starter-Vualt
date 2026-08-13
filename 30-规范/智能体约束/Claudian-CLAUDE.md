@@ -4,6 +4,10 @@ source: ".claude/CLAUDE.md"
 snapshot_date: "2026-06-11"
 platform: "Claudian（Obsidian嵌入）"
 agent_id: claudian
+created: 2026-06-27
+status: active
+version: "1.0"
+tags: ["规范"]
 ---
 
 > 本文件为只读快照。源文件：`.claude/CLAUDE.md`

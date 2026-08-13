@@ -329,6 +329,81 @@ def current_iteration_from_readme(text: str) -> tuple[str, str]:
     return "", ""
 
 
+def iteration_state_from_readme(text: str) -> tuple[str, str, str]:
+    """Return current id, current path hint, and optional preparation id.
+
+    The explicit marker prevents a preparation-area link from being mistaken for
+    the current delivery iteration. Legacy READMEs continue to use the old parser.
+    """
+    marker = re.search(
+        r"<!--\s*xirang-iteration-state:\s*current=(\d{6})(?:\s+preparation=(\d{6}))?\s*-->",
+        text,
+    )
+    if marker:
+        current = marker.group(1)
+        return current, f"迭代/{current}迭代", marker.group(2) or ""
+    current, hint = current_iteration_from_readme(text)
+    return current, hint, ""
+
+
+def check_preparation_iteration(project_root: Path, current: str, preparation: str) -> tuple[list[dict], dict]:
+    stats = {"preparation_docs_found": 0, "preparation_docs_expected": 0}
+    if not preparation:
+        return [], {
+            "preparation_iteration": None,
+            "preparation_root": None,
+            "preparation_management_root": None,
+            **stats,
+        }
+
+    stats["preparation_docs_expected"] = 2
+    preparation_root = project_root / "迭代" / f"{preparation}迭代"
+    management_root = preparation_root / "迭代管理"
+    required = [
+        (preparation_root / "README.md", "PREPARATION_README_MISSING", "需求准备迭代缺根 README"),
+        (
+            management_root / f"{preparation}-正式需求清单.md",
+            "PREPARATION_REQUIREMENTS_MISSING",
+            "需求准备迭代缺正式需求清单",
+        ),
+    ]
+    findings: list[dict] = []
+    if preparation == current:
+        findings.append(
+            make_finding(
+                "p1",
+                "ITERATION_PHASE_COLLISION",
+                rel(project_root / "README.md"),
+                f"当前交付迭代与需求准备迭代不能相同：{current}",
+            )
+        )
+    for path, rule_id, message in required:
+        if path.exists():
+            stats["preparation_docs_found"] += 1
+        else:
+            findings.append(make_finding("p1", rule_id, rel(path), f"{message}：{rel(path)}"))
+
+    preparation_readme = preparation_root / "README.md"
+    if preparation_readme.exists():
+        fm = frontmatter(read_text(preparation_readme))
+        if fm_value(fm, "iteration") != preparation or fm_value(fm, "phase") != "intake":
+            findings.append(
+                make_finding(
+                    "p1",
+                    "PREPARATION_PHASE_INVALID",
+                    rel(preparation_readme),
+                    f"{rel(preparation_readme)}: 必须声明 iteration={preparation} 且 phase=intake。",
+                )
+            )
+
+    return findings, {
+        "preparation_iteration": preparation,
+        "preparation_root": rel(preparation_root),
+        "preparation_management_root": rel(management_root),
+        **stats,
+    }
+
+
 def management_doc_paths(management_root: Path, iteration: str) -> list[tuple[Path, str, str]]:
     docs: list[tuple[Path, str, str]] = []
     for template, label in REQUIRED_MANAGEMENT_DOCS:
@@ -2005,7 +2080,7 @@ def check_project(project_root: Path) -> tuple[list[dict], dict]:
         return findings, {"current_iteration": None, "iteration_root": None, "management_root": None, "stats": stats}
 
     text = read_text(readme)
-    iteration, hint = current_iteration_from_readme(text)
+    iteration, hint, preparation = iteration_state_from_readme(text)
     if not iteration:
         findings.append(
             make_finding(
@@ -2150,10 +2225,18 @@ def check_project(project_root: Path) -> tuple[list[dict], dict]:
             )
         )
 
+    preparation_findings, preparation_context = check_preparation_iteration(
+        project_root, iteration, preparation
+    )
+    findings.extend(preparation_findings)
+    stats["preparation_docs_found"] = preparation_context.pop("preparation_docs_found")
+    stats["preparation_docs_expected"] = preparation_context.pop("preparation_docs_expected")
+
     return findings, {
         "current_iteration": iteration,
         "iteration_root": rel(iteration_root),
         "management_root": rel(management_root),
+        **preparation_context,
         "stats": stats,
     }
 
@@ -2204,6 +2287,7 @@ def main() -> int:
             "summary: "
             f"total={s['total']} p0={s['p0']} p1={s['p1']} advisory={s['advisory']} "
             f"iteration={report.get('current_iteration') or '-'} "
+            f"preparation={report.get('preparation_iteration') or '-'} "
             f"managed_docs={s['managed_docs_found']}/{s['managed_docs_expected']}"
         )
         for finding in report["findings"]:

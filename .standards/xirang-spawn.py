@@ -37,7 +37,7 @@ import datetime
 import subprocess
 from pathlib import Path
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", Path.home() / "Desktop" / "obsidianVault"))
 CURRENT_ITERATION = os.environ.get("YJ_CURRENT_ITERATION", "260725")
 BASELINE_ROOT_REL = "10-项目/基线"
 ITERATION_ROOT_REL = f"10-项目/迭代/{CURRENT_ITERATION}迭代"

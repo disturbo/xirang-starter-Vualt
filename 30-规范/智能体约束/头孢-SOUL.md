@@ -4,6 +4,10 @@ source: "~/.hermes/SOUL.md"
 snapshot_date: "2026-06-11"
 platform: "Hermes"
 agent_id: toubao
+created: 2026-06-27
+status: active
+version: "1.0"
+tags: ["规范"]
 ---
 
 > 本文件为只读快照。源文件：`~/.hermes/SOUL.md`

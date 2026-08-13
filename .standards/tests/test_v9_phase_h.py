@@ -21,6 +21,7 @@ FREEZE = ROOT / "02-项目管理/脚本/v9-freeze-observation.py"
 REFLEX_WRAPPER = ROOT / ".standards/v9-reflex-run.sh"
 PRE_START = ROOT / ".standards/pre-start-check.py"
 PROJECT_OPS = ROOT / "02-项目管理/脚本/project-ops-check.py"
+ITERATION_OPS = ROOT / "02-项目管理/脚本/v9-iteration-ops-check.py"
 COST_HOOK = ROOT / ".standards/hooks/cost-event.sh"
 COST_FUSE = ROOT / ".standards/cost-fuse.py"
 SPAWN_BUDGET = ROOT / ".standards/spawn-budget-check.py"
@@ -49,6 +50,32 @@ def load(path: Path, name: str):
 
 
 class PhaseHTests(unittest.TestCase):
+    def test_iteration_state_separates_delivery_and_preparation(self) -> None:
+        module = load(ITERATION_OPS, "phase_h_iteration_state")
+        text = (
+            "<!-- xirang-iteration-state: current=260725 preparation=260828 -->\n"
+            "[[迭代/260828迭代/README|准备区]]\n"
+            "[[迭代/260725迭代/README|交付区]]\n"
+        )
+        self.assertEqual(
+            ("260725", "迭代/260725迭代", "260828"),
+            module.iteration_state_from_readme(text),
+        )
+
+    def test_preparation_iteration_requires_minimal_intake_contract(self) -> None:
+        module = load(ITERATION_OPS, "phase_h_preparation_contract")
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            prep = root / "迭代/260828迭代"
+            (prep / "迭代管理").mkdir(parents=True)
+            (prep / "README.md").write_text(
+                "---\niteration: \"260828\"\nphase: intake\n---\n", encoding="utf-8"
+            )
+            (prep / "迭代管理/260828-正式需求清单.md").write_text("# 清单\n", encoding="utf-8")
+            findings, context = module.check_preparation_iteration(root, "260725", "260828")
+            self.assertEqual([], findings)
+            self.assertEqual(2, context["preparation_docs_found"])
+
     def test_codex_adapter_pins_system_python(self) -> None:
         adapter = load(ADAPTER, "phase_h_adapter")
         env = adapter.hook_env(ROOT)
@@ -176,7 +203,6 @@ class PhaseHTests(unittest.TestCase):
             governance = runtime / "治理"
             inspect.mkdir()
             governance.mkdir()
-
             def write(path: Path, payload: dict) -> None:
                 path.write_text(json.dumps(payload), encoding="utf-8")
 
@@ -192,6 +218,22 @@ class PhaseHTests(unittest.TestCase):
             self.assertTrue(result["detail"]["freshness"]["entropy_queue"]["fresh"])
             write(governance / "entropy-governance-queue.json", {"updated_at": "2026-07-12T09:00:00+08:00"})
             self.assertEqual("fail", module.check_consumption(runtime, now)["status"])
+
+    def test_freeze_accepts_portable_artifact_tree_release_identity(self) -> None:
+        module = load(FREEZE, "phase_h_freeze_tree_identity")
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            artifact = root / "runtime.txt"
+            artifact.write_text("bounded runtime\n", encoding="utf-8")
+            roots = {"starter": str(root)}
+            artifacts = [{"root": "starter", "path": "runtime.txt", "sha256": module.sha256(artifact)}]
+            tree = module.artifact_tree_sha256(roots, artifacts, "starter")
+            report = module.check_distribution({
+                "roots": roots,
+                "releases": [{"name": "starter", "root": "starter", "tree_sha256": tree}],
+                "artifacts": artifacts,
+            })
+            self.assertEqual("pass", report["status"], report)
 
     def test_reflex_wrapper_refreshes_untrusted_harness_before_health(self) -> None:
         script = REFLEX_WRAPPER.read_text(encoding="utf-8")
@@ -216,6 +258,7 @@ class PhaseHTests(unittest.TestCase):
             runner = base / "runner.py"
             reflex = base / "reflex.py"
             summary = base / "summary.py"
+            phoenix = base / "phoenix.py"
             verifier.write_text(
                 "import pathlib, sys\n"
                 "report = pathlib.Path(sys.argv[sys.argv.index('--report') + 1])\n"
@@ -248,6 +291,13 @@ class PhaseHTests(unittest.TestCase):
                 "status_path.write_text(json.dumps(payload) + '\\n', encoding='utf-8')\n",
                 encoding="utf-8",
             )
+            phoenix.write_text(
+                "import json, os, pathlib\n"
+                "from datetime import datetime\n"
+                "path = pathlib.Path(os.environ['XIRANG_V9_RUNTIME_DIR']) / '巡检/phoenix-latest.json'\n"
+                "path.write_text(json.dumps({'schema_version': 'v1', 'generated_at': datetime.now().astimezone().isoformat(timespec='seconds'), 'status': 'success', 'mode': 'apply_safe', 'repairs_applied': 0, 'upgrade_candidates': 0, 'safety': {'source_note_edits': False, 'gate_changes': False, 'self_acceptance': False, 'manifest_changes': False}}) + '\\n', encoding='utf-8')\n",
+                encoding="utf-8",
+            )
             contract_source = base / "runtime-contract-source.md"
             contract_mirror = base / "runtime-contract-current.md"
             maintenance = base / "maintenance.sh"
@@ -268,6 +318,7 @@ class PhaseHTests(unittest.TestCase):
                 "XIRANG_V9_PYTHON": "/usr/bin/python3",
                 "XIRANG_V9_REFLEX_SCRIPT": str(reflex),
                 "XIRANG_V9_STATUS_SCRIPT": str(summary),
+                "XIRANG_V9_PHOENIX_SCRIPT": str(phoenix),
                 "XIRANG_V9_HARNESS_SCRIPT": str(runner),
                 "XIRANG_V9_HARNESS_VERIFY_SCRIPT": str(verifier),
                 "XIRANG_V9_HARNESS_REPORT": str(harness_report),

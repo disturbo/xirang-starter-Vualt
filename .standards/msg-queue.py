@@ -36,7 +36,7 @@ import argparse
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", Path.home() / "Desktop" / "obsidianVault"))
 QUEUE_FILE = VAULT_ROOT / "_temp" / "msg-queue.jsonl"
 LOCK_FILE = VAULT_ROOT / "_temp" / "msg-queue.lock"
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB

@@ -36,6 +36,7 @@ FILES=(
   "02-项目管理/巡检/README.md"
   "02-项目管理/evals/README.md"
   "50-经验/Agent进化/不死鸟Phoenix-借鉴评估报告.md"
+  "50-经验/Agent进化/不死鸟Phoenix-技术文档.md"
 )
 
 RSYNC_EXCLUDES=(
@@ -137,9 +138,51 @@ perl -0pi -e 's/(    def test_llm_wiki_uses_only_exact_725_relative_paths)/    \
 # 巡检和 eval 只分发说明文件；生产快照、审计报告和本地 fixture 不属于 starter。
 for clean_dir in "$DIST/02-项目管理/巡检" "$DIST/02-项目管理/evals"; do
   if [[ -d "$clean_dir" ]]; then
-    find "$clean_dir" -mindepth 1 ! -name "README.md" -delete
+    find "$clean_dir" -mindepth 1 ! -name "README.md" ! -name "v9-release-manifest.json" -delete
   fi
 done
+
+# Generate a portable starter-local distribution manifest. It records every
+# trusted runtime file except the manifest itself, and contains no user path.
+XIRANG_STARTER_DIST="$DIST" python3 - <<'PY'
+import hashlib
+import json
+import os
+from datetime import datetime
+from pathlib import Path
+
+root = Path(os.environ["XIRANG_STARTER_DIST"])
+trust = root / ".standards/harness-tested-files.txt"
+paths = [
+    Path(line.strip()) for line in trust.read_text(encoding="utf-8").splitlines()
+    if line.strip() and not line.lstrip().startswith("#")
+]
+artifacts = []
+for relative in paths:
+    if relative.as_posix() == "02-项目管理/巡检/v9-release-manifest.json":
+        continue
+    target = root / relative
+    if not target.is_file():
+        raise SystemExit(f"starter trusted file missing before manifest build: {relative}")
+    artifacts.append({
+        "root": "starter",
+        "path": relative.as_posix(),
+        "sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+    })
+tree_rows = [f"{item['path']}:{item['sha256']}" for item in sorted(artifacts, key=lambda item: item["path"])]
+tree_sha256 = hashlib.sha256(("\n".join(tree_rows) + "\n").encode()).hexdigest()
+payload = {
+    "schema_version": 1,
+    "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+    "distribution": "starter-local",
+    "roots": {"starter": "."},
+    "releases": [{"name": "starter", "root": "starter", "tree_sha256": tree_sha256}],
+    "artifacts": artifacts,
+}
+target = root / "02-项目管理/巡检/v9-release-manifest.json"
+target.parent.mkdir(parents=True, exist_ok=True)
+target.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
 
 # --- 移除本地运行时和会话记录（如果有）---
 rm -f "$DIST/.claude/settings.local.json"

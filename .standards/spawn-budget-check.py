@@ -29,7 +29,7 @@ from pathlib import Path
 
 from jsonl_reader import read_jsonl
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", Path.home() / "Desktop" / "obsidianVault"))
 EVENTS_PATH = VAULT_ROOT / "02-项目管理" / "智能体状态" / "智能体事件.jsonl"
 COST_EVENTS_PATH = VAULT_ROOT / "02-项目管理" / "agent-cost-events.jsonl"
 TASKS_DIR = VAULT_ROOT / "02-项目管理" / "任务卡"

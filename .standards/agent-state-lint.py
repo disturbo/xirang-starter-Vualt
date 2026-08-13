@@ -25,7 +25,7 @@ import re
 from pathlib import Path
 from datetime import datetime
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", Path.home() / "Desktop" / "obsidianVault"))
 STATE_DIR = VAULT_ROOT / "02-项目管理" / "智能体状态"
 SCHEMA_PATH = VAULT_ROOT / ".standards" / "schemas" / "agent-state.schema.json"
 

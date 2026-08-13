@@ -12,6 +12,7 @@ HARNESS_SCRIPT="${XIRANG_V9_HARNESS_SCRIPT:-$VAULT/02-项目管理/脚本/v9-har
 HARNESS_VERIFY_SCRIPT="${XIRANG_V9_HARNESS_VERIFY_SCRIPT:-$VAULT/.standards/harness-eval-verify.py}"
 HARNESS_REPORT="${XIRANG_V9_HARNESS_REPORT:-$RUNTIME/巡检/harness-eval-latest.json}"
 HARNESS_MAX_AGE_HOURS="${XIRANG_V9_HARNESS_MAX_AGE_HOURS:-20}"
+PHOENIX_SCRIPT="${XIRANG_V9_PHOENIX_SCRIPT:-$VAULT/02-项目管理/脚本/v9-phoenix.py}"
 GBRAIN_CONTRACT_SOURCE="${XIRANG_GBRAIN_CONTRACT_SOURCE:-$VAULT/50-经验/Agent协作方法论/息壤V9-运行时契约卡.md}"
 GBRAIN_CONTRACT_MIRROR="${XIRANG_GBRAIN_CONTRACT_MIRROR:-$HOME/.gbrain/runtime-contract-current.md}"
 GBRAIN_MAINTENANCE="${XIRANG_GBRAIN_MAINTENANCE:-$HOME/.gbrain/maintenance-run.sh}"
@@ -112,6 +113,10 @@ if [[ ! -f "$SUMMARY_SCRIPT" ]]; then
   write_state "failed" 78 "status_summary_script_missing_or_desktop_denied"
   exit 78
 fi
+if [[ ! -f "$PHOENIX_SCRIPT" ]]; then
+  write_state "failed" 78 "phoenix_script_missing_or_desktop_denied"
+  exit 78
+fi
 
 write_state "running" 0 "started"
 cd "$VAULT" || { write_state "failed" 72 "vault_unavailable"; exit 72; }
@@ -122,6 +127,12 @@ harness_rc=$?
 run_started_epoch="$(date +%s)"
 XIRANG_V9_RUNTIME_DIR="$RUNTIME" "$PYTHON" "$SCRIPT" --quiet
 reflex_rc=$?
+XIRANG_V9_RUNTIME_DIR="$RUNTIME" "$PYTHON" "$PHOENIX_SCRIPT" --apply-safe --json >/dev/null
+phoenix_rc=$?
+# Phoenix may refresh an upstream runtime source. Re-observe unconditionally so
+# status-latest never publishes the pre-repair health snapshot.
+XIRANG_V9_RUNTIME_DIR="$RUNTIME" "$PYTHON" "$SCRIPT" --quiet
+reflex_after_phoenix_rc=$?
 XIRANG_V9_RUNTIME_DIR="$RUNTIME" "$PYTHON" "$SUMMARY_SCRIPT" --write-latest --json >/dev/null
 summary_rc=$?
 # Python launched from a macOS background agent may be denied while its cwd is
@@ -183,9 +194,9 @@ if [[ $summary_rc -gt 1 || $validate_rc -ne 0 ]]; then
   write_state "failed" 70 "status_summary_output_invalid"
   exit 70
 fi
-if [[ $reflex_rc -ne 0 && "$status_value" != "red" ]]; then
-  write_state "failed" "$reflex_rc" "reflex_exit_without_red_status"
-  exit "$reflex_rc"
+if [[ $reflex_after_phoenix_rc -ne 0 && "$status_value" != "red" ]]; then
+  write_state "failed" "$reflex_after_phoenix_rc" "reflex_exit_without_red_status"
+  exit "$reflex_after_phoenix_rc"
 fi
 if [[ $gbrain_rc -ne 0 ]]; then
   write_state "failed" "$gbrain_rc" "gbrain_refresh_failed"
@@ -193,6 +204,10 @@ if [[ $gbrain_rc -ne 0 ]]; then
 fi
 if [[ $harness_rc -ne 0 ]]; then
   write_state "success" 0 "completed_status_red_harness_refresh_failed"
+  exit 0
+fi
+if [[ $phoenix_rc -ne 0 ]]; then
+  write_state "success" 0 "completed_status_${status_value}_phoenix_degraded"
   exit 0
 fi
 write_state "success" 0 "completed_status_${status_value}"

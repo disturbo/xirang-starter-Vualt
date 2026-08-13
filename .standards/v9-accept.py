@@ -20,7 +20,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", Path.home() / "Desktop" / "obsidianVault"))
 TASKS_DIR = VAULT_ROOT / "02-项目管理" / "任务卡"
 GATE_ENFORCE = VAULT_ROOT / ".standards" / "gate-enforce.py"
 

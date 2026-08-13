@@ -7,6 +7,7 @@ created: 2026-05-13
 last_verified: 2026-06-10
 status: active
 tags: [规范]
+version: "1.0"
 ---
 
 # Agent Paths — 工具路径统一登记

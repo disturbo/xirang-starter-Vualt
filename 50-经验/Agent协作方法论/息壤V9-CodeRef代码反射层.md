@@ -11,6 +11,7 @@ related:
   - "[[息壤方法论-V9]]"
   - "[[V9-工具注册表-2026-06-27]]"
   - "[[息壤V9-Gate与Hook机制]]"
+maturity: stable
 ---
 
 # 息壤 V9 CodeRef 代码反射层

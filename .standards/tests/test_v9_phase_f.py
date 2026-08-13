@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Regression test for truthful Phoenix capability state."""
+"""Regression tests for the bounded Phoenix runtime."""
 
 from __future__ import annotations
 
+import importlib.util
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -10,18 +12,51 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 METHOD = ROOT / "50-经验/Agent协作方法论/息壤方法论-V9.md"
 PHOENIX_EVAL = ROOT / "50-经验/Agent进化/不死鸟Phoenix-借鉴评估报告.md"
+PHOENIX = ROOT / "02-项目管理/脚本/v9-phoenix.py"
+WRAPPER = ROOT / ".standards/v9-reflex-run.sh"
+
+
+def load(path: Path, name: str):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader
+    spec.loader.exec_module(module)
+    return module
 
 
 class PhaseFTests(unittest.TestCase):
-    def test_phoenix_is_explicitly_design_only(self) -> None:
+    def test_phoenix_is_truthfully_active(self) -> None:
         method = METHOD.read_text(encoding="utf-8")
         evaluation = PHOENIX_EVAL.read_text(encoding="utf-8")
-        self.assertIn("Phoenix 当前仅为设计参考", method)
-        self.assertIn("当前无执行器", method)
-        self.assertNotIn("不死鸟 Phoenix 自动自愈", method)
-        self.assertIn("runtime_status: design_only", evaluation)
-        self.assertIn("executor: none", evaluation)
-        self.assertIn("scheduler: none", evaluation)
+        self.assertIn("Phoenix v1 已部署", method)
+        self.assertIn("runtime_status: active_bounded", evaluation)
+        self.assertIn("executor: v9-phoenix.py", evaluation)
+        self.assertIn("scheduler: v9-reflex-run.sh", evaluation)
+        self.assertIn('"$PHOENIX_SCRIPT" --apply-safe', WRAPPER.read_text(encoding="utf-8"))
+
+    def test_only_allowlisted_findings_produce_repairs(self) -> None:
+        module = load(PHOENIX, "phase_f_allowlist")
+        findings = [
+            {"rule_id": "ENTROPY_SHADOW_STALE"},
+            {"rule_id": "DISTRIBUTION_DRIFT"},
+            {"rule_id": "ACCEPTED_BY_SELF"},
+        ]
+        actions = module.repair_actions(findings)
+        self.assertEqual(["refresh_entropy"], [item["action_id"] for item in actions])
+
+    def test_recurrence_generates_proposal_not_activation(self) -> None:
+        module = load(PHOENIX, "phase_f_evolution")
+        state: dict = {}
+        candidates = []
+        for index in range(3):
+            state, candidates = module.update_observations(
+                state,
+                [{"rule_id": "NON_ALLOWLISTED_REPEAT", "severity": "p1", "source": "test", "object": "x"}],
+                f"2026-08-13T00:00:0{index}+08:00",
+            )
+        self.assertEqual(1, len(candidates))
+        self.assertTrue(candidates[0]["requires_human_review"])
+        self.assertEqual("forbidden_without_external_acceptance", candidates[0]["activation"])
 
 
 if __name__ == "__main__":

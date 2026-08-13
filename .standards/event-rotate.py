@@ -34,7 +34,7 @@ from typing import Optional
 
 from jsonl_reader import read_jsonl
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", Path.home() / "Desktop" / "obsidianVault"))
 TZ = timezone(timedelta(hours=8))
 
 # 需要轮转的事件流文件

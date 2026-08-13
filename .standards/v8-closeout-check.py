@@ -33,7 +33,7 @@ from pathlib import Path
 from jsonl_reader import read_jsonl
 from dataclasses import dataclass
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", Path.home() / "Desktop" / "obsidianVault"))
 EVENT_FILE = VAULT_ROOT / "02-项目管理" / "智能体状态" / "智能体事件.jsonl"
 KANBAN_FILE = VAULT_ROOT / "00-MOC" / "多智能体协作看板.md"
 AGENT_STATUS_DIR = VAULT_ROOT / "02-项目管理" / "智能体状态"

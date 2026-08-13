@@ -5,6 +5,7 @@ created: 2026-05-18
 updated: 2026-06-10
 version: v3.1
 description: 多Agent消息推送规范（从协作看板外迁）
+status: active
 ---
 
 # 多 Agent 消息推送规范（v3.1 · 2026-05-18）

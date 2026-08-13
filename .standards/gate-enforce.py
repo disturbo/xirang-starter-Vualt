@@ -33,7 +33,7 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, asdict
 
-VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", "$HOME/Desktop/obsidianVault"))
+VAULT_ROOT = Path(os.environ.get("VAULT_ROOT", Path.home() / "Desktop" / "obsidianVault"))
 STANDARDS_DIR = VAULT_ROOT / ".standards"
 EVENT_FILE = Path(os.environ.get(
     "V9_GATE_EVENT_FILE",
