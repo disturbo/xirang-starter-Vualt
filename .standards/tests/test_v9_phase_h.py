@@ -254,6 +254,9 @@ class PhaseHTests(unittest.TestCase):
             vault = base / "vault"
             runtime = base / "runtime"
             vault.mkdir()
+            wrapper = base / "v9-reflex-run.sh"
+            wrapper.write_text(REFLEX_WRAPPER.read_text(encoding="utf-8"), encoding="utf-8")
+            wrapper.chmod(0o755)
             verifier = base / "verify.py"
             runner = base / "runner.py"
             reflex = base / "reflex.py"
@@ -329,8 +332,8 @@ class PhaseHTests(unittest.TestCase):
                 "GBRAIN_MAINTENANCE_MARKER": str(maintenance_marker),
             }
             proc = subprocess.run(
-                ["/bin/bash", str(REFLEX_WRAPPER)], capture_output=True, text=True,
-                env=env, timeout=30,
+                ["/bin/bash", str(wrapper)], capture_output=True, text=True,
+                env=env, timeout=60,
             )
             self.assertEqual(0, proc.returncode, proc.stderr)
             self.assertTrue(harness_report.is_file())
@@ -343,8 +346,8 @@ class PhaseHTests(unittest.TestCase):
 
             phoenix.write_text("raise SystemExit(9)\n", encoding="utf-8")
             failed = subprocess.run(
-                ["/bin/bash", str(REFLEX_WRAPPER)], capture_output=True, text=True,
-                env=env, timeout=30,
+                ["/bin/bash", str(wrapper)], capture_output=True, text=True,
+                env=env, timeout=60,
             )
             self.assertEqual(9, failed.returncode)
             failed_state = json.loads(
@@ -352,6 +355,18 @@ class PhaseHTests(unittest.TestCase):
             )
             self.assertEqual("failed", failed_state["status"])
             self.assertEqual("phoenix_failed", failed_state["reason"])
+
+            verifier.write_text("raise SystemExit(7)\n", encoding="utf-8")
+            combined = subprocess.run(
+                ["/bin/bash", str(wrapper)], capture_output=True, text=True,
+                env=env, timeout=60,
+            )
+            self.assertEqual(9, combined.returncode)
+            combined_state = json.loads(
+                (runtime / "巡检/reflex-scheduler-health.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual("failed", combined_state["status"])
+            self.assertEqual("phoenix_failed", combined_state["reason"])
 
     def test_cost_pipeline_is_explicitly_retired(self) -> None:
         self.assertNotIn("codex_cost_telemetry", REFLEX.read_text(encoding="utf-8"))

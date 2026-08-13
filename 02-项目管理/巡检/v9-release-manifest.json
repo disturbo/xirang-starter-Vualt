@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-14T00:20:32+08:00",
+  "generated_at": "2026-08-14T00:36:39+08:00",
   "distribution": "starter-local",
   "roots": {
     "starter": "."
@@ -9,7 +9,7 @@
     {
       "name": "starter",
       "root": "starter",
-      "tree_sha256": "2e06561617042813276e708fdfe6a0328c97091acd56459bd36b2e59762475b3"
+      "tree_sha256": "d1f4f5600ad50056c8a2f60b6f2489560579b0f55b9efc9504862ec4b6afbfb7"
     }
   ],
   "artifacts": [
@@ -56,7 +56,7 @@
     {
       "root": "starter",
       "path": ".standards/v9-reflex-run.sh",
-      "sha256": "05c95a041f2b5c7acdfc6fb011ebd9bab3f1d2ebaff5133da45773d67df1ba11"
+      "sha256": "634f91b7e8c4f6360c5762c4840dcd911167f3ff6a3da870188c2a5d78146790"
     },
     {
       "root": "starter",
@@ -81,7 +81,7 @@
     {
       "root": "starter",
       "path": ".standards/tests/test_v9_phase_f.py",
-      "sha256": "2f8a99e2fbefb9ec0f8717cf880a38b435fde01f7416f7dcb9c776f69fafa3c8"
+      "sha256": "189e7dc8594ae3d67abb13101379a7b4ff45d7561b09d9438786da74a2c17f13"
     },
     {
       "root": "starter",
@@ -91,7 +91,7 @@
     {
       "root": "starter",
       "path": ".standards/tests/test_v9_phase_h.py",
-      "sha256": "83831230dd30340fc86123b2d6c9fb3ec6d2bc71ae00d915cde8993e25f20489"
+      "sha256": "a6ce4b272acdca11ce37626e92b2da33e258a5b3fe6dfe9ada8e67e2dd75b047"
     },
     {
       "root": "starter",
@@ -141,7 +141,7 @@
     {
       "root": "starter",
       "path": "02-项目管理/脚本/v9-harness-eval-runner.py",
-      "sha256": "e6e898876297a6763f5da90b4e4cd60f061d787ae3a9e8f525db8ad5ab003807"
+      "sha256": "947e2e1c752d5cec81bbdacc368fe01a045f2c92565e25d37236c0606bc51663"
     },
     {
       "root": "starter",
@@ -161,12 +161,12 @@
     {
       "root": "starter",
       "path": "02-项目管理/脚本/v9-phoenix.py",
-      "sha256": "49e8305d428d738a7c8a0a7d75716b705b37828b8301fc5948c11fb2d19fec1a"
+      "sha256": "9fbcbd25857163d17c3427a30d4df159f54a4b330331a94c1d4e8629076e77c7"
     },
     {
       "root": "starter",
       "path": "02-项目管理/脚本/v9-reflex-check.py",
-      "sha256": "1e3cef00b542870dac6765e4612908c5985f85b8009c03bc646b38e9121d4e59"
+      "sha256": "9efa190597a1f3838355864203d391ada2dc58019ebd6291a6cf17860ca107cd"
     },
     {
       "root": "starter",
@@ -186,7 +186,7 @@
     {
       "root": "starter",
       "path": "02-项目管理/脚本/v9-status-summary.py",
-      "sha256": "3e7dcd0eb374c8e6635e2f8f18e381bf41cb524de0982622911c54bfddb21279"
+      "sha256": "e89854b975d93cacefb7595d5734e1df6ead5b344c4debc296479e93ee011453"
     },
     {
       "root": "starter",

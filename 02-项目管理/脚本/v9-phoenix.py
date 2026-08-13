@@ -61,6 +61,40 @@ def atomic_write_json(path: Path, payload: dict) -> None:
             os.unlink(temp_name)
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def execution_policy() -> dict:
+    catalog = {}
+    for action_id, contract in action_catalog().items():
+        artifacts = []
+        for part in contract["command"]:
+            path = Path(part)
+            if not path.is_absolute() or not path.is_file():
+                continue
+            resolved = path.resolve()
+            artifacts.append({
+                "path": str(resolved),
+                "sha256": sha256_file(resolved),
+                "executable": os.access(resolved, os.X_OK),
+            })
+        catalog[action_id] = {
+            "command": contract["command"],
+            "rules": sorted(contract["rules"]),
+            "artifacts": artifacts,
+        }
+    return {
+        "environment_overrides_allowed": False,
+        "trusted_home": str(TRUSTED_HOME),
+        "catalog": catalog,
+    }
+
+
 def append_jsonl(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as handle:
@@ -140,7 +174,11 @@ def update_observations(
     candidates = []
     auto_rules = {rule for action in action_catalog().values() for rule in action["rules"]}
     for rule_id, item in sorted(observations.items()):
-        if int(item.get("count", 0) or 0) < UPGRADE_THRESHOLD or rule_id in auto_rules:
+        if (
+            item.get("active") is not True
+            or int(item.get("count", 0) or 0) < UPGRADE_THRESHOLD
+            or rule_id in auto_rules
+        ):
             continue
         candidate_id = "phoenix-upgrade-" + hashlib.sha256(rule_id.encode()).hexdigest()[:12]
         candidates.append(
@@ -232,14 +270,7 @@ def build_report(health_path: Path, apply_safe: bool) -> dict:
         "repairs_applied": applied,
         "repairs_failed": failed,
         "upgrade_candidates": len(candidates),
-        "execution_policy": {
-            "environment_overrides_allowed": False,
-            "trusted_home": str(TRUSTED_HOME),
-            "catalog": {
-                action_id: {"command": contract["command"], "rules": sorted(contract["rules"])}
-                for action_id, contract in action_catalog().items()
-            },
-        },
+        "execution_policy": execution_policy(),
         "safety": {
             "source_note_edits": False,
             "gate_changes": False,

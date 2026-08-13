@@ -215,6 +215,26 @@ def iteration_status(report: dict | None, error: str | None) -> dict:
     }
 
 
+def evolution_gate_status(report: dict | None, error: str | None) -> dict:
+    if error:
+        return {"available": False, "status": "yellow", "error": error}
+    daily_metrics = ((report or {}).get("today") or {}).get("metrics") or {}
+    daily_pass = bool(daily_metrics) and all(
+        isinstance(item, dict) and item.get("status") == "pass" for item in daily_metrics.values()
+    )
+    unlocked = (report or {}).get("unlock_allowed") is True
+    status = "green" if unlocked else "yellow" if daily_pass else "red"
+    return {
+        "available": True,
+        "status": status,
+        "gate_status": (report or {}).get("status"),
+        "consecutive_pass_days": int((report or {}).get("consecutive_pass_days", 0) or 0),
+        "required_consecutive_days": int((report or {}).get("required_consecutive_days", 0) or 0),
+        "unlock_allowed": unlocked,
+        "today_metrics": {key: value.get("status") for key, value in daily_metrics.items() if isinstance(value, dict)},
+    }
+
+
 def overall_status(parts: list[dict]) -> str:
     statuses = {part.get("status") for part in parts}
     if "red" in statuses:
@@ -236,9 +256,11 @@ def build_report(args: argparse.Namespace) -> dict:
     status_latest = inspect_dir / STATUS_LATEST_NAME
     health_latest = inspect_dir / "health-latest.json"
     eval_latest = inspect_dir / "harness-eval-latest.json"
+    freeze_latest = inspect_dir.parent / "治理" / "freeze-observation.json"
     now = datetime.now(timezone.utc).astimezone()
     health, health_error = read_json(health_latest)
     eval_report, eval_error = read_json(eval_latest)
+    freeze_report, freeze_error = read_json(freeze_latest)
     iteration_report, iteration_error = run_iteration_ops(args.iteration_check_script, args.project_root)
     eval_verification, eval_verification_error = verify_harness_report(
         eval_report, args.harness_verify_script, args.repo_root, args.max_age_hours, now
@@ -249,7 +271,8 @@ def build_report(args: argparse.Namespace) -> dict:
         eval_report, eval_error, now, args.max_age_hours, eval_verification, eval_verification_error
     )
     iteration_part = iteration_status(iteration_report, iteration_error)
-    status = overall_status([health_part, eval_part, iteration_part])
+    evolution_part = evolution_gate_status(freeze_report, freeze_error)
+    status = overall_status([health_part, eval_part, iteration_part, evolution_part])
     iteration_root = iteration_part.get("iteration_root")
     management_root = iteration_part.get("management_root")
     preparation_root = iteration_part.get("preparation_root")
@@ -259,6 +282,7 @@ def build_report(args: argparse.Namespace) -> dict:
         "status_latest": str(status_latest),
         "health_latest": str(health_latest),
         "harness_eval_latest": str(eval_latest),
+        "freeze_observation": str(freeze_latest),
         "repo_root": str(args.repo_root),
         "project_root": str(args.project_root),
         "iteration_root": iteration_root,
@@ -288,6 +312,13 @@ def build_report(args: argparse.Namespace) -> dict:
             "target": "iteration_workbench",
             "detail_path": "parts.iteration_ops",
         },
+        {
+            "id": "evolution_gate",
+            "label": "演进闸",
+            "status": evolution_part.get("status"),
+            "target": "freeze_observation",
+            "detail_path": "parts.evolution_gate",
+        },
     ]
     actions = [
         {"id": "open_iteration_workbench", "label": "打开迭代工作台", "kind": "open_file", "target": "iteration_workbench"},
@@ -295,6 +326,7 @@ def build_report(args: argparse.Namespace) -> dict:
         {"id": "open_health_latest", "label": "打开反射器状态", "kind": "open_file", "target": "health_latest"},
         {"id": "open_harness_eval_latest", "label": "打开回归测试", "kind": "open_file", "target": "harness_eval_latest"},
         {"id": "open_status_latest", "label": "打开状态文件", "kind": "open_file", "target": "status_latest"},
+        {"id": "open_evolution_gate", "label": "打开演进闸", "kind": "open_file", "target": "freeze_observation"},
     ]
     status_label = STATUS_LABELS.get(status, status)
 
@@ -313,12 +345,14 @@ def build_report(args: argparse.Namespace) -> dict:
             "health": health_part,
             "harness_eval": eval_part,
             "iteration_ops": iteration_part,
+            "evolution_gate": evolution_part,
         },
         "ui": {
             "headline": f"V9 {status_label}",
             "summary": (
                 f"{status_label} · 交付 {iteration_part.get('current_iteration') or '-'}"
                 f" · 准备 {iteration_part.get('preparation_iteration') or '-'}"
+                f" · 演进 {evolution_part.get('consecutive_pass_days', 0)}/{evolution_part.get('required_consecutive_days', 0)}"
             ),
             "badges": badges,
             "actions": actions,

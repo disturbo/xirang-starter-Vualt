@@ -3,23 +3,47 @@
 # Publishes the UI status in the same scheduler transaction as health.
 set -u
 
-VAULT="${XIRANG_V9_VAULT_DIR:-$HOME/Desktop/obsidianVault}"
-RUNTIME="${XIRANG_V9_RUNTIME_DIR:-$HOME/.xirang/v9-runtime}"
-PYTHON="${XIRANG_V9_PYTHON:-/opt/homebrew/bin/python3}"
-SCRIPT="${XIRANG_V9_REFLEX_SCRIPT:-$VAULT/02-项目管理/脚本/v9-reflex-check.py}"
-SUMMARY_SCRIPT="${XIRANG_V9_STATUS_SCRIPT:-$VAULT/02-项目管理/脚本/v9-status-summary.py}"
-HARNESS_SCRIPT="${XIRANG_V9_HARNESS_SCRIPT:-$VAULT/02-项目管理/脚本/v9-harness-eval-runner.py}"
-HARNESS_VERIFY_SCRIPT="${XIRANG_V9_HARNESS_VERIFY_SCRIPT:-$VAULT/.standards/harness-eval-verify.py}"
-HARNESS_REPORT="${XIRANG_V9_HARNESS_REPORT:-$RUNTIME/巡检/harness-eval-latest.json}"
-HARNESS_MAX_AGE_HOURS="${XIRANG_V9_HARNESS_MAX_AGE_HOURS:-20}"
-if [[ "${XIRANG_V9_TEST_MODE:-0}" == "1" ]]; then
-  PHOENIX_SCRIPT="${XIRANG_V9_PHOENIX_SCRIPT:-$VAULT/02-项目管理/脚本/v9-phoenix.py}"
-else
-  PHOENIX_SCRIPT="$VAULT/02-项目管理/脚本/v9-phoenix.py"
-fi
-GBRAIN_CONTRACT_SOURCE="${XIRANG_GBRAIN_CONTRACT_SOURCE:-$VAULT/50-经验/Agent协作方法论/息壤V9-运行时契约卡.md}"
-GBRAIN_CONTRACT_MIRROR="${XIRANG_GBRAIN_CONTRACT_MIRROR:-$HOME/.gbrain/runtime-contract-current.md}"
-GBRAIN_MAINTENANCE="${XIRANG_GBRAIN_MAINTENANCE:-$HOME/.gbrain/maintenance-run.sh}"
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && /bin/pwd -P)"
+TRUSTED_HOME="$(/usr/bin/python3 -c 'import os,pwd; print(pwd.getpwuid(os.getuid()).pw_dir)')"
+case "$SELF_DIR" in
+  /private/tmp/*|/tmp/*|/private/var/folders/*/*/T/*|/var/folders/*/*/T/*)
+    # Fixture-only injection: production launchd points at ~/.xirang/bin and
+    # cannot enter this branch through environment variables.
+    VAULT="${XIRANG_V9_VAULT_DIR:?fixture vault required}"
+    RUNTIME="${XIRANG_V9_RUNTIME_DIR:?fixture runtime required}"
+    PYTHON="${XIRANG_V9_PYTHON:?fixture python required}"
+    SCRIPT="${XIRANG_V9_REFLEX_SCRIPT:?fixture reflex required}"
+    SUMMARY_SCRIPT="${XIRANG_V9_STATUS_SCRIPT:?fixture summary required}"
+    HARNESS_SCRIPT="${XIRANG_V9_HARNESS_SCRIPT:?fixture harness required}"
+    HARNESS_VERIFY_SCRIPT="${XIRANG_V9_HARNESS_VERIFY_SCRIPT:?fixture verifier required}"
+    HARNESS_REPORT="${XIRANG_V9_HARNESS_REPORT:?fixture report required}"
+    HARNESS_MAX_AGE_HOURS="${XIRANG_V9_HARNESS_MAX_AGE_HOURS:-20}"
+    PHOENIX_SCRIPT="${XIRANG_V9_PHOENIX_SCRIPT:?fixture phoenix required}"
+    GBRAIN_CONTRACT_SOURCE="${XIRANG_GBRAIN_CONTRACT_SOURCE:?fixture contract source required}"
+    GBRAIN_CONTRACT_MIRROR="${XIRANG_GBRAIN_CONTRACT_MIRROR:?fixture contract mirror required}"
+    GBRAIN_MAINTENANCE="${XIRANG_GBRAIN_MAINTENANCE:?fixture maintenance required}"
+    ;;
+  *)
+    if [[ "$(basename "$SELF_DIR")" == ".standards" ]]; then
+      VAULT="$(cd "$SELF_DIR/.." && /bin/pwd -P)"
+    else
+      VAULT="$TRUSTED_HOME/Desktop/obsidianVault"
+    fi
+    RUNTIME="$TRUSTED_HOME/.xirang/v9-runtime"
+    PYTHON="/opt/homebrew/bin/python3"
+    [[ -x "$PYTHON" ]] || PYTHON="/usr/bin/python3"
+    SCRIPT="$VAULT/02-项目管理/脚本/v9-reflex-check.py"
+    SUMMARY_SCRIPT="$VAULT/02-项目管理/脚本/v9-status-summary.py"
+    HARNESS_SCRIPT="$VAULT/02-项目管理/脚本/v9-harness-eval-runner.py"
+    HARNESS_VERIFY_SCRIPT="$VAULT/.standards/harness-eval-verify.py"
+    HARNESS_REPORT="$RUNTIME/巡检/harness-eval-latest.json"
+    HARNESS_MAX_AGE_HOURS="20"
+    PHOENIX_SCRIPT="$VAULT/02-项目管理/脚本/v9-phoenix.py"
+    GBRAIN_CONTRACT_SOURCE="$VAULT/50-经验/Agent协作方法论/息壤V9-运行时契约卡.md"
+    GBRAIN_CONTRACT_MIRROR="$TRUSTED_HOME/.gbrain/runtime-contract-current.md"
+    GBRAIN_MAINTENANCE="$TRUSTED_HOME/.gbrain/maintenance-run.sh"
+    ;;
+esac
 STATE="$RUNTIME/巡检/reflex-scheduler-health.json"
 
 write_state() {
@@ -153,7 +177,7 @@ summary_rc=$?
 # Python launched from a macOS background agent may be denied while its cwd is
 # Desktop even after the scan itself completes. Leave the protected directory
 # before persisting the scheduler result.
-cd "$HOME" || true
+cd "$TRUSTED_HOME" || true
 
 status_value="$(XIRANG_V9_RUNTIME_DIR="$RUNTIME" XIRANG_RUN_STARTED_EPOCH="$run_started_epoch" /usr/bin/python3 - <<'PY'
 import json
@@ -210,20 +234,22 @@ if [[ $interim_summary_rc -gt 1 || $pre_phoenix_summary_rc -gt 1 || $summary_rc 
   exit 70
 fi
 if [[ ( $reflex_pre_phoenix_rc -ne 0 || $reflex_after_phoenix_rc -ne 0 ) && "$status_value" != "red" ]]; then
-  write_state "failed" "$reflex_after_phoenix_rc" "reflex_exit_without_red_status"
-  exit "$reflex_after_phoenix_rc"
+  reflex_failure_rc="$reflex_after_phoenix_rc"
+  [[ $reflex_failure_rc -ne 0 ]] || reflex_failure_rc="$reflex_pre_phoenix_rc"
+  write_state "failed" "$reflex_failure_rc" "reflex_exit_without_red_status"
+  exit "$reflex_failure_rc"
+fi
+if [[ $phoenix_rc -ne 0 ]]; then
+  write_state "failed" "$phoenix_rc" "phoenix_failed"
+  exit "$phoenix_rc"
 fi
 if [[ $gbrain_rc -ne 0 ]]; then
   write_state "failed" "$gbrain_rc" "gbrain_refresh_failed"
   exit "$gbrain_rc"
 fi
 if [[ $harness_rc -ne 0 ]]; then
-  write_state "success" 0 "completed_status_red_harness_refresh_failed"
-  exit 0
-fi
-if [[ $phoenix_rc -ne 0 ]]; then
-  write_state "failed" "$phoenix_rc" "phoenix_failed"
-  exit "$phoenix_rc"
+  write_state "failed" "$harness_rc" "harness_refresh_failed"
+  exit "$harness_rc"
 fi
 write_state "success" 0 "completed_status_${status_value}"
 exit 0

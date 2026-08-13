@@ -1185,6 +1185,21 @@ def write_status_runtime_fixture(
         )
         + "\n",
     )
+    write_text(
+        runtime_root / "治理" / "freeze-observation.json",
+        json.dumps(
+            {
+                "status": "eligible",
+                "consecutive_pass_days": 14,
+                "required_consecutive_days": 14,
+                "unlock_allowed": True,
+                "today": {"metrics": {"fixture": {"status": "pass", "detail": {}}}},
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+    )
     return runtime_root
 
 
@@ -4009,7 +4024,8 @@ def build_report(results: list[EvalResult]) -> dict:
     return {
         "check": CHECK_NAME,
         "generated_at": now_iso(),
-        "today": TODAY.isoformat(),
+        "today": date.today().isoformat(),
+        "fixture_today": TODAY.isoformat(),
         "summary": summarize(results),
         "tested_hashes": hashes,
         "tested_max_mtime": max_mtime,

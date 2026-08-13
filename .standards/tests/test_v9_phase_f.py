@@ -75,6 +75,10 @@ class PhaseFTests(unittest.TestCase):
         self.assertEqual(1, len(candidates))
         self.assertTrue(candidates[0]["requires_human_review"])
         self.assertEqual("forbidden_without_external_acceptance", candidates[0]["activation"])
+        state, candidates = module.update_observations(
+            state, [], "2026-08-13T00:01:00+08:00",
+        )
+        self.assertEqual([], candidates)
 
     def test_persistent_finding_counts_as_one_episode(self) -> None:
         module = load(PHOENIX, "phase_f_episode_dedup")

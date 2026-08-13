@@ -47,6 +47,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import fcntl
+import hashlib
 import json
 import os
 import pwd
@@ -74,6 +75,21 @@ def runtime_inspect_dir() -> Path:
 
 
 INSPECT_DIR = runtime_inspect_dir()  # Vault 外运行态输出目录
+
+
+def _trusted_artifact(path: Path) -> dict | None:
+    if not path.is_file():
+        return None
+    resolved = path.resolve()
+    digest = hashlib.sha256()
+    with resolved.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return {
+        "path": str(resolved),
+        "sha256": digest.hexdigest(),
+        "executable": os.access(resolved, os.X_OK),
+    }
 HEALTH_LATEST = INSPECT_DIR / "health-latest.json"
 REFLEX_STATE = INSPECT_DIR / "reflex-state.json"
 
@@ -867,14 +883,21 @@ def collect_runtime_liveness(
     )):
         phoenix_issues.append("safety_contract_invalid")
     trusted_home = Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()
+    trusted_python = Path(sys.executable).resolve()
+    entropy_executor = trusted_home / ".hermes/scripts/v9-entropy-shadow.py"
+    gbrain_executor = trusted_home / ".gbrain/maintenance-run.sh"
     expected_catalog = {
         "refresh_entropy": {
-            "command": [str(Path(sys.executable).resolve()), str(trusted_home / ".hermes/scripts/v9-entropy-shadow.py")],
+            "command": [str(trusted_python), str(entropy_executor)],
             "rules": ["ENTROPY_JOB_STATE_INVALID", "ENTROPY_SHADOW_MISSING", "ENTROPY_SHADOW_STALE"],
+            "artifacts": [item for item in (
+                _trusted_artifact(trusted_python), _trusted_artifact(entropy_executor),
+            ) if item is not None],
         },
         "refresh_gbrain": {
-            "command": [str(trusted_home / ".gbrain/maintenance-run.sh"), "sync"],
+            "command": [str(gbrain_executor), "sync"],
             "rules": ["GBRAIN_CURRENT_REVISION_NOT_CONSUMED", "GBRAIN_SYNC_NEVER_SUCCEEDED", "GBRAIN_SYNC_STALE"],
+            "artifacts": [item for item in (_trusted_artifact(gbrain_executor),) if item is not None],
         },
     }
     execution_policy = (phoenix_state or {}).get("execution_policy")
