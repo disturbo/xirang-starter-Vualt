@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-14T00:18:04+08:00",
+  "generated_at": "2026-08-14T00:20:32+08:00",
   "distribution": "starter-local",
   "roots": {
     "starter": "."
@@ -9,7 +9,7 @@
     {
       "name": "starter",
       "root": "starter",
-      "tree_sha256": "ab9c6f473328ed27b4d58c12979749e64d6b68cabcf643c4d249ff28afb60d74"
+      "tree_sha256": "2e06561617042813276e708fdfe6a0328c97091acd56459bd36b2e59762475b3"
     }
   ],
   "artifacts": [
@@ -56,7 +56,7 @@
     {
       "root": "starter",
       "path": ".standards/v9-reflex-run.sh",
-      "sha256": "9fea574fb366912c18ff5293390f905abffb4020b25e33fd210ea3c280bbb8b3"
+      "sha256": "05c95a041f2b5c7acdfc6fb011ebd9bab3f1d2ebaff5133da45773d67df1ba11"
     },
     {
       "root": "starter",

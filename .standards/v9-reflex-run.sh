@@ -140,6 +140,8 @@ interim_summary_rc=$?
 # output-consumption failure caused only by this transaction's write order.
 XIRANG_V9_RUNTIME_DIR="$RUNTIME" "$PYTHON" "$SCRIPT" --quiet
 reflex_pre_phoenix_rc=$?
+XIRANG_V9_RUNTIME_DIR="$RUNTIME" "$PYTHON" "$SUMMARY_SCRIPT" --write-latest --json >/dev/null
+pre_phoenix_summary_rc=$?
 XIRANG_V9_RUNTIME_DIR="$RUNTIME" "$PYTHON" "$PHOENIX_SCRIPT" --apply-safe --json >/dev/null
 phoenix_rc=$?
 # Phoenix may refresh an upstream runtime source. Re-observe unconditionally so
@@ -203,7 +205,7 @@ PY
 )"
 validate_rc=$?
 
-if [[ $interim_summary_rc -gt 1 || $summary_rc -gt 1 || $validate_rc -ne 0 ]]; then
+if [[ $interim_summary_rc -gt 1 || $pre_phoenix_summary_rc -gt 1 || $summary_rc -gt 1 || $validate_rc -ne 0 ]]; then
   write_state "failed" 70 "status_summary_output_invalid"
   exit 70
 fi
