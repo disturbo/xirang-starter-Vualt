@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-14T00:12:40+08:00",
+  "generated_at": "2026-08-14T00:16:03+08:00",
   "distribution": "starter-local",
   "roots": {
     "starter": "."
@@ -9,7 +9,7 @@
     {
       "name": "starter",
       "root": "starter",
-      "tree_sha256": "e021afc77814f9b921def092c65f802d13240b8c09f69fb79f36cdb504fcbee9"
+      "tree_sha256": "b8ef033ebdb18a9ccd71431e20529bf5d09fc39e059ebc33adb145395ca32796"
     }
   ],
   "artifacts": [
@@ -56,7 +56,7 @@
     {
       "root": "starter",
       "path": ".standards/v9-reflex-run.sh",
-      "sha256": "1005437f8b0e701376bcbea4714e53f1ca0cd12cd8939d06dfc452f36558a36e"
+      "sha256": "9fea574fb366912c18ff5293390f905abffb4020b25e33fd210ea3c280bbb8b3"
     },
     {
       "root": "starter",
@@ -81,7 +81,7 @@
     {
       "root": "starter",
       "path": ".standards/tests/test_v9_phase_f.py",
-      "sha256": "99fb5326b266b5036860fd2f532275639f4852fd52af207ea72a3274ada217f9"
+      "sha256": "3782f05a6acc905f1f63ad691535d8ed9318b00f282b22735d7beab24014552f"
     },
     {
       "root": "starter",
@@ -161,12 +161,12 @@
     {
       "root": "starter",
       "path": "02-项目管理/脚本/v9-phoenix.py",
-      "sha256": "cf72ae085f58cfd7efe0e00d2c6f019167261a45347676207c640f3c9ae7aff3"
+      "sha256": "e4531fa291af7c8b81c5573ee089cbabbae7848d496ee92e2bb83646a86606b0"
     },
     {
       "root": "starter",
       "path": "02-项目管理/脚本/v9-reflex-check.py",
-      "sha256": "4ffc87c62237368fbf9032cb4db289d0bea6ddf4c622a70346d68908bb5db020"
+      "sha256": "1e3cef00b542870dac6765e4612908c5985f85b8009c03bc646b38e9121d4e59"
     },
     {
       "root": "starter",

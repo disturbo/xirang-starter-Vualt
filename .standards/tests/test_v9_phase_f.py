@@ -86,6 +86,14 @@ class PhaseFTests(unittest.TestCase):
             )
         self.assertEqual(1, state["observations"]["PERSISTENT"]["count"])
         self.assertEqual([], candidates)
+        legacy = {"observations": {"LEGACY": {"rule_id": "LEGACY", "count": 99}}}
+        migrated, candidates = module.update_observations(
+            legacy,
+            [{"rule_id": "LEGACY", "severity": "p1", "source": "test", "object": "x"}],
+            "2026-08-13T01:00:00+08:00",
+        )
+        self.assertEqual(1, migrated["observations"]["LEGACY"]["count"])
+        self.assertEqual([], candidates)
 
 
 if __name__ == "__main__":

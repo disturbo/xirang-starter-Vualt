@@ -136,6 +136,10 @@ reflex_rc=$?
 # ordering within this same scheduler transaction.
 XIRANG_V9_RUNTIME_DIR="$RUNTIME" "$PYTHON" "$SUMMARY_SCRIPT" --write-latest --json >/dev/null
 interim_summary_rc=$?
+# Re-observe after the interim status so Phoenix never learns from a transient
+# output-consumption failure caused only by this transaction's write order.
+XIRANG_V9_RUNTIME_DIR="$RUNTIME" "$PYTHON" "$SCRIPT" --quiet
+reflex_pre_phoenix_rc=$?
 XIRANG_V9_RUNTIME_DIR="$RUNTIME" "$PYTHON" "$PHOENIX_SCRIPT" --apply-safe --json >/dev/null
 phoenix_rc=$?
 # Phoenix may refresh an upstream runtime source. Re-observe unconditionally so
@@ -203,7 +207,7 @@ if [[ $interim_summary_rc -gt 1 || $summary_rc -gt 1 || $validate_rc -ne 0 ]]; t
   write_state "failed" 70 "status_summary_output_invalid"
   exit 70
 fi
-if [[ $reflex_after_phoenix_rc -ne 0 && "$status_value" != "red" ]]; then
+if [[ ( $reflex_pre_phoenix_rc -ne 0 || $reflex_after_phoenix_rc -ne 0 ) && "$status_value" != "red" ]]; then
   write_state "failed" "$reflex_after_phoenix_rc" "reflex_exit_without_red_status"
   exit "$reflex_after_phoenix_rc"
 fi

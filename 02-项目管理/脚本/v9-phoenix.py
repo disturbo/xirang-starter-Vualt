@@ -116,10 +116,12 @@ def update_observations(
         current = observations.get(rule_id) if isinstance(observations.get(rule_id), dict) else {}
         # Count distinct failure episodes, not scheduler polls of one unresolved
         # snapshot. A rule becomes a new episode only after it disappeared.
+        legacy_observation = bool(current) and "active" not in current
         was_active = current.get("active") is True
+        count = 1 if legacy_observation else int(current.get("count", 0) or 0) + (0 if was_active else 1)
         observations[rule_id] = {
             "rule_id": rule_id,
-            "count": int(current.get("count", 0) or 0) + (0 if was_active else 1),
+            "count": count,
             "first_seen": current.get("first_seen") or observed_at,
             "last_seen": observed_at,
             "last_health_generated_at": health_generated_at or None,

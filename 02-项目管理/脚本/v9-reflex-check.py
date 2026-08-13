@@ -831,13 +831,9 @@ def collect_runtime_liveness(
     else:
         checks.append(_runtime_check("llm_wiki", "ok", str(wiki_data.get("prototype_root"))))
 
-    phoenix_executor = Path(os.environ.get(
-        "XIRANG_V9_PHOENIX_SCRIPT", str(ROOT / "02-项目管理/脚本/v9-phoenix.py"),
-    ))
+    phoenix_executor = ROOT / "02-项目管理/脚本/v9-phoenix.py"
     phoenix_wrapper = ROOT / ".standards/v9-reflex-run.sh"
-    phoenix_state_path = Path(os.environ.get(
-        "XIRANG_V9_PHOENIX_STATE", str(home / ".xirang/v9-runtime/巡检/phoenix-latest.json"),
-    ))
+    phoenix_state_path = INSPECT_DIR / "phoenix-latest.json"
     phoenix_state = _read_json(phoenix_state_path)
     try:
         wrapper_text = phoenix_wrapper.read_text(encoding="utf-8")
