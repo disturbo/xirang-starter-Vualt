@@ -8,6 +8,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -20,6 +21,7 @@ REFLEX = ROOT / "02-项目管理/脚本/v9-reflex-check.py"
 FREEZE = ROOT / "02-项目管理/脚本/v9-freeze-observation.py"
 REFLEX_WRAPPER = ROOT / ".standards/v9-reflex-run.sh"
 FRONTMATTER_TEST = ROOT / ".standards/tests/test_frontmatter_lint.py"
+CLOSEOUT = ROOT / ".standards/v8-closeout-check.py"
 PRE_START = ROOT / ".standards/pre-start-check.py"
 PROJECT_OPS = ROOT / "02-项目管理/脚本/project-ops-check.py"
 ITERATION_OPS = ROOT / "02-项目管理/脚本/v9-iteration-ops-check.py"
@@ -46,6 +48,7 @@ def load(path: Path, name: str):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     assert spec.loader
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -270,6 +273,35 @@ class PhaseHTests(unittest.TestCase):
         )
         self.assertEqual(0, proc.returncode, proc.stderr)
         self.assertIn("Ran 16 tests", proc.stderr)
+
+    def test_closeout_accepts_formal_task_card_scope_and_handoff(self) -> None:
+        sys.path.insert(0, str(CLOSEOUT.parent))
+        self.addCleanup(lambda: sys.path.remove(str(CLOSEOUT.parent)))
+        module = load(CLOSEOUT, "phase_h_formal_closeout")
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            card = root / "02-项目管理/任务卡/2026-08/T-FORMAL.md"
+            card.parent.mkdir(parents=True)
+            card.write_text(
+                "---\ntask_id: T-FORMAL\nstatus: done\npaths:\n"
+                "  allowed_write_roots:\n    - \".standards/\"\n---\n\n"
+                "## Handoff\n\n- status: done/submitted\n"
+                "- artifacts: `.standards/result.txt`\n"
+                "- verification: pass\n- next action: review\n",
+                encoding="utf-8",
+            )
+            artifact = root / ".standards/result.txt"
+            artifact.parent.mkdir(parents=True)
+            artifact.write_text("verified\n", encoding="utf-8")
+            board = root / "00-MOC/多智能体协作看板.md"
+            board.parent.mkdir(parents=True)
+            board.write_text("# Board\n\nT-FORMAL\n\n## Handoff\n\n- none\n", encoding="utf-8")
+            module.VAULT_ROOT = root
+            module.EVENT_FILE = root / "02-项目管理/智能体状态/智能体事件.jsonl"
+            module.KANBAN_FILE = board
+            module.AGENT_STATUS_DIR = root / "02-项目管理/智能体状态"
+            issues = module.run_closeout_check("T-FORMAL", "hongmeisu", "M5")
+            self.assertEqual([], issues)
 
     def test_reflex_wrapper_refreshes_untrusted_harness_before_health(self) -> None:
         script = REFLEX_WRAPPER.read_text(encoding="utf-8")

@@ -77,16 +77,50 @@ def _get_file_writes_for_task(task_id: str) -> list[str]:
 
 
 def _parse_authorized_paths(card_file) -> list:
-    """从任务卡 YAML 中解析 authorized_paths 列表"""
+    """从旧临时卡或正式卡 YAML 中解析授权路径列表。"""
     try:
         content = card_file.read_text(encoding="utf-8")
-        section = re.search(r'authorized_paths:\s*\n((?:\s+-\s+.+\n?)*)', content)
+        section = re.search(
+            r'^\s*(?:authorized_paths|allowed_write_roots):\s*\n((?:\s+-\s+.+\n?)*)',
+            content,
+            re.MULTILINE,
+        )
         if not section:
             return []
         paths = re.findall(r"^\s+-\s+(.+)$", section.group(1), re.MULTILINE)
         return [p.strip().strip('"').strip("'") for p in paths if p.strip()]
     except (IOError, OSError):
         return []
+
+
+def _resolve_task_card(task_id: str) -> Path | None:
+    """Prefer the runtime authorization card, then the canonical formal card."""
+    runtime_card = VAULT_ROOT / "_temp" / task_id / "task-card.yaml"
+    if runtime_card.is_file():
+        return runtime_card
+    formal_root = VAULT_ROOT / "02-项目管理" / "任务卡"
+    matches = sorted(formal_root.glob(f"*/{task_id}.md")) if formal_root.is_dir() else []
+    return matches[0] if matches else None
+
+
+def _formal_handoff_complete(task_id: str) -> bool:
+    card = _resolve_task_card(task_id)
+    if card is None or card.suffix != ".md":
+        return False
+    try:
+        content = card.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    section = re.search(r'^## Handoff\s*\n(.*?)(?=\n## |\Z)', content, re.MULTILINE | re.DOTALL)
+    if not section:
+        return False
+    body = section.group(1)
+    status = re.search(r'^- status:\s*(.+)$', body, re.MULTILINE)
+    terminal = bool(status and not re.match(r'^(?:pending|in_progress)(?:\b|/)', status.group(1).strip()))
+    required = all(re.search(rf'^- {key}:\s*\S', body, re.MULTILINE) for key in (
+        "artifacts", "verification", "next action",
+    ))
+    return terminal and required
 
 
 def _get_task_start_time(task_id: str) -> float:
@@ -110,7 +144,7 @@ def _get_write_scope(agent: str) -> str:
     """从状态文件读取当前 write_scope"""
     agent_files = {
         "claudian": "Claudian.md",
-        "assistant": "Claudian.md",
+        "dongfeng": "Claudian.md",
         "workbuddy": "WorkBuddy.md",
         "xiaochong": "阿莫西林.md",
         "toubao": "头孢.md",
@@ -149,8 +183,8 @@ def _check_deliverables(task_id: str) -> list[CheckResult]:
 
     # Fallback：文件系统扫描（覆盖 Bash 写入场景）
     # 1. 从任务卡读取 authorized_paths
-    card_file = VAULT_ROOT / "_temp" / task_id / "task-card.yaml"
-    if card_file.exists():
+    card_file = _resolve_task_card(task_id)
+    if card_file is not None:
         authorized = _parse_authorized_paths(card_file)
         task_start_ts = _get_task_start_time(task_id)
 
@@ -249,6 +283,9 @@ def _check_handoff(task_id: str, gear: str) -> list[CheckResult]:
     if gear != "M5":
         return results  # M4 的 Handoff 不强制
 
+    if _formal_handoff_complete(task_id):
+        return results
+
     # 检查看板中是否有 Handoff 记录
     if KANBAN_FILE.exists():
         try:
@@ -260,15 +297,14 @@ def _check_handoff(task_id: str, gear: str) -> list[CheckResult]:
             if handoff_section:
                 if task_id in handoff_section.group():
                     return results  # 有 Handoff
-            # 没找到
-            results.append(CheckResult(
-                priority=2,
-                rule_id="NO_HANDOFF",
-                message=f"M5 任务 {task_id} 看板中无 Handoff 记录。M5 必写 Handoff。",
-                details={"task_id": task_id, "gear": gear}
-            ))
         except IOError:
             pass
+    results.append(CheckResult(
+        priority=2,
+        rule_id="NO_HANDOFF",
+        message=f"M5 任务 {task_id} 在正式任务卡和看板中均无完整 Handoff 记录。",
+        details={"task_id": task_id, "gear": gear}
+    ))
     return results
 
 

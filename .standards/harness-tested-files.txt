@@ -19,6 +19,7 @@
 .standards/hooks/pre-commit-harness-eval.sh
 .standards/hooks/pre-write-hook.sh
 .standards/v8-handshake.sh
+.standards/v8-closeout-check.py
 .standards/v9-accept.py
 .prompt-src/preflight-auto-template.md
 .prompt-src/v9-compliance-block.md
