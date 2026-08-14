@@ -19,6 +19,7 @@ HANDSHAKE = ROOT / ".standards/v8-handshake.sh"
 REFLEX = ROOT / "02-项目管理/脚本/v9-reflex-check.py"
 FREEZE = ROOT / "02-项目管理/脚本/v9-freeze-observation.py"
 REFLEX_WRAPPER = ROOT / ".standards/v9-reflex-run.sh"
+FRONTMATTER_TEST = ROOT / ".standards/tests/test_frontmatter_lint.py"
 PRE_START = ROOT / ".standards/pre-start-check.py"
 PROJECT_OPS = ROOT / "02-项目管理/脚本/project-ops-check.py"
 ITERATION_OPS = ROOT / "02-项目管理/脚本/v9-iteration-ops-check.py"
@@ -235,6 +236,41 @@ class PhaseHTests(unittest.TestCase):
             })
             self.assertEqual("pass", report["status"], report)
 
+    def test_dream_partial_is_visible_as_degraded_advisory(self) -> None:
+        module = load(REFLEX, "phase_h_dream_degraded")
+        with tempfile.TemporaryDirectory() as raw:
+            state_path = Path(raw) / "maintenance-dream.json"
+            now = module.now_local()
+            state_path.write_text(json.dumps({
+                "action": "dream",
+                "status": "degraded",
+                "reason": "dream_partial",
+                "updated_at": now.isoformat(),
+                "last_completed_at": now.isoformat(),
+                "quality": {
+                    "cycle_status": "partial",
+                    "warning_phases": ["lint", "orphans"],
+                    "summaries": {
+                        "lint": "0 fix(es) applied, 609 remaining",
+                        "orphans": "613 orphan page(s) out of 873 total",
+                    },
+                },
+            }), encoding="utf-8")
+            findings, check = module._maintenance_freshness(
+                "dream", state_path, now, 8,
+            )
+            self.assertEqual(["GBRAIN_DREAM_DEGRADED"], [item["rule_id"] for item in findings])
+            self.assertEqual("advisory", findings[0]["severity"])
+            self.assertEqual("degraded", check["status"])
+
+    def test_frontmatter_clean_file_count_regression_suite(self) -> None:
+        proc = subprocess.run(
+            ["/usr/bin/python3", str(FRONTMATTER_TEST)],
+            cwd=ROOT, capture_output=True, text=True, timeout=120,
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertIn("Ran 16 tests", proc.stderr)
+
     def test_reflex_wrapper_refreshes_untrusted_harness_before_health(self) -> None:
         script = REFLEX_WRAPPER.read_text(encoding="utf-8")
         self.assertIn("harness-eval-verify.py", script)
@@ -242,7 +278,9 @@ class PhaseHTests(unittest.TestCase):
         self.assertIn("--write-latest", script)
         self.assertIn("runtime-contract-current.md", script)
         self.assertIn("refresh_gbrain_contract_if_needed\ngbrain_rc=$?", script)
+        self.assertIn("refresh_gbrain_dream_if_stale\ndream_rc=$?", script)
         self.assertLess(script.index("refresh_gbrain_contract_if_needed\ngbrain_rc=$?"), script.index('"$SCRIPT" --quiet'))
+        self.assertLess(script.index("refresh_gbrain_dream_if_stale\ndream_rc=$?"), script.index('"$SCRIPT" --quiet'))
         self.assertLess(script.index("refresh_harness_if_needed"), script.index('"$SCRIPT" --quiet'))
         for index, body in enumerate(re.findall(r"<<'PY'\n(.*?)\nPY", script, re.DOTALL), 1):
             compile(body, f"v9-reflex-run.sh:heredoc-{index}", "exec")
@@ -305,11 +343,12 @@ class PhaseHTests(unittest.TestCase):
             contract_mirror = base / "runtime-contract-current.md"
             maintenance = base / "maintenance.sh"
             maintenance_marker = base / "maintenance-ran"
+            dream_state = base / "maintenance-dream.json"
             contract_source.write_text("current contract\n", encoding="utf-8")
             contract_mirror.write_text("stale contract\n", encoding="utf-8")
             maintenance.write_text(
                 "#!/bin/sh\n"
-                "printf '%s\\n' synced > \"$GBRAIN_MAINTENANCE_MARKER\"\n",
+                "printf '%s\\n' \"$1\" >> \"$GBRAIN_MAINTENANCE_MARKER\"\n",
                 encoding="utf-8",
             )
             maintenance.chmod(0o755)
@@ -329,6 +368,7 @@ class PhaseHTests(unittest.TestCase):
                 "XIRANG_GBRAIN_CONTRACT_SOURCE": str(contract_source),
                 "XIRANG_GBRAIN_CONTRACT_MIRROR": str(contract_mirror),
                 "XIRANG_GBRAIN_MAINTENANCE": str(maintenance),
+                "XIRANG_GBRAIN_DREAM_STATE": str(dream_state),
                 "GBRAIN_MAINTENANCE_MARKER": str(maintenance_marker),
             }
             proc = subprocess.run(
@@ -339,7 +379,10 @@ class PhaseHTests(unittest.TestCase):
             self.assertTrue(harness_report.is_file())
             self.assertEqual(contract_source.read_bytes(), contract_mirror.read_bytes())
             self.assertEqual(0o600, contract_mirror.stat().st_mode & 0o777)
-            self.assertEqual("synced", maintenance_marker.read_text(encoding="utf-8").strip())
+            self.assertEqual(
+                ["sync", "dream"],
+                maintenance_marker.read_text(encoding="utf-8").splitlines(),
+            )
             state = json.loads((runtime / "巡检/reflex-scheduler-health.json").read_text(encoding="utf-8"))
             self.assertEqual("success", state["status"])
             self.assertEqual("completed_status_green", state["reason"])

@@ -615,9 +615,13 @@ def _maintenance_freshness(
     last_success = parse_iso(str(data.get("last_success_at", "")))
     if last_success is None and status == "success":
         last_success = updated  # backward-compatible state written before 2026-07-18
+    last_completed = parse_iso(str(data.get("last_completed_at", "")))
+    if action == "dream" and last_completed is None and status in {"success", "degraded"}:
+        last_completed = updated
+    freshness_reference = last_completed if action == "dream" and last_completed else last_success
     if status == "running" and updated and now - updated <= timedelta(hours=stale_hours):
         return findings, _runtime_check(name, "running", data.get("updated_at", ""))
-    if last_success is None:
+    if freshness_reference is None:
         findings.append(make_finding(
             "p1", f"GBRAIN_{action.upper()}_NEVER_SUCCEEDED", str(path),
             f"GBrain {action} 尚无真实成功记录；最近状态为 {status}：{data.get('reason', 'unknown')}。",
@@ -625,17 +629,38 @@ def _maintenance_freshness(
         ))
         return findings, _runtime_check(name, "failed", status)
 
-    age = now - last_success
+    age = now - freshness_reference
     if age > timedelta(hours=stale_hours):
         age_h = round(age.total_seconds() / 3600, 1)
         findings.append(make_finding(
             "p1", f"GBRAIN_{action.upper()}_STALE", str(path),
             f"GBrain {action} 已 {age_h}h 未成功（阈值 {stale_hours}h）。",
             "runtime-liveness",
-            detail={"last_success_at": last_success.isoformat(), "last_attempt_status": status, "age_hours": age_h},
+            detail={
+                "freshness_reference_at": freshness_reference.isoformat(),
+                "last_success_at": last_success.isoformat() if last_success else None,
+                "last_attempt_status": status,
+                "age_hours": age_h,
+            },
         ))
         return findings, _runtime_check(name, "stale", f"age_hours={age_h}")
-    detail = f"last_success={last_success.isoformat()} last_attempt={status}"
+    if action == "dream" and status == "degraded":
+        quality = data.get("quality") if isinstance(data.get("quality"), dict) else {}
+        warning_phases = quality.get("warning_phases") if isinstance(quality.get("warning_phases"), list) else []
+        skipped_phases = quality.get("skipped_phases") if isinstance(quality.get("skipped_phases"), list) else []
+        findings.append(make_finding(
+            "advisory", "GBRAIN_DREAM_DEGRADED", str(path),
+            "GBrain Dream 已按期完成，但质量状态为 partial"
+            + (f"（阶段：{', '.join(str(item) for item in warning_phases)}）" if warning_phases else "")
+            + (f"，跳过：{', '.join(str(item) for item in skipped_phases)}" if skipped_phases else "")
+            + "；不得冒充绿色成功。",
+            "runtime-liveness", detail=data,
+        ))
+        return findings, _runtime_check(
+            name, "degraded",
+            f"last_completed={freshness_reference.isoformat()} cycle_status={quality.get('cycle_status', 'partial')}",
+        )
+    detail = f"last_success={last_success.isoformat() if last_success else 'none'} last_attempt={status}"
     return findings, _runtime_check(name, "ok", detail)
 
 

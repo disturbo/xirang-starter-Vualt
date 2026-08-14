@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 """
 frontmatter-lint.py — 息壤 V9 Frontmatter 深度校验
 v1.2 · 2026-07-22 | 息壤 V9
@@ -352,9 +354,12 @@ def scan_file(filepath: str, vault_root: str = ".") -> list[dict]:
     return violations
 
 
-def scan_vault(target_path: str = ".", vault_root: str = ".") -> list[dict]:
+def scan_vault(
+    target_path: str = ".", vault_root: str = ".", *, include_stats: bool = False,
+) -> list[dict] | tuple[list[dict], int]:
     """扫描指定路径下所有 .md 文件"""
     all_violations = []
+    files_scanned = 0
 
     pattern = os.path.join(target_path, "**/*.md")
     for filepath in glob.glob(pattern, recursive=True):
@@ -367,9 +372,12 @@ def scan_vault(target_path: str = ".", vault_root: str = ".") -> list[dict]:
         if should_skip:
             continue
 
+        files_scanned += 1
         violations = scan_file(filepath, vault_root)
         all_violations.extend(violations)
 
+    if include_stats:
+        return all_violations, files_scanned
     return all_violations
 
 
@@ -488,11 +496,11 @@ def main():
     if scan_all:
         target = "."
 
-    violations = scan_vault(target, vault_root)
+    violations, files_scanned = scan_vault(target, vault_root, include_stats=True)
     fixed_files: list[str] = []
     if fix:
         fixed_files = apply_safe_fixes(violations)
-        violations = scan_vault(target, vault_root)
+        violations, files_scanned = scan_vault(target, vault_root, include_stats=True)
 
     # 统计
     errors = [v for v in violations if v["severity"] == "error"]
@@ -506,7 +514,7 @@ def main():
                 "errors": len(errors),
                 "warnings": len(warnings),
                 "info": len(infos),
-                "files_scanned": len(set(v["file"] for v in violations)) if violations else 0
+                "files_scanned": files_scanned
             },
             "fixed_files": fixed_files,
             "violations": violations

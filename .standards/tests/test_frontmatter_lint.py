@@ -143,6 +143,21 @@ class FrontmatterLintTests(unittest.TestCase):
                 {"30-规范/protected.md"}, self.linter.release_protected_paths(root)
             )
 
+    def test_clean_files_are_included_in_scan_count(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            note = root / "notes/clean.md"
+            note.parent.mkdir(parents=True)
+            note.write_text(
+                "---\ntitle: Clean\ncreated: 2026-08-14\ntags: [test]\n---\n\n# Clean\n",
+                encoding="utf-8",
+            )
+            findings, files_scanned = self.linter.scan_vault(
+                str(root), str(root), include_stats=True,
+            )
+            self.assertEqual([], findings)
+            self.assertEqual(1, files_scanned)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

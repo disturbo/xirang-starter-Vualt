@@ -22,6 +22,8 @@ case "$SELF_DIR" in
     GBRAIN_CONTRACT_SOURCE="${XIRANG_GBRAIN_CONTRACT_SOURCE:?fixture contract source required}"
     GBRAIN_CONTRACT_MIRROR="${XIRANG_GBRAIN_CONTRACT_MIRROR:?fixture contract mirror required}"
     GBRAIN_MAINTENANCE="${XIRANG_GBRAIN_MAINTENANCE:?fixture maintenance required}"
+    GBRAIN_DREAM_STATE="${XIRANG_GBRAIN_DREAM_STATE:?fixture dream state required}"
+    GBRAIN_DREAM_MAX_AGE_HOURS="${XIRANG_GBRAIN_DREAM_MAX_AGE_HOURS:-8}"
     ;;
   *)
     if [[ "$(basename "$SELF_DIR")" == ".standards" ]]; then
@@ -42,6 +44,8 @@ case "$SELF_DIR" in
     GBRAIN_CONTRACT_SOURCE="$VAULT/50-经验/Agent协作方法论/息壤V9-运行时契约卡.md"
     GBRAIN_CONTRACT_MIRROR="$TRUSTED_HOME/.gbrain/runtime-contract-current.md"
     GBRAIN_MAINTENANCE="$TRUSTED_HOME/.gbrain/maintenance-run.sh"
+    GBRAIN_DREAM_STATE="$TRUSTED_HOME/.gbrain/maintenance-dream.json"
+    GBRAIN_DREAM_MAX_AGE_HOURS="8"
     ;;
 esac
 STATE="$RUNTIME/巡检/reflex-scheduler-health.json"
@@ -133,6 +137,54 @@ PY
   "$GBRAIN_MAINTENANCE" sync >/dev/null 2>&1
 }
 
+refresh_gbrain_dream_if_stale() {
+  [[ -x "$GBRAIN_MAINTENANCE" ]] || return 78
+  local freshness
+  freshness="$(
+    GBRAIN_DREAM_STATE="$GBRAIN_DREAM_STATE" \
+    GBRAIN_DREAM_MAX_AGE_HOURS="$GBRAIN_DREAM_MAX_AGE_HOURS" \
+      "$PYTHON" - <<'PY'
+import json
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+
+path = Path(os.environ["GBRAIN_DREAM_STATE"])
+max_age = float(os.environ["GBRAIN_DREAM_MAX_AGE_HOURS"])
+try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+except (OSError, json.JSONDecodeError):
+    print("stale")
+    raise SystemExit(0)
+
+def parse(value):
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+status = str(data.get("status", "unknown"))
+updated = parse(data.get("updated_at", ""))
+reference = parse(data.get("last_completed_at", "")) or parse(data.get("last_success_at", ""))
+if reference is None and status in {"success", "degraded"}:
+    reference = updated
+now = datetime.now(timezone.utc).astimezone()
+if status == "running" and updated and (now - updated).total_seconds() <= max_age * 3600:
+    print("fresh")
+elif reference and (now - reference).total_seconds() <= max_age * 3600:
+    print("fresh")
+else:
+    print("stale")
+PY
+  )" || return 73
+  [[ "$freshness" == "fresh" ]] && return 0
+  [[ "$freshness" == "stale" ]] || return 73
+  "$GBRAIN_MAINTENANCE" dream >/dev/null 2>&1
+}
+
 if [[ ! -f "$SCRIPT" ]]; then
   write_state "failed" 78 "reflex_script_missing_or_desktop_denied"
   exit 78
@@ -150,6 +202,8 @@ write_state "running" 0 "started"
 cd "$VAULT" || { write_state "failed" 72 "vault_unavailable"; exit 72; }
 refresh_gbrain_contract_if_needed
 gbrain_rc=$?
+refresh_gbrain_dream_if_stale
+dream_rc=$?
 refresh_harness_if_needed
 harness_rc=$?
 run_started_epoch="$(date +%s)"
@@ -246,6 +300,10 @@ fi
 if [[ $gbrain_rc -ne 0 ]]; then
   write_state "failed" "$gbrain_rc" "gbrain_refresh_failed"
   exit "$gbrain_rc"
+fi
+if [[ $dream_rc -ne 0 ]]; then
+  write_state "failed" "$dream_rc" "gbrain_dream_catchup_failed"
+  exit "$dream_rc"
 fi
 if [[ $harness_rc -ne 0 ]]; then
   write_state "failed" "$harness_rc" "harness_refresh_failed"
