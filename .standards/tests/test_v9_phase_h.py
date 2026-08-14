@@ -275,6 +275,7 @@ class PhaseHTests(unittest.TestCase):
         self.assertIn("Ran 16 tests", proc.stderr)
 
     def test_closeout_accepts_formal_task_card_scope_and_handoff(self) -> None:
+        self.assertNotIn('"dongfeng"', CLOSEOUT.read_text(encoding="utf-8"))
         sys.path.insert(0, str(CLOSEOUT.parent))
         self.addCleanup(lambda: sys.path.remove(str(CLOSEOUT.parent)))
         module = load(CLOSEOUT, "phase_h_formal_closeout")

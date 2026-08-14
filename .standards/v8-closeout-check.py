@@ -144,7 +144,6 @@ def _get_write_scope(agent: str) -> str:
     """从状态文件读取当前 write_scope"""
     agent_files = {
         "claudian": "Claudian.md",
-        "dongfeng": "Claudian.md",
         "workbuddy": "WorkBuddy.md",
         "xiaochong": "阿莫西林.md",
         "toubao": "头孢.md",
