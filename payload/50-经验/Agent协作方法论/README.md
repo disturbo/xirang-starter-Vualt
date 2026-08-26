@@ -3,7 +3,7 @@ title: Agent 协作方法论
 type: moc
 status: current
 version: 9.7.0
-owner: 余东波
+owner: 息壤维护者
 verified_at: 2026-08-26
 verified_against:
   - .xirang/contract/policy.yaml

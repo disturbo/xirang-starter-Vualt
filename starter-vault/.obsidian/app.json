@@ -1,0 +1,13 @@
+{
+  "alwaysUpdateLinks": true,
+  "attachmentFolderPath": "20-资料/附件",
+  "newFileFolderPath": "10-项目",
+  "newFileLocation": "folder",
+  "promptDelete": true,
+  "showUnsupportedFiles": false,
+  "userIgnoreFilters": [
+    "AGENTS.md",
+    "GOVERNANCE.md",
+    "VERSION"
+  ]
+}

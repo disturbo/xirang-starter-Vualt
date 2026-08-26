@@ -30,7 +30,8 @@ class ReleaseTests(unittest.TestCase):
         cls.dist_b = cls.base / "dist-b"
         subprocess.run([sys.executable, str(BUILD), "--output-dir", str(cls.dist_a)], check=True, capture_output=True, text=True)
         subprocess.run([sys.executable, str(BUILD), "--output-dir", str(cls.dist_b)], check=True, capture_output=True, text=True)
-        cls.asset = cls.dist_a / "xi-rang-v9.7.0-universal.zip"
+        cls.starter_asset = cls.dist_a / "xi-rang-v9.7.0-starter-vault.zip"
+        cls.upgrade_asset = cls.dist_a / "xi-rang-v9.7.0-upgrade.zip"
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -38,9 +39,9 @@ class ReleaseTests(unittest.TestCase):
 
     def package(self, name: str) -> Path:
         destination = self.base / f"package-{name}"
-        with zipfile.ZipFile(self.asset) as archive:
+        with zipfile.ZipFile(self.upgrade_asset) as archive:
             archive.extractall(destination)
-        return destination / "xi-rang-v9.7.0"
+        return destination / "xi-rang-v9.7.0-upgrade"
 
     def run_setup(self, package: Path, install_root: Path, *arguments: str) -> tuple[int, dict]:
         environment = dict(os.environ)
@@ -56,8 +57,89 @@ class ReleaseTests(unittest.TestCase):
         return completed.returncode, json.loads(completed.stdout)
 
     def test_build_is_reproducible(self) -> None:
-        for name in ("xi-rang-v9.7.0-universal.zip", "release-manifest.json", "SHA256SUMS"):
+        for name in (
+            "xi-rang-v9.7.0-starter-vault.zip",
+            "xi-rang-v9.7.0-upgrade.zip",
+            "release-manifest.json",
+            "SHA256SUMS",
+        ):
             self.assertEqual(digest(self.dist_a / name), digest(self.dist_b / name), name)
+
+    def test_starter_is_an_openable_obsidian_knowledge_base(self) -> None:
+        with zipfile.ZipFile(self.starter_asset) as archive:
+            names = set(archive.namelist())
+            root = "xi-rang-v9.7.0-starter-vault/"
+            for required in (
+                "🏠-Home.md",
+                "息壤.md",
+                "00-MOC/知识库导航.md",
+                "02-项目管理/README.md",
+                "10-项目/README.md",
+                "20-资料/README.md",
+                "30-规范/README.md",
+                "30-规范/Agent任务五阶段工作流.md",
+                "30-规范/Agent开工边界展示规范.md",
+                "40-决策/README.md",
+                "50-经验/教训库.md",
+                "60-归档/README.md",
+                "70-模板/T-PRD.md",
+                "70-模板/T-智能体底层约束.md",
+                ".obsidian/workspace.json",
+            ):
+                self.assertIn(root + required, names, required)
+            for technical in ("baselines/", "installer/", "manifests/", "payload/", "templates/"):
+                self.assertFalse(any(name.startswith(root + technical) for name in names), technical)
+            self.assertFalse(any(name.startswith(root + ".obsidian/plugins/") for name in names))
+            plugins = json.loads(archive.read(root + ".obsidian/community-plugins.json"))
+            workspace = json.loads(archive.read(root + ".obsidian/workspace.json"))
+            self.assertEqual(plugins, [])
+            self.assertEqual(workspace["main"]["children"][0]["children"][0]["state"]["state"]["file"], "🏠-Home.md")
+
+    def test_two_packages_share_the_exact_same_core(self) -> None:
+        with zipfile.ZipFile(self.starter_asset) as starter, zipfile.ZipFile(self.upgrade_asset) as upgrade:
+            starter_core = starter.read(
+                "xi-rang-v9.7.0-starter-vault/.xirang/distribution/core-manifest.json"
+            )
+            upgrade_core = upgrade.read("xi-rang-v9.7.0-upgrade/manifests/core-manifest.json")
+        self.assertEqual(starter_core, upgrade_core)
+        paths = {row["path"] for row in json.loads(starter_core)["files"]}
+        self.assertIn("🏠-Home.md", paths)
+        self.assertIn("30-规范/通用PRD输出规范.md", paths)
+        self.assertIn("30-规范/Agent任务五阶段工作流.md", paths)
+        self.assertIn("70-模板/T-任务说明.md", paths)
+        self.assertIn("70-模板/T-智能体底层约束.md", paths)
+
+    def test_bundles_exclude_personal_project_runtime_and_secret_material(self) -> None:
+        forbidden_text = (
+            "/Users/",
+            "yudongbo",
+            "余东波",
+            "波波",
+            "联友",
+            "奕境",
+            "thisbo",
+            "BEGIN PRIVATE KEY",
+            "github_pat_",
+            "ghp_",
+        )
+        forbidden_parts = (
+            "/.git/",
+            "/.private/",
+            "/.wrangler/",
+            "/__pycache__/",
+            "/node_modules/",
+            ".sqlite3",
+            ".jsonl",
+            ".pem",
+            ".key",
+        )
+        for asset in (self.starter_asset, self.upgrade_asset):
+            with zipfile.ZipFile(asset) as archive:
+                for name in archive.namelist():
+                    self.assertFalse(any(part in name for part in forbidden_parts), name)
+                    data = archive.read(name)
+                    text = data.decode("utf-8", errors="replace")
+                    self.assertFalse(any(needle in text for needle in forbidden_text), name)
 
     def test_tampered_package_fails_closed(self) -> None:
         package = self.package("tamper")

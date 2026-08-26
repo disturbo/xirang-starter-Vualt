@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the deterministic XiRang V9.7 universal release bundle."""
+"""Build deterministic XiRang V9.7 starter-Vault and Agent-upgrade bundles."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import stat
 import tempfile
@@ -15,11 +16,12 @@ from pathlib import Path
 
 
 VERSION = "9.7.0"
-TAG = f"v{VERSION}"
-ARCHIVE_ROOT = f"xi-rang-v{VERSION}"
-ASSET = f"xi-rang-v{VERSION}-universal.zip"
+STARTER_ROOT = f"xi-rang-v{VERSION}-starter-vault"
+UPGRADE_ROOT = f"xi-rang-v{VERSION}-upgrade"
+STARTER_ASSET = f"{STARTER_ROOT}.zip"
+UPGRADE_ASSET = f"{UPGRADE_ROOT}.zip"
 FIXED_DATE = (2026, 8, 26, 12, 0, 0)
-TOP_FILES = (
+UPGRADE_TOP_FILES = (
     "START-HERE.md",
     "AGENT-INSTALL.md",
     "README.md",
@@ -28,15 +30,55 @@ TOP_FILES = (
     "VERSION",
     "setup.sh",
 )
-SOURCE_DIRS = ("installer", "baselines", "payload", "templates")
-BLOCKED_PARTS = {".git", ".DS_Store", "__pycache__", ".pytest_cache"}
+UPGRADE_SOURCE_DIRS = ("installer", "baselines", "templates")
+BLOCKED_PARTS = {
+    ".git",
+    ".DS_Store",
+    ".idea",
+    ".private",
+    ".pytest_cache",
+    ".wrangler",
+    "__pycache__",
+    "node_modules",
+}
+BLOCKED_SUFFIXES = {
+    ".db",
+    ".gif",
+    ".gz",
+    ".jpeg",
+    ".jpg",
+    ".jsonl",
+    ".key",
+    ".log",
+    ".mobileprovision",
+    ".p12",
+    ".pem",
+    ".png",
+    ".sqlite3",
+    ".sqlite3-shm",
+    ".sqlite3-wal",
+    ".webp",
+    ".zip",
+}
 BLOCKED_TEXT = (
     "/Users/",
     "C:\\Users\\",
     "yudongbo",
+    "余东波",
+    "波波",
+    "联友",
+    "奕境",
+    "thisbo",
     "BEGIN OPENSSH PRIVATE KEY",
     "BEGIN PRIVATE KEY",
+    "github_pat_",
     "ghp_",
+)
+IDENTITY_PATTERN = re.compile(r"\bou_[A-Za-z0-9]{8,}\b")
+API_KEY_PATTERN = re.compile(r"\b(?:sk-|AKIA)[A-Za-z0-9_-]{16,}\b")
+SECRET_PATTERN = re.compile(
+    r"(?i)(?:app[_-]?secret|client[_-]?secret|access[_-]?token|refresh[_-]?token|password|cookie)"
+    r"\s*[:=]\s*[\"']?[A-Za-z0-9_\-/.+=]{8,}"
 )
 
 
@@ -56,50 +98,91 @@ def atomic_json(path: Path, value: object) -> None:
     os.replace(temporary, path)
 
 
-def source_files(root: Path) -> list[tuple[Path, Path]]:
+def collect_files(base: Path, *, relative_to: Path) -> list[tuple[Path, Path]]:
+    if not base.is_dir() or base.is_symlink():
+        raise SystemExit(f"missing release source directory: {base.relative_to(relative_to)}")
     result: list[tuple[Path, Path]] = []
-    for logical in TOP_FILES:
+    for source in sorted(base.rglob("*")):
+        logical = source.relative_to(relative_to)
+        if BLOCKED_PARTS.intersection(logical.parts):
+            continue
+        if source.is_symlink():
+            raise SystemExit(f"symlink forbidden: {logical.as_posix()}")
+        if source.is_file():
+            result.append((source, logical))
+    return result
+
+
+def copy_pairs(pairs: list[tuple[Path, Path]], staging: Path) -> None:
+    for source, relative in pairs:
+        destination = staging / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, destination)
+        mode = 0o755 if relative.as_posix() in {"setup.sh", "installer/xirang_install.py"} else 0o644
+        os.chmod(destination, mode)
+
+
+def core_source_files(root: Path) -> list[tuple[Path, Path]]:
+    payload = root / "payload"
+    return [
+        (source, logical.relative_to("payload"))
+        for source, logical in collect_files(payload, relative_to=root)
+    ]
+
+
+def upgrade_source_files(root: Path) -> list[tuple[Path, Path]]:
+    result: list[tuple[Path, Path]] = []
+    for logical in UPGRADE_TOP_FILES:
         source = root / logical
         if not source.is_file() or source.is_symlink():
             raise SystemExit(f"missing release source: {logical}")
         result.append((source, Path(logical)))
-    for directory in SOURCE_DIRS:
-        base = root / directory
-        if not base.is_dir() or base.is_symlink():
-            raise SystemExit(f"missing release source directory: {directory}")
-        for source in sorted(base.rglob("*")):
-            if source.is_symlink():
-                raise SystemExit(f"symlink forbidden: {source}")
-            if not source.is_file():
-                continue
-            relative = source.relative_to(root)
-            if BLOCKED_PARTS.intersection(relative.parts):
-                continue
-            result.append((source, relative))
+    for directory in UPGRADE_SOURCE_DIRS:
+        result.extend(collect_files(root / directory, relative_to=root))
     return result
 
 
-def scan_leaks(staging: Path) -> None:
+def starter_overlay_files(root: Path) -> list[tuple[Path, Path]]:
+    return collect_files(root / "starter-vault", relative_to=root / "starter-vault")
+
+
+def scan_leaks(staging: Path, *, kind: str) -> None:
     findings: list[str] = []
     for path in sorted(staging.rglob("*")):
         relative = path.relative_to(staging)
+        logical = relative.as_posix()
         if path.is_symlink() or BLOCKED_PARTS.intersection(relative.parts):
-            findings.append(f"path:{relative.as_posix()}")
+            findings.append(f"path:{logical}")
             continue
         if not path.is_file():
             continue
-        if relative.as_posix() in {
+        if path.name == ".env" or path.name.startswith(".env."):
+            findings.append(f"environment:{logical}")
+            continue
+        if kind == "starter_vault" and logical.startswith(".obsidian/plugins/"):
+            findings.append(f"plugin:{logical}")
+            continue
+        if logical in {
+            ".xirang/local-config.json",
+            ".xirang/contract/recovery-roots.yaml",
             "payload/.xirang/local-config.json",
             "payload/.xirang/contract/recovery-roots.yaml",
-        } or path.name.endswith((".sqlite3", ".sqlite3-wal", ".sqlite3-shm")):
-            findings.append(f"runtime:{relative.as_posix()}")
+        }:
+            findings.append(f"runtime:{logical}")
             continue
-        if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".zip", ".gz"}:
+        if any(path.name.lower().endswith(suffix) for suffix in BLOCKED_SUFFIXES):
+            findings.append(f"blocked-file:{logical}")
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
         for needle in BLOCKED_TEXT:
             if needle in text:
-                findings.append(f"text:{relative.as_posix()}:{needle}")
+                findings.append(f"text:{logical}:{needle}")
+        if IDENTITY_PATTERN.search(text):
+            findings.append(f"identity:{logical}")
+        if API_KEY_PATTERN.search(text):
+            findings.append(f"api-key:{logical}")
+        if SECRET_PATTERN.search(text):
+            findings.append(f"secret:{logical}")
     if findings:
         raise SystemExit("release leakage scan failed:\n" + "\n".join(findings))
 
@@ -118,14 +201,14 @@ def file_rows(staging: Path, *, prefix: Path | None = None, exclude: set[str] | 
     return rows
 
 
-def make_zip(staging: Path, destination: Path) -> None:
+def make_zip(staging: Path, destination: Path, *, archive_root: str, executables: set[str]) -> None:
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for path in sorted(staging.rglob("*")):
             if not path.is_file():
                 continue
             relative = path.relative_to(staging).as_posix()
-            info = zipfile.ZipInfo(f"{ARCHIVE_ROOT}/{relative}", date_time=FIXED_DATE)
-            mode = 0o755 if relative in {"setup.sh", "installer/xirang_install.py"} else 0o644
+            info = zipfile.ZipInfo(f"{archive_root}/{relative}", date_time=FIXED_DATE)
+            mode = 0o755 if relative in executables else 0o644
             info.external_attr = (stat.S_IFREG | mode) << 16
             info.create_system = 3
             info.compress_type = zipfile.ZIP_DEFLATED
@@ -134,58 +217,114 @@ def make_zip(staging: Path, destination: Path) -> None:
 
 def build(root: Path, output: Path) -> dict:
     output.mkdir(parents=True, exist_ok=True)
-    for name in (ASSET, "release-manifest.json", "SHA256SUMS"):
+    for name in (STARTER_ASSET, UPGRADE_ASSET, "release-manifest.json", "SHA256SUMS"):
         (output / name).unlink(missing_ok=True)
+
     with tempfile.TemporaryDirectory(prefix="xirang-v97-build-") as raw:
-        staging = Path(raw) / ARCHIVE_ROOT
-        staging.mkdir()
-        for source, relative in source_files(root):
-            destination = staging / relative
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source, destination)
-            os.chmod(destination, 0o755 if relative.as_posix() in {"setup.sh", "installer/xirang_install.py"} else 0o644)
-        manifests = staging / "manifests"
-        manifests.mkdir()
+        temporary = Path(raw)
+        starter = temporary / STARTER_ROOT
+        upgrade = temporary / UPGRADE_ROOT
+        starter.mkdir()
+        upgrade.mkdir()
+
+        core_pairs = core_source_files(root)
+        overlay_pairs = starter_overlay_files(root)
+        core_paths = {logical for _, logical in core_pairs}
+        overlay_paths = {logical for _, logical in overlay_pairs}
+        collisions = sorted(path.as_posix() for path in core_paths.intersection(overlay_paths))
+        if collisions:
+            raise SystemExit("starter overlay conflicts with Core:\n" + "\n".join(collisions))
+        copy_pairs(core_pairs, starter)
+        copy_pairs([(source, Path("payload") / logical) for source, logical in core_pairs], upgrade)
+        copy_pairs(overlay_pairs, starter)
+        copy_pairs(upgrade_source_files(root), upgrade)
+
         core = {
             "schema_version": 1,
             "version": VERSION,
             "kind": "managed_payload",
-            "files": file_rows(staging, prefix=Path("payload")),
+            "files": file_rows(upgrade, prefix=Path("payload")),
         }
-        atomic_json(manifests / "core-manifest.json", core)
-        scan_leaks(staging)
-        package = {
-            "schema_version": 1,
-            "version": VERSION,
-            "tag": TAG,
-            "platform": "macOS",
-            "python": ">=3.11",
-            "archive_root": ARCHIVE_ROOT,
-            "files": file_rows(staging, exclude={"manifests/package-manifest.json"}),
-        }
-        atomic_json(manifests / "package-manifest.json", package)
-        destination = output / ASSET
-        make_zip(staging, destination)
-        zip_sha = sha256(destination)
+        starter_core_manifest = starter / ".xirang/distribution/core-manifest.json"
+        upgrade_core_manifest = upgrade / "manifests/core-manifest.json"
+        atomic_json(starter_core_manifest, core)
+        atomic_json(upgrade_core_manifest, core)
+
+        starter_package_manifest = starter / ".xirang/distribution/package-manifest.json"
+        upgrade_package_manifest = upgrade / "manifests/package-manifest.json"
+        atomic_json(
+            starter_package_manifest,
+            {
+                "schema_version": 1,
+                "version": VERSION,
+                "kind": "starter_vault",
+                "archive_root": STARTER_ROOT,
+                "files": file_rows(
+                    starter,
+                    exclude={".xirang/distribution/package-manifest.json"},
+                ),
+            },
+        )
+        atomic_json(
+            upgrade_package_manifest,
+            {
+                "schema_version": 1,
+                "version": VERSION,
+                "kind": "agent_upgrade",
+                "platform": "macOS",
+                "python": ">=3.11",
+                "archive_root": UPGRADE_ROOT,
+                "files": file_rows(upgrade, exclude={"manifests/package-manifest.json"}),
+            },
+        )
+
+        scan_leaks(starter, kind="starter_vault")
+        scan_leaks(upgrade, kind="agent_upgrade")
+
+        starter_destination = output / STARTER_ASSET
+        upgrade_destination = output / UPGRADE_ASSET
+        make_zip(starter, starter_destination, archive_root=STARTER_ROOT, executables=set())
+        make_zip(
+            upgrade,
+            upgrade_destination,
+            archive_root=UPGRADE_ROOT,
+            executables={"setup.sh", "installer/xirang_install.py"},
+        )
+
+        assets = []
+        for kind, destination in (
+            ("starter_vault", starter_destination),
+            ("agent_upgrade", upgrade_destination),
+        ):
+            assets.append(
+                {
+                    "kind": kind,
+                    "name": destination.name,
+                    "sha256": sha256(destination),
+                    "size": destination.stat().st_size,
+                }
+            )
         release = {
             "schema_version": 1,
-            "product": "XiRang universal starter",
+            "product": "XiRang dual delivery package",
             "version": VERSION,
-            "tag": TAG,
-            "released_at": "2026-08-26",
+            "status": "candidate",
+            "built_at": "2026-08-26",
             "support": {"platform": "macOS", "python": ">=3.11"},
-            "asset": {
-                "name": ASSET,
-                "sha256": zip_sha,
-                "size": destination.stat().st_size,
-                "download_url": f"https://github.com/disturbo/xirang-starter-Vualt/releases/download/{TAG}/{ASSET}",
+            "assets": assets,
+            "core_manifest_sha256": sha256(upgrade_core_manifest),
+            "package_manifest_sha256": {
+                "starter_vault": sha256(starter_package_manifest),
+                "agent_upgrade": sha256(upgrade_package_manifest),
             },
-            "package_manifest_sha256": sha256(manifests / "package-manifest.json"),
-            "core_manifest_sha256": sha256(manifests / "core-manifest.json"),
-            "interaction": "one package; Agent auto-detects fresh install, supported upgrade, current repair, or assistance required",
+            "interaction": {
+                "starter_vault": "解压后直接用 Obsidian 打开顶层文件夹",
+                "agent_upgrade": "把整个升级包交给当前可用的智能体，并让它先 plan 再 apply",
+            },
         }
         atomic_json(output / "release-manifest.json", release)
-        (output / "SHA256SUMS").write_text(f"{zip_sha}  {ASSET}\n", encoding="utf-8")
+        checksum_lines = [f"{asset['sha256']}  {asset['name']}" for asset in assets]
+        (output / "SHA256SUMS").write_text("\n".join(checksum_lines) + "\n", encoding="utf-8")
         return release
 
 

@@ -1,0 +1,133 @@
+{
+  "main": {
+    "id": "xirang-main",
+    "type": "split",
+    "children": [
+      {
+        "id": "xirang-home-leaf",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "xirang-home",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "🏠-Home.md",
+                "mode": "preview",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "息壤首页"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "xirang-left",
+    "type": "split",
+    "children": [
+      {
+        "id": "xirang-left-tabs",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "xirang-files",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": true
+              },
+              "icon": "lucide-folder-closed",
+              "title": "文件"
+            }
+          },
+          {
+            "id": "xirang-search",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "搜索"
+            }
+          }
+        ],
+        "currentTab": 0
+      }
+    ],
+    "direction": "horizontal",
+    "width": 320
+  },
+  "right": {
+    "id": "xirang-right",
+    "type": "split",
+    "children": [
+      {
+        "id": "xirang-right-tabs",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "xirang-outline",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "🏠-Home.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "息壤首页大纲"
+            }
+          },
+          {
+            "id": "xirang-backlinks",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "🏠-Home.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "息壤首页的反向链接"
+            }
+          }
+        ],
+        "currentTab": 0
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {}
+  },
+  "active": "xirang-home",
+  "lastOpenFiles": [
+    "🏠-Home.md",
+    "00-MOC/知识库导航.md",
+    "息壤.md"
+  ]
+}

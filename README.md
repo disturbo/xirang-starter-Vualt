@@ -1,19 +1,24 @@
-# 息壤 V9.7 统一安装与升级包
+# 息壤 V9.7 双交付包
 
 息壤把普通文件夹变成一个可授权、可约束、可恢复、可验收的 Agent 工作区。
 
-普通同事不需要判断自己是新安装还是升级，也不需要理解 StateStore、Hook、任务号、平台模板或版本迁移。无论正在使用 Codex、Claude、OpenClaw、Hermes、DeepSeek Harness、WorkBuddy 或其他 Agent，下载同一个包后交给当前 Agent 即可。
+发行只维护一份 `payload/` Core，但生成两个面向不同人的外壳。普通同事不需要理解 StateStore、Hook、Manifest 或平台模板。
 
-## 给普通同事
+## 第一次使用：知识库启动包
 
-1. 从官网或 GitHub Release 下载 `xi-rang-v9.7.0-universal.zip`。
-2. 解压后打开 [START-HERE.md](START-HERE.md)。
-3. 把其中的一句话复制给 Agent。
-4. Agent 先只读检查；你看完确认卡后回复“开始”。
+1. 下载 `xi-rang-v9.7.0-starter-vault.zip`。
+2. 解压后，在 Obsidian 中把整个文件夹作为仓库打开。
+3. 首屏直接打开 `🏠-Home.md`，根目录显示知识库结构，不显示安装器工程目录。
 
-不要从旧官网 ZIP、别人工作区或 Git clone 直接覆盖自己的目录。
+## 已经在使用：Agent 升级包
 
-## 一个包，四种判断
+1. 下载 `xi-rang-v9.7.0-upgrade.zip`。
+2. 把包交给当前能访问本机文件的 Agent。
+3. Agent 先只读识别、展示保留与备份范围；用户回复开始后再升级。
+
+不要用启动包或 Git clone 直接覆盖已有工作区。
+
+## 升级包的四种判断
 
 | 检查结果 | Agent 的动作 |
 |---|---|
@@ -22,20 +27,16 @@
 | 已是 V9.7.0 | 校验或修复，不重复安装 |
 | 版本不明、目标不唯一或无法恢复 | 停止写入并给出诊断编号 |
 
-## 发行物结构
+## 单 Core 双外壳
 
 ```text
-START-HERE.md                 给普通同事
-AGENT-INSTALL.md              给 Agent 的执行契约
-setup.sh                      统一入口
-installer/xirang_install.py   诊断、安装、升级、恢复
-payload/                      唯一 V9.7 Core
-baselines/                    受支持旧版本指纹
-manifests/                    Core 与 Package Manifest
-templates/                    五类 Agent 原生入口模板与统一根约束规范
+payload/                      唯一 V9.7 Core：知识结构、方法论与控制面
+starter-vault/                仅含安全的 Obsidian 展示配置
+installer/ + baselines/       只进入 Agent 升级包
+templates/                    开放平台模板注册，不是固定名单
 ```
 
-源码仓库包含 `tools/` 和 `tests/`；正式 ZIP 由 `tools/build_release.py` 白名单构建，不包含源码仓库的 Git 历史和测试缓存。
+构建器从同一 Core 生成两个逐文件 Manifest。启动包把 Core 展开到根目录；升级包把同一 Core 放入 `payload/` 供事务安装器消费。两包都不包含源码仓库 Git 历史、运行状态、缓存、个人内容或项目资料。
 
 ## 当前平台承诺
 

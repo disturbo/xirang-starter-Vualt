@@ -4,19 +4,22 @@
 
 - 公开源码与 Release：`disturbo/xirang-starter-Vualt`。
 - 官网只负责说明与分流，不能成为第二套产物真源。
-- `payload/` 是唯一 Core；构建器从白名单一次性生成 Release ZIP。
+- `payload/` 是唯一 Core；构建器从白名单一次性生成知识库启动包与 Agent 升级包。
 
 ## 发行闭包
 
 正式 Release 必须同时提供：
 
-- `xi-rang-v9.7.0-universal.zip`
+- `xi-rang-v9.7.0-starter-vault.zip`
+- `xi-rang-v9.7.0-upgrade.zip`
 - `release-manifest.json`
 - `SHA256SUMS`
 - Release Notes
 - Tag、Commit 和构建 ID
 
-ZIP 内的 `core-manifest.json` 和 `package-manifest.json` 使用逐文件 SHA-256。安装器在规划和应用前都要验证闭包；文件缺失、多余或漂移时拒绝执行。
+两个 ZIP 必须绑定完全相同的 `core-manifest.json`。各自的 `package-manifest.json` 使用逐文件 SHA-256；启动包校验知识库和 Obsidian 展示层，升级包在规划和应用前验证安装闭包。
+
+知识库启动包的根目录必须直接是可读知识库；`installer/`、`baselines/`、`manifests/`、`payload/` 和 `templates/` 不得作为顶层用户界面。升级包允许保留这些技术目录，但必须明确标记为交给 Agent 使用。
 
 ## 所有权
 
