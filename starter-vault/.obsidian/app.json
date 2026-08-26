@@ -7,7 +7,9 @@
   "showUnsupportedFiles": false,
   "userIgnoreFilters": [
     "AGENTS.md",
+    "AGENT-SETUP.md",
     "GOVERNANCE.md",
+    "THIRD-PARTY-NOTICES.md",
     "VERSION"
   ]
 }

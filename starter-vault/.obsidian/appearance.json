@@ -1,8 +1,14 @@
 {
-  "accentColor": "",
+  "accentColor": "#5005ff",
   "baseFontSize": 16,
-  "cssTheme": "",
+  "cssTheme": "Things",
+  "enabledCssSnippets": [
+    "better-mermaid",
+    "better-tables",
+    "numbered-headings"
+  ],
+  "interfaceFontFamily": "Helvetica",
   "nativeMenus": true,
-  "theme": "system",
+  "theme": "obsidian",
   "translucency": false
 }

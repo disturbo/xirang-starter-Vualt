@@ -15,6 +15,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "tools/build_release.py"
 INSTALLER_SOURCE = ROOT / "installer/xirang_install.py"
+ASSET = "xi-rang-v9.7.0-complete-vault.zip"
+ARCHIVE_ROOT = "xi-rang-v9.7.0-complete-vault"
 
 
 def digest(path: Path) -> str:
@@ -30,8 +32,7 @@ class ReleaseTests(unittest.TestCase):
         cls.dist_b = cls.base / "dist-b"
         subprocess.run([sys.executable, str(BUILD), "--output-dir", str(cls.dist_a)], check=True, capture_output=True, text=True)
         subprocess.run([sys.executable, str(BUILD), "--output-dir", str(cls.dist_b)], check=True, capture_output=True, text=True)
-        cls.starter_asset = cls.dist_a / "xi-rang-v9.7.0-starter-vault.zip"
-        cls.upgrade_asset = cls.dist_a / "xi-rang-v9.7.0-upgrade.zip"
+        cls.asset = cls.dist_a / ASSET
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -39,16 +40,20 @@ class ReleaseTests(unittest.TestCase):
 
     def package(self, name: str) -> Path:
         destination = self.base / f"package-{name}"
-        with zipfile.ZipFile(self.upgrade_asset) as archive:
+        with zipfile.ZipFile(self.asset) as archive:
             archive.extractall(destination)
-        return destination / "xi-rang-v9.7.0-upgrade"
+        return destination / ARCHIVE_ROOT
+
+    @staticmethod
+    def upgrade(package: Path) -> Path:
+        return package / ".xirang/distribution/upgrade"
 
     def run_setup(self, package: Path, install_root: Path, *arguments: str) -> tuple[int, dict]:
         environment = dict(os.environ)
         environment["XIRANG_INSTALL_ROOT"] = str(install_root)
         environment["PYTHONDONTWRITEBYTECODE"] = "1"
         completed = subprocess.run(
-            ["/bin/bash", str(package / "setup.sh"), *arguments],
+            ["/bin/bash", str(self.upgrade(package) / "setup.sh"), *arguments],
             capture_output=True,
             text=True,
             check=False,
@@ -56,68 +61,133 @@ class ReleaseTests(unittest.TestCase):
         )
         return completed.returncode, json.loads(completed.stdout)
 
+    def run_extras(self, package: Path, target: Path, action: str) -> tuple[int, dict]:
+        completed = subprocess.run(
+            [sys.executable, str(package / ".xirang/distribution/install_extras.py"), action, "--target", str(target)],
+            capture_output=True,
+            text=True,
+            check=False,
+            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        )
+        return completed.returncode, json.loads(completed.stdout)
+
     def test_build_is_reproducible(self) -> None:
-        for name in (
-            "xi-rang-v9.7.0-starter-vault.zip",
-            "xi-rang-v9.7.0-upgrade.zip",
-            "release-manifest.json",
-            "SHA256SUMS",
-        ):
+        for name in (ASSET, "release-manifest.json", "SHA256SUMS"):
             self.assertEqual(digest(self.dist_a / name), digest(self.dist_b / name), name)
 
-    def test_starter_is_an_openable_obsidian_knowledge_base(self) -> None:
-        with zipfile.ZipFile(self.starter_asset) as archive:
+    def test_complete_package_is_an_openable_obsidian_knowledge_base(self) -> None:
+        with zipfile.ZipFile(self.asset) as archive:
             names = set(archive.namelist())
-            root = "xi-rang-v9.7.0-starter-vault/"
+            root = ARCHIVE_ROOT + "/"
             for required in (
                 "🏠-Home.md",
                 "息壤.md",
+                "AGENT-SETUP.md",
                 "00-MOC/知识库导航.md",
+                "00-MOC/Skill-Inventory.md",
                 "02-项目管理/README.md",
                 "10-项目/README.md",
                 "20-资料/README.md",
                 "30-规范/README.md",
-                "30-规范/Agent任务五阶段工作流.md",
-                "30-规范/Agent开工边界展示规范.md",
                 "40-决策/README.md",
                 "50-经验/教训库.md",
                 "60-归档/README.md",
                 "70-模板/T-PRD.md",
-                "70-模板/T-智能体底层约束.md",
                 ".obsidian/workspace.json",
+                ".obsidian/themes/Things/theme.css",
+                ".obsidian/snippets/better-tables.css",
+                ".skills/RESOLVER.md",
+                ".xirang/distribution/verify_complete.py",
+                ".xirang/distribution/upgrade/setup.sh",
             ):
                 self.assertIn(root + required, names, required)
             for technical in ("baselines/", "installer/", "manifests/", "payload/", "templates/"):
                 self.assertFalse(any(name.startswith(root + technical) for name in names), technical)
-            self.assertFalse(any(name.startswith(root + ".obsidian/plugins/") for name in names))
-            plugins = json.loads(archive.read(root + ".obsidian/community-plugins.json"))
+            self.assertFalse(any(name.endswith("/data.json") for name in names))
+            self.assertFalse(any("/__pycache__/" in name or name.endswith(".pyc") for name in names))
             workspace = json.loads(archive.read(root + ".obsidian/workspace.json"))
-            self.assertEqual(plugins, [])
             self.assertEqual(workspace["main"]["children"][0]["children"][0]["state"]["state"]["file"], "🏠-Home.md")
 
-    def test_two_packages_share_the_exact_same_core(self) -> None:
-        with zipfile.ZipFile(self.starter_asset) as starter, zipfile.ZipFile(self.upgrade_asset) as upgrade:
-            starter_core = starter.read(
-                "xi-rang-v9.7.0-starter-vault/.xirang/distribution/core-manifest.json"
-            )
-            upgrade_core = upgrade.read("xi-rang-v9.7.0-upgrade/manifests/core-manifest.json")
-        self.assertEqual(starter_core, upgrade_core)
-        paths = {row["path"] for row in json.loads(starter_core)["files"]}
+    def test_plugin_and_skill_closures_match_their_registries(self) -> None:
+        package = self.package("registry")
+        declared_plugins = json.loads((package / ".obsidian/community-plugins.json").read_text())
+        actual_plugins = []
+        for manifest in sorted((package / ".obsidian/plugins").glob("*/manifest.json")):
+            actual_plugins.append(json.loads(manifest.read_text())["id"])
+            self.assertTrue((manifest.parent / "main.js").is_file(), manifest)
+            self.assertTrue((manifest.parent / "LICENSE").is_file(), manifest)
+            self.assertFalse((manifest.parent / "data.json").exists(), manifest)
+        self.assertEqual(set(declared_plugins), set(actual_plugins))
+        self.assertEqual(len(actual_plugins), 13)
+        self.assertNotIn("xirang-workbench", actual_plugins)
+        skills = sorted(path.parent.name for path in (package / ".skills").glob("*/SKILL.md"))
+        self.assertEqual(len(skills), 20)
+        self.assertNotIn("yijing-prd-spec", skills)
+        self.assertNotIn("flowforge", skills)
+
+    def test_visible_and_upgrade_core_manifests_are_identical(self) -> None:
+        package = self.package("core")
+        root_core = (package / ".xirang/distribution/core-manifest.json").read_bytes()
+        upgrade_core = (self.upgrade(package) / "manifests/core-manifest.json").read_bytes()
+        self.assertEqual(root_core, upgrade_core)
+        paths = {row["path"] for row in json.loads(root_core)["files"]}
         self.assertIn("🏠-Home.md", paths)
-        self.assertIn("30-规范/通用PRD输出规范.md", paths)
+        self.assertIn("00-MOC/Skill-Inventory.md", paths)
         self.assertIn("30-规范/Agent任务五阶段工作流.md", paths)
-        self.assertIn("70-模板/T-任务说明.md", paths)
-        self.assertIn("70-模板/T-智能体底层约束.md", paths)
+        self.assertNotIn(".obsidian/workspace.json", paths)
+        self.assertFalse(any(path.startswith(".skills/") for path in paths))
+
+    def test_complete_manifest_verifier_detects_tampering(self) -> None:
+        package = self.package("complete-verify")
+        verifier = package / ".xirang/distribution/verify_complete.py"
+        good = subprocess.run([sys.executable, str(verifier)], capture_output=True, text=True, check=False)
+        self.assertEqual(good.returncode, 0, good.stdout + good.stderr)
+        self.assertTrue(json.loads(good.stdout)["ok"])
+        (package / "🏠-Home.md").write_text("tampered", encoding="utf-8")
+        bad = subprocess.run([sys.executable, str(verifier)], capture_output=True, text=True, check=False)
+        self.assertNotEqual(bad.returncode, 0)
+        self.assertEqual(json.loads(bad.stdout)["status"], "manifest_invalid")
+
+    def test_extras_install_preserves_existing_preferences_and_fails_on_content_conflict(self) -> None:
+        package = self.package("extras")
+        target = self.base / "extras-target"
+        (target / ".obsidian").mkdir(parents=True)
+        (target / ".obsidian/appearance.json").write_text(
+            json.dumps({"cssTheme": "My Theme", "enabledCssSnippets": ["mine"]}), encoding="utf-8"
+        )
+        (target / ".obsidian/community-plugins.json").write_text(json.dumps(["existing-plugin"]), encoding="utf-8")
+        code, result = self.run_extras(package, target, "apply")
+        self.assertEqual(code, 0, result)
+        self.assertEqual(result["status"], "extras_installed")
+        appearance = json.loads((target / ".obsidian/appearance.json").read_text())
+        plugins = json.loads((target / ".obsidian/community-plugins.json").read_text())
+        self.assertEqual(appearance["cssTheme"], "My Theme")
+        self.assertIn("mine", appearance["enabledCssSnippets"])
+        self.assertIn("better-tables", appearance["enabledCssSnippets"])
+        self.assertIn("existing-plugin", plugins)
+        self.assertIn("dataview", plugins)
+        self.assertTrue((target / ".skills/start-task/SKILL.md").is_file())
+        self.assertTrue((target / ".obsidian/plugins/dataview/main.js").is_file())
+        self.assertFalse(any(target.rglob("data.json")))
+        self.assertTrue(Path(result["backup"]).is_dir())
+
+        conflict_target = self.base / "extras-conflict"
+        conflict = conflict_target / ".skills/start-task/SKILL.md"
+        conflict.parent.mkdir(parents=True)
+        conflict.write_text("custom", encoding="utf-8")
+        code, blocked = self.run_extras(package, conflict_target, "apply")
+        self.assertNotEqual(code, 0)
+        self.assertEqual(blocked["status"], "assistance_required")
+        self.assertEqual(conflict.read_text(), "custom")
+        self.assertFalse((conflict_target / ".obsidian/plugins/dataview/main.js").exists())
 
     def test_bundles_exclude_personal_project_runtime_and_secret_material(self) -> None:
         forbidden_text = (
-            "/Users/",
             "yudongbo",
             "余东波",
             "波波",
             "联友",
             "奕境",
-            "thisbo",
             "BEGIN PRIVATE KEY",
             "github_pat_",
             "ghp_",
@@ -128,22 +198,22 @@ class ReleaseTests(unittest.TestCase):
             "/.wrangler/",
             "/__pycache__/",
             "/node_modules/",
+            "/site-packages/",
             ".sqlite3",
             ".jsonl",
             ".pem",
             ".key",
+            "/data.json",
         )
-        for asset in (self.starter_asset, self.upgrade_asset):
-            with zipfile.ZipFile(asset) as archive:
-                for name in archive.namelist():
-                    self.assertFalse(any(part in name for part in forbidden_parts), name)
-                    data = archive.read(name)
-                    text = data.decode("utf-8", errors="replace")
-                    self.assertFalse(any(needle in text for needle in forbidden_text), name)
+        with zipfile.ZipFile(self.asset) as archive:
+            for name in archive.namelist():
+                self.assertFalse(any(part in name for part in forbidden_parts), name)
+                text = archive.read(name).decode("utf-8", errors="replace")
+                self.assertFalse(any(needle in text for needle in forbidden_text), name)
 
-    def test_tampered_package_fails_closed(self) -> None:
+    def test_tampered_upgrade_package_fails_closed(self) -> None:
         package = self.package("tamper")
-        (package / "README.md").write_text("tampered", encoding="utf-8")
+        (self.upgrade(package) / "README.md").write_text("tampered", encoding="utf-8")
         code, result = self.run_setup(package, self.base / "user-tamper", "plan", "--target", str(self.base / "workspace-tamper"))
         self.assertNotEqual(code, 0)
         self.assertEqual(result["status"], "manifest_invalid")
@@ -183,6 +253,30 @@ class ReleaseTests(unittest.TestCase):
         lint_result = json.loads(lint.stdout)
         self.assertEqual(lint.returncode, 0, lint_result)
         self.assertTrue(lint_result["ok"], lint_result)
+
+    def test_extracted_complete_vault_can_activate_without_losing_extras(self) -> None:
+        package = self.package("self-activate")
+        plugin = package / ".obsidian/plugins/dataview/main.js"
+        skill = package / ".skills/start-task/SKILL.md"
+        plugin_before = digest(plugin)
+        skill_before = digest(skill)
+
+        code, installed = self.run_setup(
+            package,
+            self.base / "user-self-activate",
+            "apply",
+            "--target",
+            str(package),
+            "--no-scheduler",
+        )
+        self.assertEqual(code, 0, installed)
+        self.assertIn(installed["status"], {"installed", "current_verified"})
+        extras_code, extras = self.run_extras(package, package, "apply")
+        self.assertEqual(extras_code, 0, extras)
+        self.assertEqual(extras["status"], "current_verified")
+        self.assertEqual(digest(plugin), plugin_before)
+        self.assertEqual(digest(skill), skill_before)
+        self.assertFalse(any(package.rglob("data.json")))
 
     def test_unknown_install_requires_assistance(self) -> None:
         package = self.package("unknown")

@@ -1,0 +1,16 @@
+/* ============================
+   Better Mermaid - 自适应缩放
+   ============================ */
+
+/* 容器约束 */
+.markdown-reading-view .mermaid {
+  max-width: 100% !important;
+  overflow: visible !important;
+}
+
+/* 宽图自动缩放至容器 —— zoom 直接作用于渲染层 */
+.markdown-reading-view .mermaid svg {
+  max-width: 100% !important;
+  width: 100% !important;
+  height: auto !important;
+}

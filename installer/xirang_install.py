@@ -749,7 +749,7 @@ def plan(target: Path, package: Path, platform: str) -> dict:
             "备份": "写入前对受管文件、StateStore 运行目录和 launchd 配置建立带哈希快照",
             "修改": "V9.7 机器契约、完整方法论宪法、StateStore、通用 Agent 根规范与当前宿主入口",
             "平台入口": str(external) if external is not None else f"工作区内 {platform} 入口",
-            "支持": "macOS + Python 3.11+；Codex、Claude、OpenClaw、Hermes、DeepSeek Harness；入口安装后待新会话验证",
+            "支持": "macOS + Python 3.11+；当前宿主自动识别，已登记平台使用对应入口，未登记平台安全降级；入口安装后待新会话验证",
             "下一步": "用户确认开始后执行 apply",
         },
     }

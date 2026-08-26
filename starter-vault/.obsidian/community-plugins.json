@@ -1,1 +1,15 @@
-[]
+[
+  "dataview",
+  "templater-obsidian",
+  "obsidian-tasks-plugin",
+  "obsidian-linter",
+  "obsidian-outliner",
+  "table-editor-obsidian",
+  "obsidian-style-settings",
+  "obsidian-kanban",
+  "calendar",
+  "drawio-obsidian",
+  "obsidian-excalidraw-plugin",
+  "obsidian-image-toolkit",
+  "better-word-count"
+]

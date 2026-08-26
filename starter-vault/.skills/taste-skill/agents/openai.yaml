@@ -1,0 +1,4 @@
+interface:
+  display_name: "Taste Skill"
+  short_description: "Keep UI colors, fonts, and icons coherent"
+  default_prompt: "Use $taste-skill to audit and improve this UI for consistent colors, typography, icons, spacing, and visual polish."

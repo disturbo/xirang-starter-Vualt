@@ -1,24 +1,25 @@
-# 息壤 V9.7 双交付包
+# 息壤 V9.7 完整 Vault
 
 息壤把普通文件夹变成一个可授权、可约束、可恢复、可验收的 Agent 工作区。
 
-发行只维护一份 `payload/` Core，但生成两个面向不同人的外壳。普通同事不需要理解 StateStore、Hook、Manifest 或平台模板。
+发行只提供一个完整包。它的根目录就是可直接打开的 Obsidian Vault，同时在隐藏分发层保留事务安装器、升级基线和完整校验。
 
-## 第一次使用：知识库启动包
+## 第一次使用
 
-1. 下载 `xi-rang-v9.7.0-starter-vault.zip`。
+1. 下载 `xi-rang-v9.7.0-complete-vault.zip`。
 2. 解压后，在 Obsidian 中把整个文件夹作为仓库打开。
-3. 首屏直接打开 `🏠-Home.md`，根目录显示知识库结构，不显示安装器工程目录。
+3. 首屏直接打开 `🏠-Home.md`；Things 主题、通用 CSS、必要插件和可移植 Skill 已在包内。
+4. 把 `AGENT-SETUP.md` 交给当前任意可访问文件的 Agent，完成校验和息壤激活。
 
-## 已经在使用：Agent 升级包
+## 已经在使用
 
-1. 下载 `xi-rang-v9.7.0-upgrade.zip`。
-2. 把包交给当前能访问本机文件的 Agent。
+1. 下载同一个 `xi-rang-v9.7.0-complete-vault.zip`。
+2. 把完整包和旧工作区位置交给当前能访问本机文件的 Agent。
 3. Agent 先只读识别、展示保留与备份范围；用户回复开始后再升级。
 
 不要用启动包或 Git clone 直接覆盖已有工作区。
 
-## 升级包的四种判断
+## 同一个包的四种判断
 
 | 检查结果 | Agent 的动作 |
 |---|---|
@@ -27,16 +28,16 @@
 | 已是 V9.7.0 | 校验或修复，不重复安装 |
 | 版本不明、目标不唯一或无法恢复 | 停止写入并给出诊断编号 |
 
-## 单 Core 双外壳
+## 一个 Vault，一套隐藏分发层
 
 ```text
 payload/                      唯一 V9.7 Core：知识结构、方法论与控制面
-starter-vault/                仅含安全的 Obsidian 展示配置
-installer/ + baselines/       只进入 Agent 升级包
-templates/                    开放平台模板注册，不是固定名单
+starter-vault/                Obsidian、插件、主题、Skill 与新人入口
+.xirang/distribution/upgrade  构建后隐藏的事务升级载荷
+tools/ + tests/               构建、完整校验、extras 合并和回归测试
 ```
 
-构建器从同一 Core 生成两个逐文件 Manifest。启动包把 Core 展开到根目录；升级包把同一 Core 放入 `payload/` 供事务安装器消费。两包都不包含源码仓库 Git 历史、运行状态、缓存、个人内容或项目资料。
+构建器把 Core 展开到 Vault 根目录，并从同一来源生成隐藏升级载荷。两份 Core Manifest 必须字节级相同。13 个通用插件只携带程序和许可证，不带个人数据，也不包含息壤专用 Obsidian 插件；Skill 只携带公开可移植版本，不复制宿主缓存和项目专用能力。
 
 ## 当前平台承诺
 
