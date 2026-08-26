@@ -2,9 +2,9 @@
 title: Agent 协作方法论
 type: moc
 status: current
-version: 9.7.0
+version: 9.7.1
 owner: 息壤维护者
-verified_at: 2026-08-26
+verified_at: 2026-08-27
 verified_against:
   - .xirang/contract/policy.yaml
   - .standards/agent-contract.yaml

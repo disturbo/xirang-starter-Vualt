@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
 
-VERSION = "9.7.0"
+VERSION = "9.7.1"
 MANAGED_START = "<!-- XIRANG-V97-MANAGED-START -->"
 MANAGED_END = "<!-- XIRANG-V97-MANAGED-END -->"
 PLATFORM_START = "<!-- XIRANG-V97-PLATFORM-START -->"

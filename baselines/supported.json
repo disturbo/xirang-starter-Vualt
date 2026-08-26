@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "target_version": "9.7.0",
+  "target_version": "9.7.1",
   "supported": [
     {
       "version": "9.5.0",

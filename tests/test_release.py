@@ -15,8 +15,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "tools/build_release.py"
 INSTALLER_SOURCE = ROOT / "installer/xirang_install.py"
-ASSET = "xi-rang-v9.7.0-complete-vault.zip"
-ARCHIVE_ROOT = "xi-rang-v9.7.0-complete-vault"
+ASSET = "xi-rang-v9.7.1-starter.zip"
+ARCHIVE_ROOT = "xi-rang-v9.7.1-starter"
 
 
 def digest(path: Path) -> str:
@@ -26,7 +26,7 @@ def digest(path: Path) -> str:
 class ReleaseTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls._temp = tempfile.TemporaryDirectory(prefix="xirang-v97-tests-")
+        cls._temp = tempfile.TemporaryDirectory(prefix="xirang-v971-tests-")
         cls.base = Path(cls._temp.name)
         cls.dist_a = cls.base / "dist-a"
         cls.dist_b = cls.base / "dist-b"
@@ -72,8 +72,16 @@ class ReleaseTests(unittest.TestCase):
         return completed.returncode, json.loads(completed.stdout)
 
     def test_build_is_reproducible(self) -> None:
+        self.assertEqual(
+            {path.name for path in self.dist_a.iterdir()},
+            {ASSET, "release-manifest.json", "SHA256SUMS"},
+        )
         for name in (ASSET, "release-manifest.json", "SHA256SUMS"):
             self.assertEqual(digest(self.dist_a / name), digest(self.dist_b / name), name)
+        release = json.loads((self.dist_a / "release-manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(release["version"], "9.7.1")
+        self.assertEqual(release["asset"]["name"], ASSET)
+        self.assertEqual(release["contents"]["obsidian_plugins"], 14)
 
     def test_complete_package_is_an_openable_obsidian_knowledge_base(self) -> None:
         with zipfile.ZipFile(self.asset) as archive:
@@ -85,10 +93,13 @@ class ReleaseTests(unittest.TestCase):
                 "AGENT-SETUP.md",
                 "00-MOC/知识库导航.md",
                 "00-MOC/Skill-Inventory.md",
+                "00-MOC/工作台.md",
                 "02-项目管理/README.md",
                 "10-项目/README.md",
                 "20-资料/README.md",
                 "30-规范/README.md",
+                "30-规范/流程图绘制规范.md",
+                "30-规范/SVG架构图设计规范.md",
                 "40-决策/README.md",
                 "50-经验/教训库.md",
                 "60-归档/README.md",
@@ -118,7 +129,11 @@ class ReleaseTests(unittest.TestCase):
             self.assertTrue((manifest.parent / "LICENSE").is_file(), manifest)
             self.assertFalse((manifest.parent / "data.json").exists(), manifest)
         self.assertEqual(set(declared_plugins), set(actual_plugins))
-        self.assertEqual(len(actual_plugins), 13)
+        self.assertEqual(len(actual_plugins), 14)
+        self.assertIn("editing-toolbar", actual_plugins)
+        editing_toolbar = package / ".obsidian/plugins/editing-toolbar"
+        self.assertEqual(json.loads((editing_toolbar / "manifest.json").read_text())["version"], "4.1.1")
+        self.assertTrue((editing_toolbar / "styles.css").is_file())
         self.assertNotIn("xirang-workbench", actual_plugins)
         skills = sorted(path.parent.name for path in (package / ".skills").glob("*/SKILL.md"))
         self.assertEqual(len(skills), 20)

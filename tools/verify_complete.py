@@ -8,7 +8,7 @@ import json
 from pathlib import Path, PurePosixPath
 
 
-VERSION = "9.7.0"
+VERSION = "9.7.1"
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = PACKAGE_ROOT / ".xirang/distribution/package-manifest.json"
 

@@ -1,4 +1,4 @@
-# 息壤 V9.7 发行、安装与恢复口径
+# 息壤 V9.7.1 发行、安装与恢复口径
 
 ## 唯一发行真源
 
@@ -10,7 +10,7 @@
 
 正式 Release 必须同时提供：
 
-- `xi-rang-v9.7.0-complete-vault.zip`
+- `xi-rang-v9.7.1-starter.zip`
 - `release-manifest.json`
 - `SHA256SUMS`
 - Release Notes
@@ -45,7 +45,7 @@ ZIP 根目录必须直接是可读知识库；`installer/`、`baselines/`、`man
 
 ## 支持范围
 
-V9.7.0 正式支持 macOS 与 Python 3.11+。V9.5.0 和已登记的 V9.4.3 基线可以自动识别；核心已定制或来源未知时进入辅助迁移，不强行覆盖。
+V9.7.1 发行目标支持 macOS 与 Python 3.11+。V9.5.0 和已登记的 V9.4.3 基线可以自动识别；核心已定制或来源未知时进入辅助迁移，不强行覆盖。
 
 ## 验收
 

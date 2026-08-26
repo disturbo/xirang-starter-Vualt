@@ -10,6 +10,7 @@
 | Calendar | 1.5.10 | MIT | https://github.com/liamcain/obsidian-calendar-plugin |
 | Dataview | 0.5.68 | MIT | https://github.com/blacksmithgu/obsidian-dataview |
 | Draw.io Diagrams | 1.5.4 | MIT | https://github.com/zapthedingbat/drawio-obsidian |
+| Editing Toolbar | 4.1.1 | MPL-2.0 | https://github.com/pkm-er/obsidian-editing-toolbar |
 | Excalidraw | 2.24.2 | AGPL-3.0 | https://github.com/zsviczian/obsidian-excalidraw-plugin |
 | Image Toolkit | 1.4.3 | MIT | https://github.com/community-archive/obsidian-image-toolkit |
 | Kanban | 2.0.51 | GPL-3.0 | https://github.com/community-archive/obsidian-kanban |

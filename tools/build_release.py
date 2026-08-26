@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the deterministic XiRang V9.7 complete Vault package."""
+"""Build the deterministic XiRang V9 Starter package."""
 
 from __future__ import annotations
 
@@ -15,10 +15,10 @@ import zipfile
 from pathlib import Path
 
 
-VERSION = "9.7.0"
-COMPLETE_ROOT = f"xi-rang-v{VERSION}-complete-vault"
-COMPLETE_ASSET = f"{COMPLETE_ROOT}.zip"
-FIXED_DATE = (2026, 8, 26, 12, 0, 0)
+VERSION = "9.7.1"
+PACKAGE_ROOT = f"xi-rang-v{VERSION}-starter"
+PACKAGE_ASSET = f"{PACKAGE_ROOT}.zip"
+FIXED_DATE = (2026, 8, 27, 12, 0, 0)
 UPGRADE_PATH = Path(".xirang/distribution/upgrade")
 UPGRADE_TOP_FILES = (
     "START-HERE.md",
@@ -31,9 +31,10 @@ UPGRADE_TOP_FILES = (
 )
 UPGRADE_SOURCE_DIRS = ("installer", "baselines", "templates")
 OBSOLETE_ASSETS = (
-    f"xi-rang-v{VERSION}-starter-vault.zip",
-    f"xi-rang-v{VERSION}-upgrade.zip",
-    f"xi-rang-v{VERSION}-universal.zip",
+    "xi-rang-v9.7.0-complete-vault.zip",
+    "xi-rang-v9.7.0-starter-vault.zip",
+    "xi-rang-v9.7.0-upgrade.zip",
+    "xi-rang-v9.7.0-universal.zip",
 )
 BLOCKED_PARTS = {
     ".git",
@@ -227,7 +228,7 @@ def make_zip(staging: Path, destination: Path) -> None:
             if not path.is_file():
                 continue
             relative = path.relative_to(staging).as_posix()
-            info = zipfile.ZipInfo(f"{COMPLETE_ROOT}/{relative}", date_time=FIXED_DATE)
+            info = zipfile.ZipInfo(f"{PACKAGE_ROOT}/{relative}", date_time=FIXED_DATE)
             mode = 0o755 if path.stat().st_mode & 0o111 else 0o644
             info.external_attr = (stat.S_IFREG | mode) << 16
             info.create_system = 3
@@ -237,11 +238,11 @@ def make_zip(staging: Path, destination: Path) -> None:
 
 def build(root: Path, output: Path) -> dict:
     output.mkdir(parents=True, exist_ok=True)
-    for name in (COMPLETE_ASSET, *OBSOLETE_ASSETS, "release-manifest.json", "SHA256SUMS"):
+    for name in (PACKAGE_ASSET, *OBSOLETE_ASSETS, "release-manifest.json", "SHA256SUMS"):
         (output / name).unlink(missing_ok=True)
 
     with tempfile.TemporaryDirectory(prefix="xirang-v97-complete-") as raw:
-        staging = Path(raw) / COMPLETE_ROOT
+        staging = Path(raw) / PACKAGE_ROOT
         staging.mkdir()
 
         core_pairs = core_source_files(root)
@@ -296,8 +297,8 @@ def build(root: Path, output: Path) -> dict:
             {
                 "schema_version": 1,
                 "version": VERSION,
-                "kind": "complete_vault",
-                "archive_root": COMPLETE_ROOT,
+                "kind": "starter_vault",
+                "archive_root": PACKAGE_ROOT,
                 "files": file_rows(
                     staging,
                     exclude={".xirang/distribution/package-manifest.json"},
@@ -306,21 +307,21 @@ def build(root: Path, output: Path) -> dict:
         )
         scan_leaks(staging)
 
-        destination = output / COMPLETE_ASSET
+        destination = output / PACKAGE_ASSET
         make_zip(staging, destination)
         asset_sha = sha256(destination)
         skill_count = sum(1 for path in (staging / ".skills").glob("*/SKILL.md") if path.is_file())
         plugin_count = sum(1 for path in (staging / ".obsidian/plugins").glob("*/manifest.json") if path.is_file())
         release = {
             "schema_version": 1,
-            "product": "XiRang complete Vault",
+            "product": "XiRang V9 Starter",
             "version": VERSION,
             "status": "candidate",
-            "built_at": "2026-08-26",
+            "built_at": "2026-08-27",
             "support": {"platform": "macOS", "python": ">=3.11"},
             "asset": {
-                "kind": "complete_vault",
-                "name": COMPLETE_ASSET,
+                "kind": "starter_vault",
+                "name": PACKAGE_ASSET,
                 "sha256": asset_sha,
                 "size": destination.stat().st_size,
             },
@@ -335,7 +336,7 @@ def build(root: Path, output: Path) -> dict:
             "interaction": "新人直接用 Obsidian 打开；旧用户把同一包交给当前 Agent 执行 AGENT-SETUP.md",
         }
         atomic_json(output / "release-manifest.json", release)
-        (output / "SHA256SUMS").write_text(f"{asset_sha}  {COMPLETE_ASSET}\n", encoding="utf-8")
+        (output / "SHA256SUMS").write_text(f"{asset_sha}  {PACKAGE_ASSET}\n", encoding="utf-8")
         return release
 
 

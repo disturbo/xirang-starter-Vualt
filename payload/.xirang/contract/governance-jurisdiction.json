@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "version": "9.7.0",
+  "version": "9.7.1",
   "status": "current",
-  "updated": "2026-08-26",
+  "updated": "2026-08-27",
   "domains": [
     {"domain": "machine-policy", "primary": ".xirang/contract/policy.yaml", "primary_kind": "contract", "supporting": [".standards/agent-contract.yaml"]},
     {"domain": "workspace-behavior", "primary": "AGENTS.md", "primary_kind": "contract", "supporting": ["息壤.md"]},
