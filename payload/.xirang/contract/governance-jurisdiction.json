@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "version": "9.7.0",
+  "status": "current",
+  "updated": "2026-08-26",
+  "domains": [
+    {"domain": "machine-policy", "primary": ".xirang/contract/policy.yaml", "primary_kind": "contract", "supporting": [".standards/agent-contract.yaml"]},
+    {"domain": "workspace-behavior", "primary": "AGENTS.md", "primary_kind": "contract", "supporting": ["息壤.md"]},
+    {"domain": "maintenance-protocol", "primary": ".xirang/adapters/PROTOCOL.md", "primary_kind": "contract", "supporting": ["AGENTS.md"]},
+    {"domain": "runtime-state", "primary": "external-sqlite-state-store", "primary_kind": "logical", "supporting": []},
+    {"domain": "infrastructure-platform-boundary", "primary": "50-经验/Agent协作方法论/息壤基建与工作平台边界.md", "primary_kind": "document", "supporting": ["50-经验/Agent协作方法论/README.md"]},
+    {"domain": "methodology", "primary": "50-经验/Agent协作方法论/息壤方法论-V9.md", "primary_kind": "document", "supporting": ["50-经验/Agent协作方法论/息壤V9-运行时契约卡.md"]},
+    {"domain": "adversarial-review", "primary": "50-经验/Agent协作方法论/息壤V9-多Agent对抗性审查协议.md", "primary_kind": "document", "supporting": []},
+    {"domain": "governance-jurisdiction", "primary": ".xirang/contract/governance-jurisdiction.json", "primary_kind": "contract", "supporting": ["50-经验/Agent协作方法论/息壤规范管辖权.md"]}
+  ]
+}

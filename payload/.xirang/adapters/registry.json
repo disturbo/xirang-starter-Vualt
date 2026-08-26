@@ -1,0 +1,81 @@
+{
+  "schema_version": 3,
+  "protocol": ".xirang/adapters/PROTOCOL.md",
+  "manifest_authority": "registry",
+  "extensible": true,
+  "unknown_platform_policy": "generic_workspace_contract_only",
+  "surface_evidence_policy": {
+    "application_is_not_canary": true,
+    "unverified_can_never_be_connected": true
+  },
+  "platforms": {
+    "claude": {
+      "platform_id": "claude",
+      "allowed_mode": "manual_guard",
+      "application_state": "applied",
+      "canary_state": "unverified",
+      "connected": false,
+      "instruction_entries": [
+        {"path": "AGENTS.md", "scope": "workspace", "role": "project_contract", "management_state": "managed"},
+        {"path": ".claude/settings.json", "scope": "workspace", "role": "platform_skill_surface", "management_state": "managed"}
+      ],
+      "runtime_authority": "sqlite"
+    },
+    "codex": {
+      "platform_id": "codex",
+      "allowed_mode": "manual_guard",
+      "application_state": "applied",
+      "canary_state": "unverified",
+      "connected": false,
+      "instruction_entries": [
+        {"path": "AGENTS.md", "scope": "workspace", "role": "project_contract", "management_state": "managed"},
+        {"path": ".codex/hooks.json", "scope": "workspace", "role": "platform_skill_surface", "management_state": "managed"}
+      ],
+      "runtime_authority": "sqlite"
+    },
+    "openclaw": {
+      "platform_id": "openclaw",
+      "allowed_mode": "manual_guard",
+      "application_state": "unverified",
+      "canary_state": "unverified",
+      "connected": false,
+      "instruction_entries": [
+        {"path": "~/.openclaw/workspace/AGENTS.md", "scope": "external", "role": "agent_root", "management_state": "managed", "active_authority": true}
+      ],
+      "runtime_authority": "sqlite"
+    },
+    "hermes": {
+      "platform_id": "hermes",
+      "allowed_mode": "manual_guard",
+      "application_state": "unverified",
+      "canary_state": "unverified",
+      "connected": false,
+      "instruction_entries": [
+        {"path": "~/.hermes/SOUL.md", "scope": "external", "role": "agent_root", "management_state": "managed", "active_authority": true}
+      ],
+      "runtime_authority": "sqlite"
+    },
+    "deepseek_harness": {
+      "platform_id": "deepseek_harness",
+      "allowed_mode": "manual_guard",
+      "application_state": "unverified",
+      "canary_state": "unverified",
+      "connected": false,
+      "instruction_entries": [
+        {"path": "~/.dsh/AGENTS.md", "scope": "external", "role": "agent_root", "management_state": "managed", "active_authority": true}
+      ],
+      "runtime_authority": "sqlite"
+    },
+    "workbuddy": {
+      "platform_id": "workbuddy",
+      "allowed_mode": "manual_guard",
+      "application_state": "unverified",
+      "canary_state": "unverified",
+      "connected": false,
+      "instruction_entries": [
+        {"path": "~/.codebuddy/CODEBUDDY.md", "scope": "external", "role": "agent_root", "management_state": "managed", "active_authority": true}
+      ],
+      "runtime_authority": "sqlite"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "version": "9.7.0",
+  "status": "current",
+  "updated": "2026-08-26",
+  "owner": "XiRang maintainers",
+  "tools": [
+    {"id": "gate-enforce", "paths": [".standards/gate-enforce.py"], "role": "V8/V8.5 迁移兼容；不参与现行信任", "owner": "XiRang maintainers", "verification": "legacy fixtures only", "state": "migration_legacy"},
+    {"id": "codex-hook-adapter", "paths": [".standards/hooks/codex-hook-adapter.py"], "role": "Codex/Claude manual_guard 生命周期适配", "owner": "XiRang maintainers", "verification": "current-session canary", "state": "current"},
+    {"id": "controlled-delivery", "paths": [".standards/xirang_delivery.py", ".standards/v9-accept.py"], "role": "精确交付与验收关联", "owner": "XiRang maintainers", "verification": "unit tests", "state": "current"},
+    {"id": "state-store", "paths": [".standards/xirang_state.py", ".standards/xirang_runtime.py"], "role": "权威运行状态", "owner": "XiRang maintainers", "verification": "StateStore tests", "state": "current"},
+    {"id": "contract-lint", "paths": [".standards/xirang-task.py"], "role": "受控断言校验", "owner": "XiRang maintainers", "verification": "contract lint", "state": "current"},
+    {"id": "state-backup", "paths": [".standards/xirang_state_backup.py"], "role": "SQLite 与逐文件恢复", "owner": "XiRang maintainers", "verification": "backup tests", "state": "current"},
+    {"id": "release-lineage", "paths": [".standards/xirang-release-lineage.py"], "role": "本机基建发布血缘", "owner": "XiRang maintainers", "verification": "lineage tests", "state": "current"}
+  ],
+  "retired": [],
+  "migration_legacy": [".standards/gate-enforce.py"],
+  "activation_rule": "只有当前消费者与行为证据齐全时，能力才可报告为 connected。"
+}

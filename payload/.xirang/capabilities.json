@@ -1,0 +1,20 @@
+{
+  "schema_version": 2,
+  "profile": "universal-starter",
+  "core_enabled": [
+    "task_governance",
+    "user_status",
+    "user_prompt_decisions",
+    "post_write_receipts",
+    "codex_adapter",
+    "claude_adapter",
+    "openclaw_adapter_template",
+    "hermes_adapter_template",
+    "deepseek_harness_adapter_template",
+    "workbuddy_adapter_template",
+    "generic_agent_root_template"
+  ],
+  "platform_conditional": {"status_scheduler": "macos_only"},
+  "optional_external": ["platform_specific_host_canary"],
+  "rule": "可选能力未随最小包安装；文件存在或配置完成不等于当前会话已接通。"
+}

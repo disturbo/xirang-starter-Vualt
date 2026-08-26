@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "target_version": "9.7.0",
+  "supported": [
+    {
+      "version": "9.5.0",
+      "required_hashes": {
+        "VERSION": "c073f1444bd5b84e8b30b29389ecd55c16ffd778c0c899d5eb60893063342a80",
+        "README.md": "7d004f7d487be67b1e5e612f812767fd0dd542cb8b6f58afce2bbfd56f9d6665",
+        "GOVERNANCE.md": "df1d3dea1792dbdd9194ed0145333a92a604ba18ce515c8e2196348513f4fdfd",
+        "setup.sh": "f03ce67d4f6125a353882de90492ea466c418cce6558ccd8d636505169014bb9",
+        ".xirang/contract/policy.yaml": "5280ae812b9c97021d881e27cfa84be13593416580aa478aba7c9e5381ac53c5"
+      },
+      "mutable": ["AGENTS.md"]
+    },
+    {
+      "version": "9.4.3",
+      "required_hashes": {
+        "README.md": "767823f7c3593f7b3740373fe18ee50a92adbd3222d1c817ca712cd640301697",
+        "GOVERNANCE.md": "d73e9d299120b6d350d26e772f2f2101d251e0da285b92027f211eeeca0ad1e1",
+        "setup.sh": "3a6e68ead34cd84a8a23f713790e26f91c993b8093918cbd371a33cdd4acf3c6",
+        ".standards/agent-contract.yaml": "d88c1aaedf26426c1ea673bdae6ed82da168a468b4a19711421833d4fc66d95e"
+      },
+      "mutable": ["AGENTS.md"]
+    }
+  ],
+  "unknown_policy": "assistance_required"
+}

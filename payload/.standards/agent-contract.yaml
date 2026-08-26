@@ -1,0 +1,73 @@
+# 息壤 V3 Agent 结构化契约（通用分发版）
+schema_version: 3
+contract_revision: v3-agent-roots
+updated: "2026-08-26"
+
+authorization:
+  source: user_natural_language
+  accepted_from: any_agent_conversation
+  agent_bound: false
+  object: immutable_execution_envelope
+  model_may_claim_user_identity: false
+  model_may_set_authorization_state: false
+  ordinary_content_roots: [00-MOC, 10-项目, 20-资料, 30-规范, 40-决策, 50-经验, 60-归档, 70-模板, 知识库工程化]
+  directory_alone_may_upgrade_to_control_plane: false
+
+execution:
+  primary_task_per_envelope: 1
+  worker_creates_business_task: false
+  worker_scope: intersection_of_envelope_and_lease
+  continuation: until_terminal_or_stop_condition
+  stages: [authorized, preparing, implementing, validating, discovery_review, repairing, revalidating, confirmation_review, committing, submitted]
+  pause_states: [blocked_budget, blocked_nonconvergent, blocked_external_dependency, awaiting_material_user_choice, suspended_lease_expired]
+  terminal_states: [canceled]
+  budget_required: true
+  convergence_required: true
+
+handoff:
+  authority: sqlite_state_store
+  artifact_role: context_checkpoint_only
+  grants_authority: false
+  explicit_task_reference_required: true
+  required_fields: [task_summary, completed, current_state, next_steps, pitfalls]
+
+acceptance:
+  current_conversation_unique_candidate_auto_link: true
+  cross_conversation_explicit_reference_required: true
+  workspace_unique_candidate_fallback: false
+  self_acceptance: forbidden
+
+state_store:
+  required_authority: sqlite
+  cutover_state: active
+  task_cards: markdown_one_way_projection
+  status_pages: generated_one_way_projection
+  events_jsonl: diagnostic_export_only
+  long_term_dual_write: forbidden
+
+platform_modes:
+  trusted:
+    requires_host_proof: true
+  manual_guard:
+    non_repudiation: false
+    verified_fields: {actor_verified: false, disclosure_verified: false, sequence_verified: false, enforcement_verified: false}
+  contract_only:
+    may_write: false
+
+platforms:
+  - platform_id: codex
+    entry: AGENTS.md
+    allowed_mode: manual_guard
+    application_state: applied
+    canary_state: unverified
+    connected: false
+  - platform_id: claude
+    entry: .claude/settings.json
+    allowed_mode: manual_guard
+    application_state: applied
+    canary_state: unverified
+    connected: false
+
+retired:
+  current_capabilities_forbidden: [v8_runtime, m3_m4_m5, binary_trigger, pre_flight, traffic_light, legacy_heartbeat, a2a_mock, retired_cost_fuse]
+  allowed_role: historical_or_migration_input_only

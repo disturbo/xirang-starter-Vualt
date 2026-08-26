@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">息壤 V9.7 当前架构</title>
+  <desc id="desc">用户自然语言目标经平台适配进入治理控制面，由 SQLite StateStore 管理授权、任务和证据，最后形成待用户验收的交付；可选模块不能绕过控制面。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7f4f2"/>
+      <stop offset="1" stop-color="#efe8e5"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="7" flood-color="#3b1720" flood-opacity=".12"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#861B2F"/>
+    </marker>
+    <style>
+      .title{font:700 30px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;fill:#2b2023}
+      .subtitle{font:400 15px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;fill:#6d5b60}
+      .label{font:700 17px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;fill:#2b2023}
+      .body{font:400 14px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;fill:#514348}
+      .small{font:400 12px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;fill:#6d5b60}
+      .card{fill:#fff;stroke:#d8c9cd;stroke-width:1.2;rx:14;filter:url(#shadow)}
+      .core{fill:#fff8fa;stroke:#861B2F;stroke-width:2;rx:14;filter:url(#shadow)}
+      .machine{fill:#f4efff;stroke:#7a65a8;stroke-width:1.2;rx:14}
+      .optional{fill:#f6f6f4;stroke:#aaa29d;stroke-width:1.2;stroke-dasharray:6 5;rx:14}
+      .flow{fill:none;stroke:#861B2F;stroke-width:2.2;marker-end:url(#arrow)}
+      .soft{fill:none;stroke:#9b858b;stroke-width:1.5;stroke-dasharray:5 5;marker-end:url(#arrow)}
+    </style>
+  </defs>
+
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <text x="60" y="62" class="title">息壤 V9.7 当前架构</text>
+  <text x="60" y="88" class="subtitle">自然目标进入，内部复杂度留在系统内；授权、状态、证据、恢复与验收形成同一闭环。</text>
+
+  <rect x="60" y="125" width="1080" height="90" class="card"/>
+  <circle cx="112" cy="170" r="25" fill="#861B2F"/>
+  <path d="M101 173c7 7 16 7 23 0M104 161h1M119 161h1" stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <text x="155" y="161" class="label">用户层：自然语言目标、边界与最终决定</text>
+  <text x="155" y="187" class="body">用户不管理任务号、提案号、租约、状态机或 Hook；执行者不能替用户验收。</text>
+  <rect x="900" y="146" width="195" height="47" rx="23" fill="#f4e5e9"/>
+  <text x="997" y="175" text-anchor="middle" class="body">验收权始终在用户</text>
+
+  <path d="M600 215 V250" class="flow"/>
+
+  <rect x="60" y="250" width="250" height="135" class="card"/>
+  <text x="85" y="282" class="label">工作平台与适配层</text>
+  <text x="85" y="310" class="body">Codex · Claude · 飞书 · Obsidian</text>
+  <text x="85" y="335" class="body">trusted / manual_guard / contract_only</text>
+  <text x="85" y="360" class="small">配置存在不等于已接通；每个平台单独 canary。</text>
+
+  <rect x="345" y="250" width="510" height="230" class="core"/>
+  <text x="375" y="282" class="label">治理控制面</text>
+  <rect x="375" y="305" width="210" height="68" rx="10" fill="#fff" stroke="#d8c9cd"/>
+  <text x="480" y="332" text-anchor="middle" class="body">一次性边界展示</text>
+  <text x="480" y="354" text-anchor="middle" class="small">目标 · 路径 · 操作 · 排除项</text>
+  <rect x="615" y="305" width="210" height="68" rx="10" fill="#fff" stroke="#d8c9cd"/>
+  <text x="720" y="332" text-anchor="middle" class="body">不可变执行包络</text>
+  <text x="720" y="354" text-anchor="middle" class="small">主任务 · grants · worker lease</text>
+  <path d="M585 339 H615" class="flow"/>
+  <rect x="375" y="390" width="450" height="58" rx="10" fill="#f4e5e9"/>
+  <text x="600" y="415" text-anchor="middle" class="body">机器规则：policy · agent contract · protocol · jurisdiction</text>
+  <text x="600" y="437" text-anchor="middle" class="small">模型解释意图；系统校验来源、范围、状态和操作类型。</text>
+
+  <path d="M310 318 H345" class="flow"/>
+
+  <rect x="890" y="250" width="250" height="230" class="machine"/>
+  <text x="915" y="282" class="label">权威运行状态</text>
+  <text x="915" y="313" class="body">外置 SQLite StateStore</text>
+  <text x="915" y="340" class="body">授权 · 任务 · 租约 · 阶段</text>
+  <text x="915" y="365" class="body">收据 · 焦点 · 偏好 · 验收</text>
+  <line x1="915" y1="388" x2="1115" y2="388" stroke="#cfc4e3"/>
+  <text x="915" y="415" class="small">Markdown 任务卡、状态页、JSONL</text>
+  <text x="915" y="437" class="small">仅为单向投影，不能反写权威状态。</text>
+  <path d="M855 365 H890" class="flow"/>
+
+  <path d="M1015 480 V525" class="flow"/>
+  <path d="M600 480 V525" class="flow"/>
+
+  <rect x="60" y="525" width="330" height="145" class="card"/>
+  <text x="85" y="557" class="label">写入与恢复</text>
+  <text x="85" y="586" class="body">Pre-write：任务、路径、操作与恢复边界</text>
+  <text x="85" y="613" class="body">Post-write：最终 Hash 与 file_write 收据</text>
+  <text x="85" y="640" class="body">pre-image · SQLite 快照 · 原子恢复</text>
+
+  <rect x="435" y="525" width="330" height="145" class="card"/>
+  <text x="460" y="557" class="label">验证与交付</text>
+  <text x="460" y="586" class="body">实现 → 验证 → 发现性审核 → 修复</text>
+  <text x="460" y="613" class="body">再验证 → 确认性审核 → 精确 manifest</text>
+  <text x="460" y="640" class="body">提交状态只能是 submitted</text>
+
+  <rect x="810" y="525" width="330" height="145" class="card"/>
+  <text x="835" y="557" class="label">用户验收</text>
+  <text x="835" y="586" class="body">当前交付焦点绑定具体 delivery</text>
+  <text x="835" y="613" class="body">接受 / 退回 / 取消来自真实用户事件</text>
+  <text x="835" y="640" class="body">submitted ≠ accepted</text>
+
+  <path d="M390 598 H435" class="flow"/>
+  <path d="M765 598 H810" class="flow"/>
+
+  <rect x="60" y="710" width="1080" height="55" class="optional"/>
+  <text x="85" y="742" class="label">可选模块</text>
+  <text x="210" y="742" class="body">GBrain · Phoenix · CodeRef · 状态面板 · 平台增强</text>
+  <text x="720" y="742" class="small">缺失显示 not_enabled；不得绕过授权、收据、恢复或用户验收。</text>
+  <path d="M600 710 V670" class="soft"/>
+</svg>

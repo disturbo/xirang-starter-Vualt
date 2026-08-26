@@ -1,67 +1,50 @@
-# 息壤 V9 运行真实性治理基线
+# 息壤 V9.7 发行、安装与恢复口径
 
-> 适用于 starter 的通用治理契约。它不携带任何生产 Vault 的任务、巡检快照或验收结论。
+## 唯一发行真源
 
-## 1. 绿色不是退出码
+- 公开源码与 Release：`disturbo/xirang-starter-Vualt`。
+- 官网只负责说明与分流，不能成为第二套产物真源。
+- `payload/` 是唯一 Core；构建器从白名单一次性生成 Release ZIP。
 
-模块只有同时具备以下证据，才允许标记为 `green`：
+## 发行闭包
 
-```text
-调度者 → 有效输入 → 可验证输出 → 明确消费者
-      → 可观察行为效果 → 新鲜度证明 → 责任人与失败出口
-```
+正式 Release 必须同时提供：
 
-脚本存在、任务定时运行、报告生成或面板显示绿色，都只能证明局部事实。
+- `xi-rang-v9.7.0-universal.zip`
+- `release-manifest.json`
+- `SHA256SUMS`
+- Release Notes
+- Tag、Commit 和构建 ID
 
-统一状态：
+ZIP 内的 `core-manifest.json` 和 `package-manifest.json` 使用逐文件 SHA-256。安装器在规划和应用前都要验证闭包；文件缺失、多余或漂移时拒绝执行。
 
-| 状态 | 含义 |
+## 所有权
+
+| 类别 | 处理规则 |
 |---|---|
-| `design` | 只有设计或文档，没有执行面 |
-| `retired` | 已退役，且不存在活跃 writer、scheduler 或 consumer |
-| `failed` | 关键证据缺失或验证失败 |
-| `observing` | 已通过当前检查，正在积累连续证据 |
-| `green` | 证据完整并通过连续观察门禁 |
+| Core managed | 由新版本替换，写入前保存逐文件 pre-image |
+| Root AGENTS | 只更新带标记的息壤受管区，保留原项目规则 |
+| Generated/runtime | 按本机路径生成，不进入发行包 |
+| User content | 永不覆盖、删除或打包 |
+| Legacy extras | 默认保留为非现行输入，不用旧文件反向恢复权威状态 |
 
-## 2. 部署后的冻结观察
+## 事务与恢复
 
-新安装或运行链修复后，默认进入 14 个连续日历日的 `observing`：
+安装器在 `~/.xirang/recovery-*` 建立对象、Manifest 和审计记录，在任何目标写入前完成并校验快照。事务日志只有 `complete` 才表示成功；中断后的下一次运行必须先恢复。
 
-1. 每日保留 health、Harness 哈希、Hook canary、身份归属、知识索引新鲜度和 Skills 完整根目录扫描证据；
-2. 快照不得只覆盖 `latest`，必须能够复算 streak；
-3. 未登记的状态写入者、错误绿色、身份误记、哈希过期、扫描根目录遗漏会立即归零 streak；
-4. 外部服务短时抖动若在两个检查周期内恢复，且没有错误绿色、证据丢失或行为影响，可独立复核为 transient；
-5. 观察最多延长到 28 天。届时仍不通过，应缩小承诺、退役模块或重新设计，不能无限冻结。
+恢复只针对本次登记的精确文件和运行根，不覆盖更新后的未知文件，不删除业务内容。失败后应回到完整旧闭包或空的新闭包，不能留下混配版本。
 
-## 3. 独立验收
+## 状态真实性
 
-`submitted` 不等于 `accepted`。accepted 必须由非作者、非执行者复核，并至少记录：
+- 文件存在表示已复制，不表示平台已接通。
+- StateStore 激活表示权威状态后端可用，不表示当前 Agent Hook 已通过。
+- 安装后平台状态从 `unverified` 开始；只有当前会话正反 canary 通过后才能报告相应能力。
+- Manual Guard 始终记录四项宿主证明为 false，不冒充强隔离或不可抵赖。
 
-- task id、reviewer、accepted time；
-- 产物哈希与验证报告；
-- 行为效果证据；
-- 结论和治理规则版本。
+## 支持范围
 
-禁止批量补写虚假历史验收，也禁止用“字段填写率”替代真实验收比例。
+V9.7.0 正式支持 macOS 与 Python 3.11+。V9.5.0 和已登记的 V9.4.3 基线可以自动识别；核心已定制或来源未知时进入辅助迁移，不强行覆盖。
 
-## 4. 默认治理边界
+## 验收
 
-- Phoenix 仅为 design/reference，不包含 executor 或 scheduler；
-- 成本治理已退役，不得接回任务完成条件或健康状态；
-- 熵候选先分类并小批次处置；`deferred` 仍是未解决 backlog，不得自动归档成已收敛；
-- GBrain 自动召回已接入 SessionStart 与 M4/M5 握手；它不是任务启动的强依赖，超时/无结果时 fail-open，但必须留下失败事件并使健康状态转红；
-- Skills 检查必须覆盖真实平台入口，包括 `~/.openclaw/workspace/skills`；
-- starter 不分发运行期快照、个人 Agent 状态、生产任务卡、审计报告、prompt 构建缓存或业务候选产物。
-
-## 5. 最小验证命令
-
-```bash
-python3 02-项目管理/脚本/v9-harness-eval-runner.py
-python3 .standards/harness-eval-verify.py \
-  --report 02-项目管理/巡检/harness-eval-latest.json \
-  --root . --json
-python3 02-项目管理/脚本/v9-skill-shadow-check.py --json
-python3 02-项目管理/脚本/v9-starter-leak-check.py --root . --strict
-```
-
-Harness 必须同时满足：全部 positive 通过、全部 negative 被阻断、meta failure 为 0、trust set 文件哈希全部与当前仓库一致。
+构建者负责构建和验证，但不能验收自己的 Release。正式发布状态只能是待验收；是否接受由发布责任人决定。

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "extensible": true,
+  "unknown_platform_policy": "generic_workspace_contract_only",
+  "platforms": {
+    "codex": {"kind": "workspace", "template": "codex-AGENTS.md", "target": "AGENTS.md", "aliases": ["codex_desktop"]},
+    "claude": {"kind": "workspace", "template": "claude-CLAUDE.md", "target": ".claude/CLAUDE.md", "aliases": ["claude_code"]},
+    "openclaw": {"kind": "external", "template": "openclaw-AGENTS.md", "target": "~/.openclaw/workspace/AGENTS.md", "aliases": []},
+    "hermes": {"kind": "external", "template": "hermes-SOUL.md", "target": "~/.hermes/SOUL.md", "aliases": ["hermes_cli", "hermes_one"]},
+    "deepseek_harness": {"kind": "external", "template": "deepseek-harness-AGENTS.md", "target": "~/.dsh/AGENTS.md", "aliases": ["deepseek", "dsh"]},
+    "workbuddy": {"kind": "external", "template": "workbuddy-CODEBUDDY.md", "target": "~/.codebuddy/CODEBUDDY.md", "aliases": ["codebuddy"]}
+  },
+  "generic": {"kind": "workspace", "template": "generic-AGENTS.md", "target": "AGENTS.md"}
+}

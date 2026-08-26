@@ -1,0 +1,297 @@
+schema_version: 3
+policy_version: 9.7.0
+contract_revision: v3
+product: xirang
+
+implementation_truth:
+  contract_status: active
+  sqlite_cutover: active
+  worker_lease_runtime: manual_guard_active
+  runtime_coordinator: active
+  external_entry_default: unverified
+  contract_presence_is_runtime_evidence: false
+
+invariants:
+  authorization: required_before_side_effect
+  authorization_source: user_natural_language_in_any_agent_conversation
+  authorization_agent_bound: false
+  authorization_object: immutable_execution_envelope
+  scope_expansion: pause_and_reconfirm
+  recovery: required_for_material_change
+  evidence: current_task_current_session_or_valid_worker_lease
+  self_acceptance: forbidden
+  natural_intent: first_class_user_interface
+  governance_complexity: system_owned
+  intelligence_and_authority: separated
+  continuous_execution: within_authorized_envelope
+  visible_start_boundary: required_non_blocking
+  one_envelope_one_primary_task: true
+  state_authority: sqlite
+
+authorization:
+  user_is_highest_authority: true
+  accepted_conversation_origin: any_agent
+  model_may_interpret_intent: true
+  model_may_claim_user_identity: false
+  model_may_set_authorization_state: false
+  fixed_phrase_required: false
+  internal_ids_user_visible: false
+  disclosure_required_before_write: true
+  disclosure_fields: [objective, write_scope, exclusions, irreversible_effects, external_effects, acceptance_owner]
+  one_disclosure_per_unchanged_scope: true
+  one_authorization_per_unchanged_scope: true
+  repeated_confirmation_within_envelope: forbidden
+  ordinary_content_roots: [00-MOC, 10-项目, 20-资料, 30-规范, 40-决策, 50-经验, 60-归档, 70-模板, 知识库工程化]
+  ordinary_content_task_must_not_be_upgraded_to_control_plane_by_directory: true
+
+scope_binding:
+  objective_record:
+    immutable_after_disclosure: true
+    later_agents_reference_by_id: true
+  disclosure_digest:
+    includes_task_id: false
+    machine_fields_only: true
+  envelope_digest:
+    created_after_task: true
+    binds: [task_id, disclosure_digest, authorization_event_id, authorization_version]
+  canonicalization:
+    normalize_paths: true
+    sort_and_deduplicate_arrays: true
+    reject_serialized_path_lists: [semicolon, fullwidth_semicolon, newline, comma, fullwidth_comma]
+    repeated_scope_arguments_form_array: true
+    distinguish_null_and_missing: true
+    display_title_in_digest: false
+  disclosure_ttl_minutes: 30
+  user_event_ttl_minutes: 10
+  successful_envelope_expires_with_disclosure: false
+
+platform_modes:
+  trusted:
+    requires: [host_user_event_proof, verified_disclosure_sequence, single_use_event, verified_worker_identity, non_bypassable_write_gate]
+    may_report_connected: true
+  manual_guard:
+    allowed_for: platform_without_verified_host_proof_or_non_bypassable_gate
+    provides: [natural_authorization, continuous_execution, path_checks, external_receipts, traceable_process_records]
+    actor_verified: false
+    disclosure_verified: false
+    sequence_verified: false
+    enforcement_verified: false
+    provides_non_repudiation: false
+    may_report_connected: false
+  contract_only:
+    provides: [shared_protocol, read_only_diagnostics]
+    may_authorize_control_plane: false
+    may_write: false
+    may_report_connected: false
+  unsupported:
+    may_write: false
+    may_report_connected: false
+
+execution_envelope:
+  primary_task_count: 1
+  authorization_inherited_across_agents: true
+  continuation_policy: continue_until_terminal_condition
+  intermediate_confirmation: forbidden_for_unchanged_scope
+  stop_conditions: [scope_expansion, irreversible_effect, external_send_or_publish, material_user_choice, recovery_unavailable]
+  start_ceremony:
+    required: true
+    blocking_within_existing_envelope: false
+  permission_rule: path_scope_intersect_operation_type
+  required_fields: [allowed_write_roots, allowed_operations, grants]
+  grants_shape: [{path: exact_path, operations: [add, update, move, delete]}]
+
+worker_leases:
+  worker_creates_business_task: false
+  scope_rule: intersection_of_envelope_and_lease
+  required_fields: [lease_id, envelope_id, task_id, source_session_id, worker_session_id, role, allowed_write_roots, allowed_operations, grants, read_only, issued_at, expires_at, status]
+  trusted_enforcement: host_verified
+  manual_guard_enforcement: trace_only
+  manual_guard_enforcement_verified: false
+  expired_lease_runtime_state: suspended_lease_expired
+
+runtime_state_machine:
+  main_flow: [authorized, preparing, implementing, validating, discovery_review, repairing, revalidating, confirmation_review, committing, submitted]
+  review_round_required: true
+  repair_requires_revalidation: true
+  repair_requires_confirmation_review: true
+  commit_requires_no_blocking_findings: true
+  pause_states: [blocked_budget, blocked_nonconvergent, blocked_external_dependency, awaiting_material_user_choice, suspended_lease_expired]
+  terminal_states: [canceled, submitted]
+  resume:
+    blocked_budget: budget_window_recovers_or_independent_maintenance_adjusts_fuse
+    blocked_nonconvergent: new_independent_strategy_allows_one_controlled_retry
+    blocked_external_dependency: health_probe_confirms_recovery
+    awaiting_material_user_choice: explicit_user_decision
+    suspended_lease_expired: valid_lease_for_same_envelope
+  user_reauthorization_required_for_original_scope: false
+
+budget_and_convergence:
+  agent_count_limited: true
+  nesting_depth_limited: true
+  repair_rounds_limited: true
+  elapsed_time_limited: true
+  cost_budget_limited: true
+  same_blocker_without_new_evidence_rounds: 2
+  nonconvergent_action: blocked_nonconvergent
+  retired_cost_fuse_is_current_capability: false
+
+acceptance:
+  submitted_is_accepted: false
+  failure_boundaries:
+    edit:
+      requires_authorized_envelope: true
+      degraded_mode_requires: [external_preimage_snapshot, append_only_audit]
+    submit:
+      requires_post_write_receipts: true
+      fallback_state: committed_pending_reconciliation
+    accept:
+      requires_bound_submitted_delivery: true
+  atomic_takeover:
+    predecessor_state: blocked
+    transaction: [lock_predecessor, revoke_predecessor_leases, create_successor]
+    rollback_on_any_failure: true
+  terminal_lease_policy: revoke_in_same_transaction
+  self_acceptance: forbidden
+  ambiguous_confirmation_is_acceptance: false
+  semantic_interpreter: model
+  model_may_claim_user_identity: false
+  presented_delivery_is_conversation_focus: true
+  focus_binds_delivery_version: true
+  focus_single_use: true
+  focus_ttl_hours: 24
+  current_conversation_unique_candidate_auto_link: true
+  current_conversation_multiple_candidates: clarify_without_state_change
+  cross_conversation_requires_explicit_reference: true
+  cross_conversation_reference_must_bind_delivery_version: true
+  global_unique_task_fallback: false
+  global_status_is_review_context: false
+  newest_submission_fallback: false
+  bulk_acceptance_from_global_status: false
+  composite_intent_preserves_continuation: true
+  explicit_no_reprompt_leaves_submitted: true
+
+interaction_preferences:
+  governance_change: false
+  expands_file_authority: false
+  model_may_set_without_user_event: false
+  actions: [set_interaction_preference, clear_interaction_preference]
+  default_scope: user_and_workspace
+  task_snapshots_current_preference: true
+  defaults:
+    intermediate_confirmation_policy: unchanged_scope_no_prompt
+    review_prompt_policy: report_once_no_prompt
+
+state_store:
+  required_authority: sqlite
+  current_cutover_state: active
+  legacy_backend_role_before_cutover: migration_legacy
+  legacy_backend_may_claim_v3_connected: false
+  managed_domains: [user_events, objective_records, disclosures, authorizations, execution_envelopes, operation_grants, tasks, worker_leases, stages, review_rounds, write_receipts, maintenance_proposals, envelope_repairs, session_handoffs, review_focus, interaction_preferences, outbox, audit_events, migrations]
+  projections:
+    task_cards: markdown_one_way
+    status_pages: generated_one_way
+    events_jsonl: diagnostic_export_only
+    receipt_files: optional_export_only
+    proposal_files: historical_archive_only
+  projection_may_mutate_state: false
+  projection_drift_action: fail_closed
+  long_term_dual_write: forbidden
+  migration_requires: [all_readers_on_state_store, workspace_exclusive_lock, shadow_import, count_and_hash_reconciliation, final_incremental_import, atomic_backend_activation]
+  durability:
+    wal: required
+    online_backup_api: required
+    schema_versioned_snapshot: required
+    integrity_check_before_restore: required
+    projection_regeneration_after_restore: required
+  manual_guard_tamper_resistance_claim: false
+
+evidence:
+  pre_write_rechecks_scope: true
+  post_write_rechecks_scope: true
+  submit_rechecks_scope: true
+  present_review_binds_delivery: true
+  accept_rechecks_delivery_and_receipts: true
+  repair_is_append_only_with_supersede: true
+  later_stage_may_legalize_unauthorized_path: false
+
+maintenance:
+  task_kind: control_plane_maintenance
+  self_authorization: forbidden
+  environment_variable_is_authority: false
+  hmac_is_user_identity_proof: false
+  exact_disclosed_scope_required: true
+  authorization_ttl_minutes: 30
+  current_raw_prompt_forward_count_max: 1
+  replay_forbidden: true
+  retry_may_refresh_original_event_time: false
+  authorization_task_start_and_outbox_atomic: true
+  rescue_entry_independent_of_ordinary_task_gate: true
+  rescue_allowed_actions: [inspect_sqlite, snapshot, revoke_lease, invalidate_envelope, rebuild_projection, append_audit]
+  rescue_forbidden_actions: [edit_business_note, accept_delivery, delete_user_content, push, publish]
+  rescue_audit_must_precede_database_commit: true
+  invalid_envelope_repair:
+    machine_provable_serialization_error_only: true
+    transaction: [verify_original_chain, verify_no_scope_expansion, invalidate_old_task, revoke_old_leases, create_corrected_disclosure, create_corrected_task, map_old_to_new, append_audit]
+    rollback_on_any_failure: true
+
+recovery_roots:
+  registry: .xirang/contract/recovery-roots.yaml
+  ad_hoc_directory_selection: forbidden
+  primary_layout: [objects, manifests, audit]
+  fallback_only_when_registered: true
+  canary_requires: [write, read, sha256, absent_target_restore]
+
+session_handoff:
+  authority: sqlite_state_store
+  context_only: true
+  grants_authority: false
+  explicit_task_reference_required: true
+  stale_when_state_version_changes: true
+  required_fields: [task_summary, completed, current_state, next_steps, pitfalls]
+
+delivery_closeout:
+  separate_delivery_and_workspace_state: true
+  user_may_exclude_git_commit: true
+  no_commit_means_git_recoverability_unverified: true
+  modes: [chat, files, files_no_git]
+  files_no_git:
+    tracked_files_only: true
+    requires: [exact_manifest, effective_file_write_receipt, registered_preimage, final_sha256]
+    forbids: [git_commit, git_tree, git_tag, evidence_only_reclassification]
+    git_recovery_available: false
+  exact_manifest_staging: required_when_committing
+  broad_git_add: forbidden
+  push_without_explicit_authorization: forbidden
+  worktree_inventory_is_read_only: true
+  dirty_worktree_auto_remove: false
+
+external_entry_truth:
+  configuration_file_is_runtime_evidence: false
+  generated_prompt_is_applied_evidence: false
+  entry_not_actually_applied: unverified
+  stale_or_missing_canary: unverified
+  capability_requires: [dispatch, input, output, consumer, behavioral_effect, freshness]
+  unregistered_active_entry_is_p0: true
+  registered_inactive_entry_is_failure: false
+  activity_evidence_any_of: [user_invoked_within_30_days, process_observed, host_load_canary]
+
+retired:
+  current_capabilities_forbidden: [v8_runtime, m3_m4_m5, binary_trigger, pre_flight, traffic_light, legacy_heartbeat, a2a_mock, retired_cost_fuse]
+  allowed_role: historical_or_migration_input_only
+  may_satisfy_v3_acceptance: false
+
+review_debt:
+  superseded_is_accepted: false
+  superseded_requires_accepted_replacement: true
+  superseded_preserves_residual_paths: true
+  legacy_missing_governance_state: legacy_unreviewed
+  legacy_unreviewed_requires_user_action: false
+
+canary:
+  destructive_probe: forbidden
+  evidence_window_minutes: 15
+  report_green_without_current_behavior_evidence: false
+  allowed_states: [connected, manual_guard_ready, needs_maintenance, unverified, not_enabled, failed]
+  manual_guard_success_state: manual_guard_ready
+  manual_guard_success_user_label: 可用（人工校验）
+  manual_guard_ready_may_report_connected: false
