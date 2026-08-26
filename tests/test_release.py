@@ -80,7 +80,16 @@ class ReleaseTests(unittest.TestCase):
             self.assertEqual(digest(self.dist_a / name), digest(self.dist_b / name), name)
         release = json.loads((self.dist_a / "release-manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(release["version"], "9.7.1")
+        self.assertEqual(release["tag"], "v9.7.1")
+        self.assertEqual(
+            release["release_url"],
+            "https://github.com/disturbo/xirang-starter-Vualt/releases/tag/v9.7.1",
+        )
         self.assertEqual(release["asset"]["name"], ASSET)
+        self.assertEqual(
+            release["asset"]["download_url"],
+            "https://github.com/disturbo/xirang-starter-Vualt/releases/download/v9.7.1/xi-rang-v9.7.1-starter.zip",
+        )
         self.assertEqual(release["contents"]["obsidian_plugins"], 14)
 
     def test_complete_package_is_an_openable_obsidian_knowledge_base(self) -> None:

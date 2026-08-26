@@ -18,6 +18,9 @@ from pathlib import Path
 VERSION = "9.7.1"
 PACKAGE_ROOT = f"xi-rang-v{VERSION}-starter"
 PACKAGE_ASSET = f"{PACKAGE_ROOT}.zip"
+RELEASE_TAG = f"v{VERSION}"
+RELEASE_URL = f"https://github.com/disturbo/xirang-starter-Vualt/releases/tag/{RELEASE_TAG}"
+DOWNLOAD_URL = f"https://github.com/disturbo/xirang-starter-Vualt/releases/download/{RELEASE_TAG}/{PACKAGE_ASSET}"
 FIXED_DATE = (2026, 8, 27, 12, 0, 0)
 UPGRADE_PATH = Path(".xirang/distribution/upgrade")
 UPGRADE_TOP_FILES = (
@@ -316,12 +319,14 @@ def build(root: Path, output: Path) -> dict:
             "schema_version": 1,
             "product": "XiRang V9 Starter",
             "version": VERSION,
-            "status": "candidate",
-            "built_at": "2026-08-27",
+            "tag": RELEASE_TAG,
+            "released_at": "2026-08-27",
+            "release_url": RELEASE_URL,
             "support": {"platform": "macOS", "python": ">=3.11"},
             "asset": {
                 "kind": "starter_vault",
                 "name": PACKAGE_ASSET,
+                "download_url": DOWNLOAD_URL,
                 "sha256": asset_sha,
                 "size": destination.stat().st_size,
             },
