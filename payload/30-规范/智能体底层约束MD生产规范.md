@@ -1,3 +1,14 @@
+---
+title: 智能体底层约束 MD 生产规范
+version: "1.1-portable"
+status: current
+type: standard
+source_mapping: curated_from_vault
+source_revision: "2026-08-27"
+review_after: "2026-11-27"
+tags: [规范, Agent, 约束]
+---
+
 # 智能体底层约束 MD 生产规范
 
 底层约束文件负责把 Agent 引到工作区规则和机器契约，不负责写死人格、固定角色或当前运行状态。
@@ -18,3 +29,20 @@
 - 把配置存在、模板存在或旧测试结果写成当前能力证明。
 
 平台模板只提供入口差异；共同规则应引用同一个工作区真源，避免多份复制漂移。
+
+## 跨平台入口
+
+根 `AGENTS.md` 是通用工作区入口；Codex、DeepSeek Harness、Hermes、OpenClaw、WorkBuddy 或其他宿主只在真实支持时增加各自入口。平台文件必须引用同一个 `.xirang/adapters/PROTOCOL.md`，说明它对宿主产生的实际行为效果；“文件已复制”只能报告 configured，不能报告 connected。
+
+平台入口仅替换带版本标记的受管区块，保留用户和项目规则。未知宿主不得猜测全局配置目录、账号或插件位置；使用根入口和 `contract_only`/`manual_guard` 的真实降级状态。
+
+## 记忆、Skill 与状态
+
+- 记忆只辅助召回，不授予权限、不验收交付、不证明外部状态；
+- Skill 只提供方法和路由，使用前仍受任务包络、项目规则和当前能力证明约束；
+- StateStore 是任务、租约、阶段和交付状态真源，Markdown 入口不得复制当前运行状态；
+- 示例中的用户名、目录、平台名和项目名使用占位符，禁止把维护者本机配置打进模板。
+
+## 验收
+
+检查共同语义是否只维护一份、受管区块可幂等更新、区块外内容能保留、未知平台不误写、敏感信息扫描通过，并通过实际宿主 canary 验证入口是否生效。

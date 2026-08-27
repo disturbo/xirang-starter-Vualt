@@ -16,7 +16,9 @@
 | Kanban | 2.0.51 | GPL-3.0 | https://github.com/community-archive/obsidian-kanban |
 | Linter | 1.32.0 | MIT | https://github.com/platers/obsidian-linter |
 | Outliner | 4.10.1 | MIT | https://github.com/vslinko/obsidian-outliner |
+| Floating TOC | 2.7.1 | MIT | https://github.com/PKM-er/obsidian-floating-toc-plugin |
 | Style Settings | 1.0.9 | GPL-3.0 | https://github.com/community-archive/obsidian-style-settings |
+| Supercharged Links | 0.13.10 | MIT | https://github.com/mdelobelle/obsidian_supercharged_links |
 | Tasks | 8.2.2 | MIT | https://github.com/obsidian-tasks-group/obsidian-tasks |
 | Advanced Tables | 0.23.2 | GPL-3.0 | https://github.com/tgrosinger/advanced-tables-obsidian |
 | Templater | 2.20.6 | AGPL-3.0 | https://github.com/SilentVoid13/Templater |

@@ -1,0 +1,25 @@
+/* Portable Supercharged Links preset.
+   The plugin may regenerate this file after the user changes its settings. */
+
+:root {
+}
+
+/* @settings
+name: Supercharged Links
+id: supercharged-links
+settings:
+    -
+        id: xirang-prd-link
+        title: tag is PRD
+        description: Portable default
+        type: heading
+        collapsed: true
+        level: 3
+    -
+        id: xirang-moc-link
+        title: tag is MOC
+        description: Portable default
+        type: heading
+        collapsed: true
+        level: 3
+*/

@@ -39,6 +39,11 @@ CONTRACT_RUNTIME_CARD = CONTRACT_DOC_ROOT / "息壤V9-运行时契约卡.md"
 CONTRACT_README = CONTRACT_DOC_ROOT / "README.md"
 CONTRACT_POLICY = Path(".xirang/contract/policy.yaml")
 CONTRACT_TOOL_REGISTRY = Path(".xirang/contract/tool-registry.json")
+CONTRACT_GOVERNANCE = Path(".xirang/contract/governance-jurisdiction.json")
+CONTRACT_AGENT = Path(".standards/agent-contract.yaml")
+CONTRACT_ADVERSARIAL_CHECK = Path(".standards/adversarial-review-check.py")
+CONTRACT_ADVERSARIAL_SCHEMA = Path(".standards/schemas/adversarial-review.schema.json")
+CONTRACT_TASK_README = Path("02-项目管理/任务卡/README.md")
 
 
 def _contract_frontmatter(text: str) -> dict[str, str]:
@@ -68,6 +73,30 @@ def _contract_policy_inline_list(text: str, key: str) -> list[str]:
     return [item.strip().strip('"\'') for item in match.group(1).split(",") if item.strip()]
 
 
+def _contract_yaml_list(text: str, key: str) -> list[str]:
+    inline = _contract_policy_inline_list(text, key)
+    if inline:
+        return inline
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        match = re.match(rf"^(\s*){re.escape(key)}:\s*$", line)
+        if not match:
+            continue
+        indent = len(match.group(1))
+        values: list[str] = []
+        for candidate in lines[index + 1:]:
+            if not candidate.strip():
+                continue
+            item = re.match(r"^(\s*)-\s+([^#]+?)\s*$", candidate)
+            if item and len(item.group(1)) > indent:
+                values.append(item.group(2).strip().strip('"\''))
+                continue
+            if len(candidate) - len(candidate.lstrip()) <= indent:
+                break
+        return values
+    return []
+
+
 def _contract_values_are_ordered(text: str, values: list[str]) -> bool:
     cursor = -1
     for value in values:
@@ -85,8 +114,9 @@ def check_contract_alignment(root: Path) -> list[dict[str, str]]:
         issues.append({"rule": rule, "path": str(path), "message": message})
 
     required = (
-        CONTRACT_POLICY, CONTRACT_TOOL_REGISTRY, CONTRACT_METHOD,
-        CONTRACT_RUNTIME_CARD, CONTRACT_README,
+        CONTRACT_POLICY, CONTRACT_TOOL_REGISTRY, CONTRACT_GOVERNANCE,
+        CONTRACT_AGENT, CONTRACT_ADVERSARIAL_CHECK, CONTRACT_ADVERSARIAL_SCHEMA,
+        CONTRACT_TASK_README, CONTRACT_METHOD, CONTRACT_RUNTIME_CARD, CONTRACT_README,
     )
     for relative in required:
         if not (root / relative).is_file():
@@ -98,10 +128,17 @@ def check_contract_alignment(root: Path) -> list[dict[str, str]]:
     method_text = (root / CONTRACT_METHOD).read_text(encoding="utf-8")
     runtime_text = (root / CONTRACT_RUNTIME_CARD).read_text(encoding="utf-8")
     readme_text = (root / CONTRACT_README).read_text(encoding="utf-8")
+    agent_text = (root / CONTRACT_AGENT).read_text(encoding="utf-8")
+    task_readme_text = (root / CONTRACT_TASK_README).read_text(encoding="utf-8")
     try:
         registry = json.loads((root / CONTRACT_TOOL_REGISTRY).read_text(encoding="utf-8"))
     except (json.JSONDecodeError, TypeError) as exc:
         fail("tool_registry_json", CONTRACT_TOOL_REGISTRY, f"JSON 无法解析：{exc}")
+        return issues
+    try:
+        governance = json.loads((root / CONTRACT_GOVERNANCE).read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, TypeError) as exc:
+        fail("governance_json", CONTRACT_GOVERNANCE, f"JSON 无法解析：{exc}")
         return issues
 
     version = _contract_policy_scalar(policy_text, "policy_version")
@@ -113,6 +150,29 @@ def check_contract_alignment(root: Path) -> list[dict[str, str]]:
         actual = _contract_frontmatter(text).get("version")
         if actual != version:
             fail("version_alignment", relative, f"frontmatter version={actual!r}，policy={version!r}")
+        if _contract_frontmatter(text).get("review_status") == "submitted":
+            fail("current_doc_review_state", relative, "current 宪法文档不能伪装成待验收任务")
+
+    if str(governance.get("version") or "") != version:
+        fail("governance_version", CONTRACT_GOVERNANCE,
+             f"governance version={governance.get('version')!r}，policy={version!r}")
+    required_domains = {
+        "machine-policy", "workspace-behavior", "maintenance-protocol", "runtime-state",
+        "infrastructure-platform-boundary", "methodology", "adversarial-review",
+        "release-lineage", "governance-jurisdiction", "business-rules",
+    }
+    actual_domains = {
+        str(item.get("domain")) for item in governance.get("domains", []) if isinstance(item, dict)
+    }
+    if required_domains != actual_domains:
+        fail("governance_domains", CONTRACT_GOVERNANCE,
+             f"管辖域不闭合，missing={sorted(required_domains - actual_domains)}，extra={sorted(actual_domains - required_domains)}")
+
+    policy_terminal = _contract_yaml_list(policy_text, "terminal_states")
+    agent_terminal = _contract_yaml_list(agent_text, "terminal_states")
+    if policy_terminal != agent_terminal:
+        fail("terminal_states", CONTRACT_AGENT,
+             f"Agent terminal_states={agent_terminal}，policy={policy_terminal}")
 
     disclosure_fields = _contract_policy_inline_list(policy_text, "disclosure_fields")
     missing = [field for field in disclosure_fields if f"`{field}`" not in runtime_text]
@@ -131,6 +191,7 @@ def check_contract_alignment(root: Path) -> list[dict[str, str]]:
     method_requirements = {
         "authority_fallback": "发生冲突时，立即停止采用本页",
         "human_flow_view": "面向人的压缩视图，不是第二套状态机",
+        "human_flow_name": "面向人的五步协作视图",
         "task_card_notes": ".notes.md",
         "fixed_agents_classification": "被当前架构取代，但不属于 Policy 明确退役清单",
         "minimal_package": "## 最小息壤包",
@@ -162,6 +223,10 @@ def check_contract_alignment(root: Path) -> list[dict[str, str]]:
     if lint_tool.get("state") != "current":
         fail("contract_lint_registration", CONTRACT_TOOL_REGISTRY,
              "contract-lint 未登记为 current")
+    adversarial_tool = tools.get("adversarial-review-check") or {}
+    if adversarial_tool.get("state") != "current":
+        fail("adversarial_tool_registration", CONTRACT_TOOL_REGISTRY,
+             "adversarial-review-check 未登记为 current")
     for tool_id, item in tools.items():
         if item.get("state") != "current":
             continue
@@ -182,6 +247,12 @@ def check_contract_alignment(root: Path) -> list[dict[str, str]]:
         if field not in projection_text:
             fail("task_card_projection", Path(".standards/xirang_state.py"),
                  f"任务卡投影缺少 {field}")
+    if ".notes.md" not in task_readme_text or "非受管区域" in task_readme_text:
+        fail("task_card_notes_contract", CONTRACT_TASK_README,
+             "任务卡备注必须使用同名 .notes.md，不能描述为卡内非受管区域")
+    if "Agent任务五阶段工作流" in method_text or "给人的五阶段工作流" in method_text:
+        fail("retired_human_flow_name", CONTRACT_METHOD,
+             "人类视图不得再命名为五阶段工作流")
     return issues
 
 

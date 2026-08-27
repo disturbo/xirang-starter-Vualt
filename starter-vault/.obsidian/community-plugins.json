@@ -12,5 +12,7 @@
   "obsidian-excalidraw-plugin",
   "obsidian-image-toolkit",
   "better-word-count",
-  "editing-toolbar"
+  "editing-toolbar",
+  "floating-toc",
+  "supercharged-links-obsidian"
 ]

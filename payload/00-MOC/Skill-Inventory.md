@@ -17,7 +17,7 @@ tags: [Skill, Agent, 工具]
 | 随包 Skill | 20 | `.skills/` 内存在完整 `SKILL.md` 和所需资源 |
 | 工作区通用流程 | 7 | 适用于知识库采集、发布、交接、审查和图表 |
 | 通用共享 Skill | 13 | 文件转换、OCR、飞书、研究、UI 与动效能力 |
-| Obsidian 插件 | 14 | 通用插件程序与许可证随包提供，个人 `data.json` 为 0；不含息壤专用插件 |
+| Obsidian 插件 | 16 | 通用插件程序与许可证随包提供；Floating TOC 与 Supercharged Links 已启用，个人运行配置不打包；不含息壤专用插件 |
 
 目录存在只证明 `installed`。需要外部 CLI、网络、账号、Token、Cookie、浏览器或应用连接的能力，在当前调用成功前一律视为 `conditional` 或 `installed_unverified`。
 

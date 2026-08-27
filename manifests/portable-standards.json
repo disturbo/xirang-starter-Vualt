@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "mappings": [
+    {"source": "30-规范/Agent开工边界展示规范.md", "target": "payload/30-规范/Agent开工边界展示规范.md", "target_sha256": "8a97db152f15a211c7303732d853c41f0b27f924136ce62a015d82fd323a8bae"},
+    {"source": "30-规范/Markdown知识库写作规范.md", "target": "payload/30-规范/Markdown知识库写作规范.md", "target_sha256": "c285f34cf2adf8c60a8fe62b157ebb33d4dccb7800b5725912257499af86408f"},
+    {"source": "30-规范/README.md", "target": "payload/30-规范/README.md", "target_sha256": "5061699e5653562551aed718b455d8193f4d648ee4e897b1d837930e1a0be89c"},
+    {"source": "30-规范/SVG架构图设计规范.md", "target": "payload/30-规范/SVG架构图设计规范.md", "target_sha256": "83a6ec202808a973a5279cddfc2a4e3570fa166bae80d29cac822e8b6dd61c3c"},
+    {"source": "30-规范/会议纪要处理规范.md", "target": "payload/30-规范/会议纪要整理规范.md", "target_sha256": "05ec994c6cfd912bc52ac7dd19331d3f5db432e29860816ebff99dc013694d62"},
+    {"source": "30-规范/智能体底层约束MD生产规范.md", "target": "payload/30-规范/智能体底层约束MD生产规范.md", "target_sha256": "2fd2857bc6020f577a1b5d085dba5ea6d7c92327176449787dd8f2818e8dca56"},
+    {"source": "30-规范/流程图绘制规范.md", "target": "payload/30-规范/流程图绘制规范.md", "target_sha256": "6462000d1cadda342d32839b155551c5f818daea7de543eb283e2ff13c300db4"},
+    {"source": "30-规范/知识库信息架构与生命周期规范.md", "target": "payload/30-规范/知识库信息架构与生命周期规范.md", "target_sha256": "ae4966f333d0edd54132bb3f0796027e1c0bc28e5c51c2ce0f1c5a47982513ff"},
+    {"source": "30-规范/通用PRD输出规范.md", "target": "payload/30-规范/通用PRD输出规范.md", "target_sha256": "e8a513c4f1f572a9679d8b821576d793ad27e2e293463839865a34a26aa180ce"},
+    {"source": "30-规范/面向人的五步协作视图.md", "target": "payload/30-规范/面向人的五步协作视图.md", "target_sha256": "63fbe18189e08a7e57fa0d6e08f5a95e082c4eecca6fc370c1fdb19d977e5a0f"},
+    {"source": "50-经验/Agent协作方法论/README.md", "target": "payload/50-经验/Agent协作方法论/README.md", "target_sha256": "f97a59ba7c6f8e2278eefff03007aaad85833ace9a588af5cd5316335ba0e76c"},
+    {"source": "50-经验/Agent协作方法论/息壤V9-多Agent对抗性审查协议.md", "target": "payload/50-经验/Agent协作方法论/息壤V9-多Agent对抗性审查协议.md", "target_sha256": "9451eb0f09931b305b1c6048ff50abb0087d08b301b1672baa3818d083395205"},
+    {"source": "50-经验/Agent协作方法论/息壤V9-架构图.svg", "target": "payload/50-经验/Agent协作方法论/息壤V9-架构图.svg", "target_sha256": "7b546b3ebfe3070b137264c887bfdba865fe2815661d413dd3f2eff8d66cd25c"},
+    {"source": "50-经验/Agent协作方法论/息壤V9-运行时契约卡.md", "target": "payload/50-经验/Agent协作方法论/息壤V9-运行时契约卡.md", "target_sha256": "2ebbccedda4dba101889441de48e8e4d37b92b0e0f9b0d707a0067256ddb1b0d"},
+    {"source": "50-经验/Agent协作方法论/息壤基建与工作平台边界.md", "target": "payload/50-经验/Agent协作方法论/息壤基建与工作平台边界.md", "target_sha256": "79b0cb40e83b1733eeac3bfaa089f61c3d7f54920f07f60d0dcd050cdc4c54aa"},
+    {"source": "50-经验/Agent协作方法论/息壤方法论-V9.md", "target": "payload/50-经验/Agent协作方法论/息壤方法论-V9.md", "target_sha256": "75d4104e9efd37b482cc4fcc81b6db0b3f1185ff387d4526c315e2382f22be48"},
+    {"source": "50-经验/Agent协作方法论/息壤规范管辖权.md", "target": "payload/50-经验/Agent协作方法论/息壤规范管辖权.md", "target_sha256": "cdbc07f7145be2dd623d649b645673a8982e103656e0c65247ab1ab780b0d73d"}
+  ]
+}

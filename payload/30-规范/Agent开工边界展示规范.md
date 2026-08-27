@@ -1,3 +1,14 @@
+---
+title: Agent 开工边界展示规范
+version: "1.1-portable"
+status: current
+type: standard
+source_mapping: curated_from_vault
+source_revision: "2026-08-27"
+review_after: "2026-11-27"
+tags: [规范, Agent, 开工边界]
+---
+
 # Agent 开工边界展示规范
 
 只读查看可以直接完成。写入、删除、移动、外发、发布或运行有副作用的脚本前，Agent 应一次性用普通人能看懂的话展示本次边界。

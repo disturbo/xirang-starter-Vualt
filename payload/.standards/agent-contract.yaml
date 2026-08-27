@@ -1,7 +1,7 @@
 # 息壤 V3 Agent 结构化契约（通用分发版）
 schema_version: 3
 contract_revision: v3-agent-roots
-updated: "2026-08-26"
+updated: "2026-08-27"
 
 authorization:
   source: user_natural_language
@@ -20,7 +20,7 @@ execution:
   continuation: until_terminal_or_stop_condition
   stages: [authorized, preparing, implementing, validating, discovery_review, repairing, revalidating, confirmation_review, committing, submitted]
   pause_states: [blocked_budget, blocked_nonconvergent, blocked_external_dependency, awaiting_material_user_choice, suspended_lease_expired]
-  terminal_states: [canceled]
+  terminal_states: [canceled, submitted]
   budget_required: true
   convergence_required: true
 
@@ -65,6 +65,30 @@ platforms:
     entry: .claude/settings.json
     allowed_mode: manual_guard
     application_state: applied
+    canary_state: unverified
+    connected: false
+  - platform_id: openclaw
+    entry: ~/.openclaw/workspace/AGENTS.md
+    allowed_mode: manual_guard
+    application_state: unverified
+    canary_state: unverified
+    connected: false
+  - platform_id: hermes
+    entry: ~/.hermes/SOUL.md
+    allowed_mode: manual_guard
+    application_state: unverified
+    canary_state: unverified
+    connected: false
+  - platform_id: deepseek_harness
+    entry: ~/.dsh/AGENTS.md
+    allowed_mode: manual_guard
+    application_state: unverified
+    canary_state: unverified
+    connected: false
+  - platform_id: workbuddy
+    entry: ~/.codebuddy/CODEBUDDY.md
+    allowed_mode: manual_guard
+    application_state: unverified
     canary_state: unverified
     connected: false
 

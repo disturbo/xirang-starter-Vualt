@@ -1,0 +1,7 @@
+{
+  "template_folder": "70-模板",
+  "trigger_on_file_creation": false,
+  "auto_jump_to_cursor": true,
+  "enable_folder_templates": false,
+  "folder_templates": []
+}

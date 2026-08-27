@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
 
-VERSION = "9.7.1"
+VERSION = "9.7.2"
 MANAGED_START = "<!-- XIRANG-V97-MANAGED-START -->"
 MANAGED_END = "<!-- XIRANG-V97-MANAGED-END -->"
 PLATFORM_START = "<!-- XIRANG-V97-PLATFORM-START -->"
@@ -144,6 +144,34 @@ def payload_files(root: Path) -> list[Path]:
     if any(path.is_symlink() for path in payload.rglob("*")):
         raise InstallError("Payload 不允许符号链接", code="package_invalid")
     return sorted(paths)
+
+
+def payload_lifecycle(package: Path) -> dict[str, str]:
+    manifest = load_json(package / "manifests/payload-lifecycle.json")
+    if manifest.get("schema_version") != 1 or manifest.get("version") != VERSION:
+        raise InstallError("Payload 生命周期清单版本无效", code="package_invalid")
+    allowed = {"managed_core", "merge", "seed_if_absent", "user_mutable"}
+    result: dict[str, str] = {}
+    for row in manifest.get("files") or []:
+        if not isinstance(row, dict):
+            raise InstallError("Payload 生命周期条目格式错误", code="package_invalid")
+        logical = safe_relative(str(row.get("path") or "")).as_posix()
+        lifecycle = str(row.get("lifecycle") or "")
+        if lifecycle not in allowed or logical in result:
+            raise InstallError(f"Payload 生命周期条目无效：{logical}", code="package_invalid")
+        result[logical] = lifecycle
+    actual = {
+        path.relative_to(package / "payload").as_posix()
+        for path in payload_files(package)
+    }
+    if set(result) != actual:
+        raise InstallError(
+            f"Payload 生命周期闭包不一致：extra={sorted(set(result) - actual)}, missing={sorted(actual - set(result))}",
+            code="package_invalid",
+        )
+    if result.get("AGENTS.md") != "merge":
+        raise InstallError("AGENTS.md 必须使用 merge 生命周期", code="package_invalid")
+    return result
 
 
 def workspace_id(target: Path) -> str:
@@ -268,8 +296,8 @@ def merge_agents(existing: str, managed: str, *, known_legacy_hash: str | None =
 
 def managed_paths(package: Path) -> list[str]:
     values = {
-        path.relative_to(package / "payload").as_posix()
-        for path in payload_files(package)
+        logical for logical, lifecycle in payload_lifecycle(package).items()
+        if lifecycle != "user_mutable"
     }
     return sorted(values | GENERATED_PATHS)
 
@@ -525,23 +553,48 @@ def run_json(command: list[str], *, env: dict[str, str] | None = None) -> dict:
     return result
 
 
-def install_payload(target: Path, package: Path) -> None:
+def install_payload(target: Path, package: Path) -> dict:
     payload = package / "payload"
+    lifecycle = payload_lifecycle(package)
     agents_source = payload / "AGENTS.md"
     existing_path = target / "AGENTS.md"
     existing = existing_path.read_text(encoding="utf-8") if existing_path.is_file() else ""
     known_legacy = "9910c6e7c7ef0b424276024bf26af8d6aa29377fe3df4304ad919fbd23f45e04"
     merged = merge_agents(existing, agents_source.read_text(encoding="utf-8"), known_legacy_hash=known_legacy)
+    written: list[str] = []
+    seeded: list[str] = []
+    preserved: list[str] = []
     for source in payload_files(package):
         relative = source.relative_to(payload)
-        if relative.as_posix() == "AGENTS.md":
+        logical = relative.as_posix()
+        mode = lifecycle[logical]
+        if mode == "merge":
             continue
         destination = target / relative
-        if destination.is_symlink():
-            raise InstallError(f"目标路径是符号链接：{relative.as_posix()}", code="unsafe_target")
+        if destination.is_symlink() or any(parent.is_symlink() for parent in destination.parents if parent != target.parent):
+            raise InstallError(f"目标路径含符号链接：{logical}", code="unsafe_target")
+        if mode == "user_mutable":
+            preserved.append(logical)
+            continue
+        if mode == "seed_if_absent" and destination.exists():
+            if not destination.is_file():
+                raise InstallError(f"知识库种子目标不是普通文件：{logical}", code="unsafe_target")
+            preserved.append(logical)
+            continue
+        if destination.exists() and not destination.is_file():
+            raise InstallError(f"受管目标不是普通文件：{logical}", code="unsafe_target")
         atomic_bytes(destination, source.read_bytes(), stat.S_IMODE(source.stat().st_mode) or 0o644)
+        written.append(logical)
+        if mode == "seed_if_absent":
+            seeded.append(logical)
     atomic_bytes(existing_path, merged.encode())
+    written.append("AGENTS.md")
     write_recovery_registry(target)
+    return {
+        "written": sorted(written),
+        "seeded": sorted(seeded),
+        "preserved_user_content": sorted(preserved),
+    }
 
 
 def merge_platform_entry(existing: str, managed: str) -> str:
@@ -650,6 +703,7 @@ def write_installed_manifest(target: Path, package: Path, detection: dict, trans
         "platform": platform,
         "workspace_id": workspace_id(target),
         "core_manifest_sha256": sha256(package / "manifests/core-manifest.json"),
+        "payload_lifecycle_sha256": sha256(package / "manifests/payload-lifecycle.json"),
         "managed_agents_block_sha256": hashlib.sha256((block.group(0) if block else "").encode()).hexdigest(),
         "file_count": len(core.get("files") or []),
     }
@@ -735,6 +789,9 @@ def plan(target: Path, package: Path, platform: str) -> dict:
         return {"ok": False, "status": "assistance_required", "target": str(target), **detection}
     action = "检查并修复" if detection["mode"] == "current" else ("从旧版升级" if detection["mode"] == "upgrade" else "全新安装")
     external = external_entry_path(platform, package)
+    lifecycle = payload_lifecycle(package)
+    seed_paths = sorted(path for path, mode in lifecycle.items() if mode == "seed_if_absent")
+    preserved_seed_paths = sorted(path for path in seed_paths if (target / safe_relative(path)).exists())
     return {
         "ok": True,
         "status": "ready",
@@ -742,10 +799,16 @@ def plan(target: Path, package: Path, platform: str) -> dict:
         "version": VERSION,
         **detection,
         "platform": platform,
+        "payload_policy": {
+            "managed_core": sum(1 for value in lifecycle.values() if value == "managed_core"),
+            "merge": sum(1 for value in lifecycle.values() if value == "merge"),
+            "seed_if_absent": len(seed_paths),
+            "preserved_existing_seed_paths": preserved_seed_paths,
+        },
         "confirmation_card": {
             "判断": action,
             "目标": str(target),
-            "保留": "业务文件、未知文件、Git 历史、AGENTS.md 中项目自定义规则",
+            "保留": "业务文件、未知文件、Git 历史、AGENTS.md 中项目自定义规则，以及所有已存在的知识库种子、模板、MOC 与教训库",
             "备份": "写入前对受管文件、StateStore 运行目录和 launchd 配置建立带哈希快照",
             "修改": "V9.7 机器契约、完整方法论宪法、StateStore、通用 Agent 根规范与当前宿主入口",
             "平台入口": str(external) if external is not None else f"工作区内 {platform} 入口",
@@ -785,7 +848,7 @@ def apply(target: Path, package: Path, *, no_scheduler: bool, inject_failure: st
             if inject_failure == "after_snapshot":
                 raise InstallError("injected failure after snapshot", code="injected_failure")
             journal = update_journal(journal_path, journal, "writing")
-            install_payload(target, package)
+            payload_result = install_payload(target, package)
             platform_result = install_platform_entry(target, package, platform)
             if inject_failure == "after_payload":
                 raise InstallError("injected failure after payload", code="injected_failure")
@@ -797,7 +860,7 @@ def apply(target: Path, package: Path, *, no_scheduler: bool, inject_failure: st
                 raise InstallError(str(verification["findings"]), code="verification_failed")
             journal = update_journal(journal_path, journal, "completed", completed_at=now_iso())
             append_audit(roots["audit"] / "xirang-install.jsonl", {"event": "install_completed", "transaction_id": transaction_id, "target": str(target), "version": VERSION, "at": now_iso()})
-            return {"ok": True, "status": detection["result"], "target": str(target), "version": VERSION, "transaction_id": transaction_id, "platform_entry": platform_result, "installed_manifest": installed, "runtime": runtime, "verification": verification}
+            return {"ok": True, "status": detection["result"], "target": str(target), "version": VERSION, "transaction_id": transaction_id, "payload": payload_result, "platform_entry": platform_result, "installed_manifest": installed, "runtime": runtime, "verification": verification}
         except Exception as exc:
             snapshot_raw = journal.get("snapshot_manifest")
             if snapshot_raw:
@@ -830,7 +893,7 @@ def recover(target: Path, package: Path) -> dict:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="息壤 V9.7 通用安装与升级器")
+    parser = argparse.ArgumentParser(description="息壤 V9.7.2 通用安装与升级器")
     parser.add_argument("action", choices=("plan", "apply", "verify", "recover"))
     parser.add_argument("--target", type=Path, required=True)
     parser.add_argument("--no-scheduler", action="store_true", help=argparse.SUPPRESS)

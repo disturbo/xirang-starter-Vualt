@@ -5,7 +5,8 @@
   "enabledCssSnippets": [
     "better-mermaid",
     "better-tables",
-    "numbered-headings"
+    "numbered-headings",
+    "supercharged-links-gen"
   ],
   "interfaceFontFamily": "Helvetica",
   "nativeMenus": true,

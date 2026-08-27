@@ -2,7 +2,7 @@
 title: Agent 协作方法论
 type: moc
 status: current
-version: 9.7.1
+version: 9.7.2
 owner: 息壤维护者
 verified_at: 2026-08-27
 verified_against:

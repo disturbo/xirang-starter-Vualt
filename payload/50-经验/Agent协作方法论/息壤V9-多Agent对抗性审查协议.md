@@ -8,7 +8,7 @@ created: 2026-08-10
 updated: 2026-08-26
 author: Codex
 tags: [方法论, 息壤, 多Agent, 对抗性审查, 正式协议]
-supersedes: "[[息壤V9-多Agent对抗性审查-M0试点协议]]"
+supersedes: 息壤V9-多Agent对抗性审查-M0试点协议（历史版本，仅保留于 Git）
 runtime_alignment: V9.7
 ---
 
@@ -101,4 +101,4 @@ python3 .standards/adversarial-review-check.py path/to/report.json --json
 
 ## 8. 演进边界
 
-引入 Defender、交叉质询、自动 Gate、独立 finding 状态机或 StateStore 结构化 finding 表，均属于新的控制面能力，必须同步修改机器契约、实现、正反测试和恢复方案，并重新验收。本协议的试点依据和具体案例见 [[../教训库#E-20260810-01 · 对抗审查回放同时暴露动态风险与报告结构缺陷|教训库 E-20260810-01]]，不在当前宪法中保留项目过程叙述。
+引入 Defender、交叉质询、自动 Gate、独立 finding 状态机或 StateStore 结构化 finding 表，均属于新的控制面能力，必须同步修改机器契约、实现、正反测试和恢复方案，并重新验收。试点依据和具体案例属于任务证据或教训库内容，不复制进当前宪法，也不要求最小包携带特定案例。

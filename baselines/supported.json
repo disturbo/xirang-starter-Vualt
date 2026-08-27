@@ -1,7 +1,28 @@
 {
   "schema_version": 1,
-  "target_version": "9.7.1",
+  "target_version": "9.7.2",
   "supported": [
+    {
+      "version": "9.7.1",
+      "required_hashes": {
+        "VERSION": "8a90c24aefd0a6f6a239afa1c2a5ac225ebfe1632ea8038dad733358850dc16e",
+        "GOVERNANCE.md": "2b9b3ad9b3ebe1a4576820e72826a6a4256980699acc0ff6d812eb874a30b6d6",
+        "息壤.md": "74925fd7e3b238a21b0bf17bba5fcb9b51378a73a88d0b186e86b5eea82f1e2b",
+        ".xirang/contract/policy.yaml": "a56b54a94320da9fd34a77a070a8ab82ad49c49207b3ad82d0434a3de100e7ab",
+        ".standards/agent-contract.yaml": "3d33b86915feade1d617a000065168f6552555aba69929f3846e8aafc8c87e46"
+      },
+      "mutable": [
+        "AGENTS.md",
+        "00-MOC",
+        "02-项目管理",
+        "10-项目",
+        "20-资料",
+        "40-决策",
+        "50-经验/教训库.md",
+        "60-归档",
+        "70-模板"
+      ]
+    },
     {
       "version": "9.5.0",
       "required_hashes": {

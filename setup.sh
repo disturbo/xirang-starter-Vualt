@@ -4,7 +4,7 @@ set -euo pipefail
 PACKAGE_ROOT="$(cd "$(dirname "$0")" && pwd)"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
-  echo '息壤 V9.7.1 当前发行目标支持 macOS；本次未写入任何文件。' >&2
+  echo '息壤 V9.7.2 当前发行目标支持 macOS；本次未写入任何文件。' >&2
   exit 20
 fi
 

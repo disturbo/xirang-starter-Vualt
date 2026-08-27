@@ -21,10 +21,6 @@ from pathlib import Path
 
 ADAPTER_START = "<!-- XIRANG-V97-ADAPTER-START -->"
 ADAPTER_END = "<!-- XIRANG-V97-ADAPTER-END -->"
-REQUIRED_PLATFORMS = {
-    "claude", "codex", "openclaw", "hermes", "hermes_one",
-    "reasonix", "deepseek_harness", "workbuddy",
-}
 SEMANTIC_ROLES = {
     "agent_root", "project_contract", "platform_skill_surface",
     "runtime_context", "workspace_rules",

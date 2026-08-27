@@ -1,3 +1,14 @@
+---
+title: Markdown 知识库写作规范
+version: "1.1-portable"
+status: current
+type: standard
+source_mapping: curated_from_vault
+source_revision: "2026-08-27"
+review_after: "2026-11-27"
+tags: [规范, Markdown, 知识库]
+---
+
 # Markdown 知识库写作规范
 
 ## 目标
@@ -14,19 +25,44 @@
 6. 引用外部资料时记录来源和日期；不把推测写成事实。
 7. 文件名使用稳定主题，不在标题中堆叠“最终版、最新版、真最终”等字样。
 
+## 命名、路径与链接
+
+- 先按 [[知识库信息架构与生命周期规范]] 判断目录，再创建文件；项目规则放项目内，跨项目规则才进入 `30-规范/`。
+- 文件名描述稳定主题，日期仅用于会议、日志或同主题时间序列；版本进入 frontmatter。
+- 新页面必须从至少一个 MOC、项目 README 或上位正文可达；MOC 只导航，不复制正文。
+- 重命名、拆分或移动时同步修复 Wiki 链接、Markdown 链接、嵌入和反向引用，并运行断链检查。
+- 一个文档出现两个独立目标、维护者或生命周期时应拆分；拆分后保留唯一主入口和双向链接。
+
 ## 推荐 Frontmatter
 
 ```yaml
 ---
 title: 文档标题
-status: draft
+status: draft|current|superseded|historical|archived
+version: "1.0"
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
+source: 原始来源或上位真源
+review_after: YYYY-MM-DD
 tags: []
 ---
 ```
 
 只有确实会被检索、筛选或自动化消费的字段才进入 Frontmatter。
+
+## 图、附件与外部来源
+
+- 图只在关系、顺序、层级或状态比文字更清楚时使用；流程图遵循 [[流程图绘制规范]]，架构图遵循 [[SVG架构图设计规范]]。
+- 附件与正文保留稳定相对路径或 Obsidian 嵌入关系，不以临时目录、本机绝对路径或外部登录态作为唯一来源。
+- 外部材料记录来源、获取日期和转化方式；原始材料与整理结论分层，不把模型推断混入原文。
+
+## 发布前检查
+
+- 标题层级、代码块和表格可正确渲染；
+- 新页从导航可达，没有孤儿 current 文档；
+- Wiki 链接与附件无断链；
+- 没有个人路径、账号、密钥或项目无关身份；
+- 状态、版本和上位真源一致。
 
 ## 隐私与安全
 

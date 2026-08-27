@@ -39,6 +39,12 @@ def check(root: Path, task_id: str, *, store: StateStore) -> dict[str, Any]:
     for row in receipts(store, task_id):
         file = row["path"]
         path = resolve(root, file)
+        if not bool(row.get("exists_after")):
+            if path.exists():
+                problems.append({
+                    "file": file, "kind": "unexpected_exists", "receipt_id": row["receipt_id"],
+                })
+            continue
         if not path.is_file():
             problems.append({"file": file, "kind": "unresolvable", "receipt_id": row["receipt_id"]})
             continue

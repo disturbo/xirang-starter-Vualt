@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "version": "9.7.1",
+  "version": "9.7.2",
   "status": "current",
   "updated": "2026-08-27",
   "owner": "XiRang maintainers",
@@ -10,6 +10,7 @@
     {"id": "controlled-delivery", "paths": [".standards/xirang_delivery.py", ".standards/v9-accept.py"], "role": "精确交付与验收关联", "owner": "XiRang maintainers", "verification": "unit tests", "state": "current"},
     {"id": "state-store", "paths": [".standards/xirang_state.py", ".standards/xirang_runtime.py"], "role": "权威运行状态", "owner": "XiRang maintainers", "verification": "StateStore tests", "state": "current"},
     {"id": "contract-lint", "paths": [".standards/xirang-task.py"], "role": "受控断言校验", "owner": "XiRang maintainers", "verification": "contract lint", "state": "current"},
+    {"id": "adversarial-review-check", "paths": [".standards/adversarial-review-check.py", ".standards/schemas/adversarial-review.schema.json"], "role": "对抗审查报告结构与计数校验", "owner": "XiRang maintainers", "verification": "schema positive and negative fixtures", "state": "current"},
     {"id": "state-backup", "paths": [".standards/xirang_state_backup.py"], "role": "SQLite 与逐文件恢复", "owner": "XiRang maintainers", "verification": "backup tests", "state": "current"},
     {"id": "release-lineage", "paths": [".standards/xirang-release-lineage.py"], "role": "本机基建发布血缘", "owner": "XiRang maintainers", "verification": "lineage tests", "state": "current"}
   ],

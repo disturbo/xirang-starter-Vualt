@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "baselines": [
+    {
+      "version": "9.7.1",
+      "files": {
+        ".skills/RESOLVER.md": "a72de6dd66704a69240b66e43dce32329fc1531882f97d02baa8e9c89e6ad8cc",
+        ".skills/feishu-collection/SKILL.md": "7b658fe6a036f0b94f236e57282399bcaded43fa3599cb80a0b5e61ded99a4a0",
+        ".skills/generate-diagram/SKILL.md": "7b6c1164de6a5617c5078415870aa26cfb431d288295e6b1e813531ebafa3adc"
+      }
+    }
+  ]
+}

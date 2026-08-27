@@ -15,13 +15,13 @@ import zipfile
 from pathlib import Path
 
 
-VERSION = "9.7.1"
+VERSION = "9.7.2"
 PACKAGE_ROOT = f"xi-rang-v{VERSION}-starter"
 PACKAGE_ASSET = f"{PACKAGE_ROOT}.zip"
 RELEASE_TAG = f"v{VERSION}"
 RELEASE_URL = f"https://github.com/disturbo/xirang-starter-Vualt/releases/tag/{RELEASE_TAG}"
 DOWNLOAD_URL = f"https://github.com/disturbo/xirang-starter-Vualt/releases/download/{RELEASE_TAG}/{PACKAGE_ASSET}"
-FIXED_DATE = (2026, 8, 27, 12, 0, 0)
+FIXED_DATE = (2026, 8, 27, 16, 0, 0)
 UPGRADE_PATH = Path(".xirang/distribution/upgrade")
 UPGRADE_TOP_FILES = (
     "START-HERE.md",
@@ -33,6 +33,9 @@ UPGRADE_TOP_FILES = (
     "setup.sh",
 )
 UPGRADE_SOURCE_DIRS = ("installer", "baselines", "templates")
+PAYLOAD_LIFECYCLE = Path("starter-vault/.xirang/distribution/payload-lifecycle.json")
+MANAGED_LIFECYCLES = {"managed_core", "merge"}
+KNOWN_LIFECYCLES = MANAGED_LIFECYCLES | {"seed_if_absent", "user_mutable"}
 OBSOLETE_ASSETS = (
     "xi-rang-v9.7.0-complete-vault.zip",
     "xi-rang-v9.7.0-starter-vault.zip",
@@ -143,12 +146,39 @@ def copy_pairs(pairs: list[tuple[Path, Path]], staging: Path) -> None:
         os.chmod(destination, 0o755 if executable else 0o644)
 
 
-def core_source_files(root: Path) -> list[tuple[Path, Path]]:
+def payload_source_files(root: Path) -> list[tuple[Path, Path]]:
     payload = root / "payload"
     return [
         (source, logical.relative_to("payload"))
         for source, logical in collect_files(payload, relative_to=root)
     ]
+
+
+def load_payload_lifecycle(root: Path, payload_paths: set[str]) -> tuple[dict, dict[str, str]]:
+    source = root / PAYLOAD_LIFECYCLE
+    try:
+        document = json.loads(source.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"invalid payload lifecycle manifest: {exc}") from exc
+    if document.get("schema_version") != 1 or not isinstance(document.get("files"), list):
+        raise SystemExit("invalid payload lifecycle manifest schema")
+    lifecycle_by_path: dict[str, str] = {}
+    for row in document["files"]:
+        if not isinstance(row, dict):
+            raise SystemExit("payload lifecycle row must be an object")
+        path = str(row.get("path") or "")
+        lifecycle = str(row.get("lifecycle") or "")
+        if not path or path in lifecycle_by_path or lifecycle not in KNOWN_LIFECYCLES:
+            raise SystemExit(f"invalid payload lifecycle row: {row!r}")
+        lifecycle_by_path[path] = lifecycle
+    missing = sorted(payload_paths - set(lifecycle_by_path))
+    extra = sorted(set(lifecycle_by_path) - payload_paths)
+    if missing or extra:
+        raise SystemExit(
+            "payload lifecycle does not close over payload:\n"
+            + f"missing={missing}\nextra={extra}"
+        )
+    return document, lifecycle_by_path
 
 
 def upgrade_source_files(root: Path) -> list[tuple[Path, Path]]:
@@ -248,20 +278,24 @@ def build(root: Path, output: Path) -> dict:
         staging = Path(raw) / PACKAGE_ROOT
         staging.mkdir()
 
-        core_pairs = core_source_files(root)
+        payload_pairs = payload_source_files(root)
         overlay_pairs = overlay_source_files(root)
-        core_paths = {logical for _, logical in core_pairs}
+        payload_paths = {logical for _, logical in payload_pairs}
         overlay_paths = {logical for _, logical in overlay_pairs}
-        collisions = sorted(path.as_posix() for path in core_paths.intersection(overlay_paths))
+        collisions = sorted(path.as_posix() for path in payload_paths.intersection(overlay_paths))
         if collisions:
             raise SystemExit("starter overlay conflicts with Core:\n" + "\n".join(collisions))
-        copy_pairs(core_pairs, staging)
+        lifecycle_document, lifecycle_by_path = load_payload_lifecycle(
+            root, {path.as_posix() for path in payload_paths}
+        )
+        copy_pairs(payload_pairs, staging)
         copy_pairs(overlay_pairs, staging)
 
         upgrade = staging / UPGRADE_PATH
         upgrade.mkdir(parents=True)
-        copy_pairs([(source, Path("payload") / logical) for source, logical in core_pairs], upgrade)
+        copy_pairs([(source, Path("payload") / logical) for source, logical in payload_pairs], upgrade)
         copy_pairs(upgrade_source_files(root), upgrade)
+        atomic_json(upgrade / "manifests/payload-lifecycle.json", lifecycle_document)
 
         distribution_sources = (
             (root / "tools/verify_complete.py", Path(".xirang/distribution/verify_complete.py")),
@@ -269,11 +303,15 @@ def build(root: Path, output: Path) -> dict:
         )
         copy_pairs(list(distribution_sources), staging)
 
+        payload_rows = file_rows(upgrade, prefix=Path("payload"))
         core = {
             "schema_version": 1,
             "version": VERSION,
             "kind": "managed_payload",
-            "files": file_rows(upgrade, prefix=Path("payload")),
+            "files": [
+                row for row in payload_rows
+                if lifecycle_by_path[row["path"]] in MANAGED_LIFECYCLES
+            ],
         }
         root_core_manifest = staging / ".xirang/distribution/core-manifest.json"
         upgrade_core_manifest = upgrade / "manifests/core-manifest.json"
@@ -334,7 +372,7 @@ def build(root: Path, output: Path) -> dict:
                 "portable_skills": skill_count,
                 "obsidian_plugins": plugin_count,
                 "theme": "Things 2.2.3",
-                "css_snippets": 3,
+                "css_snippets": sum(1 for path in (staging / ".obsidian/snippets").glob("*.css") if path.is_file()),
             },
             "core_manifest_sha256": sha256(upgrade_core_manifest),
             "package_manifest_sha256": sha256(package_manifest),

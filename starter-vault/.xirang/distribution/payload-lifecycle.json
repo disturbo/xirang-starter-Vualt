@@ -1,0 +1,376 @@
+{
+  "classes": {
+    "managed_core": "replace from the verified release",
+    "merge": "replace only the XiRang-managed block",
+    "seed_if_absent": "create when missing; never overwrite user content",
+    "user_mutable": "never written by the installer"
+  },
+  "files": [
+    {
+      "lifecycle": "seed_if_absent",
+      "path": ".gitignore"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/adversarial-review-check.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/agent-contract.yaml"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/agent-root-spec.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/hooks/codex-hook-adapter.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/install-xirang-rescue.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/schemas/adversarial-review.schema.json"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/tests/test_v9_distribution_smoke.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/v9-accept.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/v9-platform-capability-matrix.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang-canary.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang-configure.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang-evidence-repair.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang-handoff.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang-release-lineage.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang-rescue.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang-selftest.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang-task-archive.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang-task-decision.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang-task-index.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang-task.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang-user-status.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang-worktree-inventory.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang_delivery.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang_recovery_roots.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang_runtime.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang_state.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang_state_backup.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang_state_cli.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang_state_migrate.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".standards/xirang_task_projection.py"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".xirang/adapters/PROTOCOL.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".xirang/adapters/registry.json"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".xirang/capabilities.json"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".xirang/contract/governance-jurisdiction.json"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".xirang/contract/policy.yaml"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".xirang/contract/state-authority.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": ".xirang/contract/tool-registry.json"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "00-MOC/.gitkeep"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "00-MOC/Skill-Inventory.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "00-MOC/工作台.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "00-MOC/知识库导航.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "02-项目管理/README.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "02-项目管理/任务卡/.gitkeep"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "02-项目管理/任务卡/README.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "10-项目/.gitkeep"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "10-项目/README.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "20-资料/.gitkeep"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "20-资料/README.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "30-规范/.gitkeep"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "30-规范/Agent开工边界展示规范.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "30-规范/Markdown知识库写作规范.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "30-规范/README.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "30-规范/SVG架构图设计规范.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "30-规范/会议纪要整理规范.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "30-规范/智能体底层约束MD生产规范.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "30-规范/流程图绘制规范.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "30-规范/知识库信息架构与生命周期规范.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "30-规范/通用PRD输出规范.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "30-规范/面向人的五步协作视图.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "40-决策/.gitkeep"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "40-决策/README.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "50-经验/.gitkeep"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "50-经验/Agent协作方法论/README.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "50-经验/Agent协作方法论/息壤V9-多Agent对抗性审查协议.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "50-经验/Agent协作方法论/息壤V9-架构图.svg"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "50-经验/Agent协作方法论/息壤V9-运行时契约卡.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "50-经验/Agent协作方法论/息壤基建与工作平台边界.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "50-经验/Agent协作方法论/息壤方法论-V9.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "50-经验/Agent协作方法论/息壤规范管辖权.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "50-经验/README.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "50-经验/教训库.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "60-归档/.gitkeep"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "60-归档/README.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "70-模板/.gitkeep"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "70-模板/README.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "70-模板/T-PRD.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "70-模板/T-任务说明.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "70-模板/T-会议纪要.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "70-模板/T-决策记录.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "70-模板/T-智能体底层约束.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "70-模板/T-经验教训.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "70-模板/T-资料摘要.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "70-模板/T-运行日志.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "70-模板/T-项目笔记.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "70-模板/T-项目首页.md"
+    },
+    {
+      "lifecycle": "merge",
+      "path": "AGENTS.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "GOVERNANCE.md"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "VERSION"
+    },
+    {
+      "lifecycle": "managed_core",
+      "path": "息壤.md"
+    },
+    {
+      "lifecycle": "seed_if_absent",
+      "path": "🏠-Home.md"
+    }
+  ],
+  "schema_version": 1,
+  "version": "9.7.2"
+}

@@ -15,8 +15,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "tools/build_release.py"
 INSTALLER_SOURCE = ROOT / "installer/xirang_install.py"
-ASSET = "xi-rang-v9.7.1-starter.zip"
-ARCHIVE_ROOT = "xi-rang-v9.7.1-starter"
+ASSET = "xi-rang-v9.7.2-starter.zip"
+ARCHIVE_ROOT = "xi-rang-v9.7.2-starter"
 
 
 def digest(path: Path) -> str:
@@ -26,7 +26,7 @@ def digest(path: Path) -> str:
 class ReleaseTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls._temp = tempfile.TemporaryDirectory(prefix="xirang-v971-tests-")
+        cls._temp = tempfile.TemporaryDirectory(prefix="xirang-v972-tests-")
         cls.base = Path(cls._temp.name)
         cls.dist_a = cls.base / "dist-a"
         cls.dist_b = cls.base / "dist-b"
@@ -79,18 +79,18 @@ class ReleaseTests(unittest.TestCase):
         for name in (ASSET, "release-manifest.json", "SHA256SUMS"):
             self.assertEqual(digest(self.dist_a / name), digest(self.dist_b / name), name)
         release = json.loads((self.dist_a / "release-manifest.json").read_text(encoding="utf-8"))
-        self.assertEqual(release["version"], "9.7.1")
-        self.assertEqual(release["tag"], "v9.7.1")
+        self.assertEqual(release["version"], "9.7.2")
+        self.assertEqual(release["tag"], "v9.7.2")
         self.assertEqual(
             release["release_url"],
-            "https://github.com/disturbo/xirang-starter-Vualt/releases/tag/v9.7.1",
+            "https://github.com/disturbo/xirang-starter-Vualt/releases/tag/v9.7.2",
         )
         self.assertEqual(release["asset"]["name"], ASSET)
         self.assertEqual(
             release["asset"]["download_url"],
-            "https://github.com/disturbo/xirang-starter-Vualt/releases/download/v9.7.1/xi-rang-v9.7.1-starter.zip",
+            "https://github.com/disturbo/xirang-starter-Vualt/releases/download/v9.7.2/xi-rang-v9.7.2-starter.zip",
         )
-        self.assertEqual(release["contents"]["obsidian_plugins"], 14)
+        self.assertEqual(release["contents"]["obsidian_plugins"], 16)
 
     def test_complete_package_is_an_openable_obsidian_knowledge_base(self) -> None:
         with zipfile.ZipFile(self.asset) as archive:
@@ -138,11 +138,14 @@ class ReleaseTests(unittest.TestCase):
             self.assertTrue((manifest.parent / "LICENSE").is_file(), manifest)
             self.assertFalse((manifest.parent / "data.json").exists(), manifest)
         self.assertEqual(set(declared_plugins), set(actual_plugins))
-        self.assertEqual(len(actual_plugins), 14)
+        self.assertEqual(len(actual_plugins), 16)
         self.assertIn("editing-toolbar", actual_plugins)
         editing_toolbar = package / ".obsidian/plugins/editing-toolbar"
         self.assertEqual(json.loads((editing_toolbar / "manifest.json").read_text())["version"], "4.1.1")
         self.assertTrue((editing_toolbar / "styles.css").is_file())
+        self.assertIn("floating-toc", actual_plugins)
+        self.assertIn("supercharged-links-obsidian", actual_plugins)
+        self.assertNotIn("obsidian-quiet-outline", actual_plugins)
         self.assertNotIn("xirang-workbench", actual_plugins)
         skills = sorted(path.parent.name for path in (package / ".skills").glob("*/SKILL.md"))
         self.assertEqual(len(skills), 20)
@@ -155,9 +158,14 @@ class ReleaseTests(unittest.TestCase):
         upgrade_core = (self.upgrade(package) / "manifests/core-manifest.json").read_bytes()
         self.assertEqual(root_core, upgrade_core)
         paths = {row["path"] for row in json.loads(root_core)["files"]}
-        self.assertIn("🏠-Home.md", paths)
-        self.assertIn("00-MOC/Skill-Inventory.md", paths)
-        self.assertIn("30-规范/Agent任务五阶段工作流.md", paths)
+        self.assertIn("30-规范/面向人的五步协作视图.md", paths)
+        self.assertIn(".standards/xirang-task.py", paths)
+        self.assertNotIn("🏠-Home.md", paths)
+        self.assertNotIn("00-MOC/Skill-Inventory.md", paths)
+        lifecycle = json.loads((package / ".xirang/distribution/payload-lifecycle.json").read_text())
+        lifecycle_paths = {row["path"] for row in lifecycle["files"]}
+        self.assertIn("🏠-Home.md", lifecycle_paths)
+        self.assertIn("00-MOC/Skill-Inventory.md", lifecycle_paths)
         self.assertNotIn(".obsidian/workspace.json", paths)
         self.assertFalse(any(path.startswith(".skills/") for path in paths))
 
@@ -192,7 +200,18 @@ class ReleaseTests(unittest.TestCase):
         self.assertIn("dataview", plugins)
         self.assertTrue((target / ".skills/start-task/SKILL.md").is_file())
         self.assertTrue((target / ".obsidian/plugins/dataview/main.js").is_file())
-        self.assertFalse(any(target.rglob("data.json")))
+        preset_data = {
+            path.relative_to(target).as_posix()
+            for path in target.rglob("data.json")
+        }
+        self.assertEqual(
+            preset_data,
+            {
+                ".obsidian/plugins/floating-toc/data.json",
+                ".obsidian/plugins/supercharged-links-obsidian/data.json",
+                ".obsidian/plugins/templater-obsidian/data.json",
+            },
+        )
         self.assertTrue(Path(result["backup"]).is_dir())
 
         conflict_target = self.base / "extras-conflict"
@@ -297,10 +316,23 @@ class ReleaseTests(unittest.TestCase):
         self.assertIn(installed["status"], {"installed", "current_verified"})
         extras_code, extras = self.run_extras(package, package, "apply")
         self.assertEqual(extras_code, 0, extras)
-        self.assertEqual(extras["status"], "current_verified")
+        self.assertIn(extras["status"], {"extras_installed", "current_verified"})
+        extras_code, extras_again = self.run_extras(package, package, "apply")
+        self.assertEqual(extras_code, 0, extras_again)
+        self.assertEqual(extras_again["status"], "current_verified")
         self.assertEqual(digest(plugin), plugin_before)
         self.assertEqual(digest(skill), skill_before)
-        self.assertFalse(any(package.rglob("data.json")))
+        self.assertEqual(
+            {
+                path.relative_to(package).as_posix()
+                for path in package.rglob("data.json")
+            },
+            {
+                ".obsidian/plugins/floating-toc/data.json",
+                ".obsidian/plugins/supercharged-links-obsidian/data.json",
+                ".obsidian/plugins/templater-obsidian/data.json",
+            },
+        )
 
     def test_unknown_install_requires_assistance(self) -> None:
         package = self.package("unknown")
@@ -343,6 +375,46 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(unknown["platform_entry"]["state"], "workspace_entry_configured")
         registry = json.loads((unknown_target / ".xirang/adapters/registry.json").read_text(encoding="utf-8"))
         self.assertEqual(registry["platforms"]["future_agent"]["allowed_mode"], "contract_only")
+
+    def test_payload_lifecycle_closes_over_every_payload_file(self) -> None:
+        lifecycle = json.loads((ROOT / "starter-vault/.xirang/distribution/payload-lifecycle.json").read_text())
+        declared = {row["path"]: row["lifecycle"] for row in lifecycle["files"]}
+        actual = {path.relative_to(ROOT / "payload").as_posix() for path in (ROOT / "payload").rglob("*") if path.is_file()}
+        self.assertEqual(set(declared), actual)
+        self.assertEqual(sum(value == "managed_core" for value in declared.values()), 56)
+        self.assertEqual(sum(value == "merge" for value in declared.values()), 1)
+        self.assertEqual(sum(value == "seed_if_absent" for value in declared.values()), 34)
+
+    def test_portable_standard_source_map_has_no_omissions(self) -> None:
+        completed = subprocess.run(
+            [sys.executable, str(ROOT / "tools/check_portable_standards.py")],
+            capture_output=True, text=True, check=False,
+        )
+        result = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 0, result)
+        self.assertEqual(result["mappings"], 17)
+
+    def test_portable_knowledge_base_links_and_semantics_are_closed(self) -> None:
+        completed = subprocess.run(
+            [sys.executable, str(ROOT / "tools/check_knowledge_base.py"), "--root", str(ROOT / "payload")],
+            capture_output=True, text=True, check=False,
+        )
+        result = json.loads(completed.stdout)
+        self.assertEqual(completed.returncode, 0, result)
+        self.assertTrue(result["ok"], result)
+
+    def test_obsidian_presets_and_zip_metadata_are_closed(self) -> None:
+        package = self.package("obsidian-presets")
+        plugins = set(json.loads((package / ".obsidian/community-plugins.json").read_text()))
+        presets = {path.stem for path in (package / ".xirang/distribution/obsidian-presets").glob("*.json")}
+        self.assertTrue({"floating-toc", "supercharged-links-obsidian", "templater-obsidian"} <= presets)
+        self.assertTrue(presets <= plugins)
+        workspace = (package / ".obsidian/workspace.json").read_text(encoding="utf-8")
+        self.assertNotIn("outline", workspace)
+        self.assertNotIn("obsidian-quiet-outline", workspace)
+        with zipfile.ZipFile(self.asset) as archive:
+            names = archive.namelist()
+        self.assertFalse(any(name.startswith("__MACOSX/") or "/._" in name for name in names))
 
     def test_injected_failure_restores_preimage(self) -> None:
         package = self.package("rollback")

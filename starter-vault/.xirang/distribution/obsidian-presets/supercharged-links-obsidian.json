@@ -1,0 +1,29 @@
+{
+  "targetAttributes": [
+    "tags",
+    "status",
+    "type"
+  ],
+  "preset": "Custom",
+  "match": "tag",
+  "selectors": [
+    {
+      "type": "tag",
+      "value": "PRD",
+      "label": "",
+      "color": "#3b82f6",
+      "style": {"bold": false, "italic": false},
+      "before": "",
+      "after": ""
+    },
+    {
+      "type": "tag",
+      "value": "MOC",
+      "label": "",
+      "color": "#22c55e",
+      "style": {"bold": false, "italic": false},
+      "before": "",
+      "after": ""
+    }
+  ]
+}

@@ -1,6 +1,8 @@
 ---
 title: "{{会议主题}}"
-date: "{{日期}}"
+meeting_date: "{{日期}}"
+type: 会议纪要
+source: "{{原始来源}}"
 status: current
 tags: [会议纪要]
 ---
